@@ -49,8 +49,16 @@ function render() {
   renderTabs();
   const v = $('#view');
   v.innerHTML = ({ mese: viewMese, debiti: viewDebiti, stat: viewStat, altro: viewAltro })[ui.tab]();
-  if (ui.tab === 'mese') renderList();
+  if (ui.tab === 'mese') { renderList(); fitAcc(); }
 }
+
+// Nome e totale di Carta/Contanti restano sulla stessa riga, alla stessa grandezza (anche oltre 10.000 €)
+function fitAcc() {
+  const tops = [...document.querySelectorAll('.acc .top')]; if (!tops.length) return;
+  let size = 19; tops.forEach(t => t.style.fontSize = size + 'px');
+  while (size > 10 && tops.some(t => t.scrollWidth > t.clientWidth + 0.5)) { size -= 0.5; tops.forEach(t => t.style.fontSize = size + 'px'); }
+}
+window.addEventListener('resize', fitAcc);
 
 // ---------- MESE ----------
 function curPeriod() { return S.period(ui.periodId) || C.currentPeriod(); }
@@ -67,7 +75,7 @@ function viewMese() {
   const st = C.stats(p), i = S.state.periods.findIndex(x => x.id === p.id);
   const hero = p.salary == null
     ? `<div class="lbl">Risparmiato</div><div class="big muted" style="font-size:24px">In attesa dello stipendio…</div>`
-    : `<div class="lbl">Risparmiato</div><div class="big num ${st.saved >= 0 ? 'pos' : 'neg'}">${signed(st.saved).replace('+', '')}</div>`;
+    : `<div class="lbl">Risparmiato</div><div class="big num ${st.saved >= 0 ? '' : 'neg'}">${signed(st.saved).replace('+', '')}</div>`;
   return `
   <div class="bar">
     <button class="periodbtn" data-act="pickPeriod"><span>${esc(periodLabel(p))}</span>${IC.chev}</button>
@@ -77,18 +85,16 @@ function viewMese() {
     ${hero}
     <div class="sub num"><span>Stipendio <b>${p.salary == null ? '—' : money(p.salary)}</b></span><span>Spesa reale <b>${money(st.real)}</b></span><span>Totale <b>${money(st.total)}</b></span></div>
   </button>
-  <div class="grid2">
-    ${accCard('carta', 'Carta', st.card, p)}${accCard('contanti', 'Contanti', st.cash, p)}
-  </div>
+  <div class="accs">${accCard('carta', 'Carta', st.card)}${accCard('contanti', 'Contanti', st.cash)}</div>
   <div class="search">${IC.search}<input id="q" type="search" placeholder="Cerca in tutti i mesi" value="${esc(ui.q)}" enterkeyhint="search" autocomplete="off" autocapitalize="off"></div>
   <div class="seg" id="acctSeg">${['tutti', 'carta', 'contanti'].map(a => `<button data-act="acct" data-id="${a}" class="${ui.acct === a ? 'on' : ''}">${{ tutti: 'Tutti', carta: 'Carta', contanti: 'Contanti' }[a]}</button>`).join('')}</div>
   <div id="listBox"></div>`;
 }
-function accCard(id, name, a, p) {
-  return `<button class="card acc ${ui.acct === id ? 'sel' : ''}" data-act="acct" data-id="${ui.acct === id ? 'tutti' : id}">
-    <div class="t"><span>${name}</span></div><div class="v num">${money(a.rest)}</div>
-    <div class="l num"><span>Entrate</span><span class="pos">${money(a.in)}</span></div>
-    <div class="l num"><span>Uscite</span><span class="neg">${money(a.out)}</span></div></button>`;
+function accCard(id, name, a) {
+  return `<button class="acc ${id} ${ui.acct === id ? 'sel' : ''}" data-act="acct" data-id="${ui.acct === id ? 'tutti' : id}">
+    <div class="top"><span>${name}</span><span class="num">${money(a.rest)}</span></div>
+    <div class="l num"><span>Entrate</span><span>${money(a.in)}</span></div>
+    <div class="l num"><span>Uscite</span><span>${money(a.out)}</span></div></button>`;
 }
 
 function rowHtml(t, showAcct, showPeriod) {
@@ -97,7 +103,7 @@ function rowHtml(t, showAcct, showPeriod) {
     debt ? `<span class="tag dbt">${esc(debt.person)}</span>` : '', showPeriod ? `<span>${esc(fmtShort(t.date))}</span>` : ''].join('');
   const title = (t.category ? `<b>${esc(t.category)}</b>${t.desc ? ' - ' : ''}` : '') + esc(t.desc);
   return `<button class="row" data-act="editTx" data-id="${t.id}"><div class="main"><div class="ttl">${title || '—'}</div>${sm ? `<div class="sm">${sm}</div>` : ''}</div>
-    <div class="amt num ${t.kind === 'in' ? 'pos' : ''}">${t.kind === 'in' ? '+' : '−'}${money(t.amount)}</div></button>`;
+    <div class="amt num">${t.kind === 'in' ? '+' : '−'}${money(t.amount)}</div></button>`;
 }
 const byDateDesc = (a, b) => b[0].date.localeCompare(a[0].date) || b[1] - a[1];
 
@@ -141,14 +147,12 @@ function editPeriod() {
       <div class="frow"><label>Inizio carta</label><input id="pCard" inputmode="decimal" value="${v(p.startCard)}"></div>
       <div class="frow"><label>Inizio contanti</label><input id="pCash" inputmode="decimal" value="${v(p.startCash)}"></div>
       <div class="frow"><label>Rettifica</label><input id="pAdj" inputmode="decimal" value="${v(p.adjust || 0)}"></div>
-    </div>
-    <p class="hint">Lo stipendio entra sulla carta. “Spesa reale” = inizio carta + inizio contanti + stipendio − restanti + rettifica. Una rettifica negativa (es. −200) riduce la spesa reale, come quando nel foglio sottraevi una cifra da N2.</p>
-    <div class="form"><div class="frow"><label>Dal</label><input id="pFrom" type="date" value="${p.start}"></div><div class="frow"><label>Al</label><input id="pTo" type="date" value="${p.end}"></div></div>`, {
+    </div>`, {
     onSave: async w => {
       const g = id => $(id, w).value.trim(), n = id => g(id) === '' ? null : num(g(id));
       const sal = n('#pSal'), sc = n('#pCard') ?? 0, sk = n('#pCash') ?? 0, adj = n('#pAdj') ?? 0;
       if ([sal, sc, sk, adj].some(x => x !== null && Number.isNaN(x))) return toast('Controlla i numeri'), false;
-      await S.save('periods', { ...p, salary: sal, startCard: sc, startCash: sk, adjust: adj, start: g('#pFrom') || p.start, end: g('#pTo') || p.end });
+      await S.save('periods', { ...p, salary: sal, startCard: sc, startCash: sk, adjust: adj, start: p.start, end: p.end });
       render();
     }
   });
@@ -270,8 +274,7 @@ function viewDebiti() {
   return `<div class="bar"><h1>Debiti</h1><button class="iconbtn" data-act="newPerson" aria-label="Nuova persona">${IC.plus.replace('width="26" height="26"', 'width="22" height="22"')}</button></div>
   <div class="grid2"><div class="card acc"><div class="t">Ti devono</div><div class="v num pos">${money(owed)}</div></div><div class="card acc"><div class="t">Devi</div><div class="v num neg">${money(owe)}</div></div></div>
   ${ppl.length ? `<div class="list" style="margin-top:4px">${ppl.map(p => `<button class="row" data-act="person" data-id="${esc(p.name)}"><div class="main"><div class="ttl"><b>${esc(p.name)}</b></div><div class="sm">${p.bal > 0 ? 'ti deve' : p.bal < 0 ? 'devi' : 'in pari'}</div></div><div class="amt num ${p.bal > 0 ? 'pos' : p.bal < 0 ? 'neg' : 'muted'}">${money(Math.abs(p.bal))}</div></button>`).join('')}</div>`
-    : `<div class="empty">Nessun debito registrato.<br>Aggiungi una persona con + oppure collega un debito mentre inserisci un movimento.</div>`}
-  <p class="hint" style="margin-top:14px">Nei fogli i prestiti erano scritti nei motivi (es. “Prestito Papà”). Apri una persona e usa <b>Collega movimenti esistenti</b> per trasformarli in debiti.</p>`;
+    : `<div class="empty">Nessun debito registrato</div>`}`;
 }
 
 function newPerson() {
@@ -285,7 +288,7 @@ function openPerson(name) {
     const bal = C.r2(ds.reduce((s, d) => s + d.amount, 0));
     return `<div class="card hero" style="text-align:center"><div class="lbl">${bal > 0 ? name + ' ti deve' : bal < 0 ? 'Devi a ' + name : 'In pari con ' + name}</div><div class="big num ${bal > 0 ? 'pos' : bal < 0 ? 'neg' : ''}">${money(Math.abs(bal))}</div></div>
     <div class="btns2">${Object.entries(DEBT_TYPES).map(([k, t]) => `<button class="btn sec" data-dt="${k}">${t.label}</button>`).join('')}</div>
-    <button class="btn sec" data-link>Collega movimenti esistenti</button>
+    <button class="btn sec" data-link>Collega movimenti esistenti</button><button class="btn sec" data-fix>Correggi saldo</button>
     <div class="sechead"><span>Storico</span></div>
     ${ds.length ? `<div class="list">${ds.map(d => `<button class="row" data-ed="${d.id}"><div class="main"><div class="ttl">${esc(DEBT_TYPES[d.type]?.label || (d.amount > 0 ? 'Credito' : 'Debito'))}${d.note ? ' · ' + esc(d.note) : ''}</div><div class="sm">${esc(fmtShort(d.date))}${d.txId ? ' · collegato' : ''}</div></div><div class="amt num ${d.amount > 0 ? 'pos' : 'neg'}">${signed(d.amount)}</div></button>`).join('')}</div>` : '<div class="empty">Nessuna voce</div>'}
     <div style="margin-top:18px"><button class="btn red" data-rename>Rinomina / elimina persona</button></div>`;
@@ -297,6 +300,13 @@ function openPerson(name) {
       const wire = () => {
         body.querySelectorAll('[data-dt]').forEach(b => b.onclick = () => debtEntrySheet(name, b.dataset.dt, redraw));
         $('[data-link]', body).onclick = () => linkSheet(name, redraw);
+        $('[data-fix]', body).onclick = async () => {
+          const cur = C.r2(S.state.debts.filter(d => d.person === name).reduce((a, d) => a + d.amount, 0));
+          const v = prompt(`Saldo attuale con ${name} (positivo = ti deve):`, String(cur).replace('.', ',')); if (v === null) return;
+          const target = num(v); if (Number.isNaN(target)) return toast('Numero non valido');
+          const diff = C.r2(target - cur); if (!diff) return;
+          await S.save('debts', { id: S.uid(), person: name, type: null, amount: diff, date: C.today(), note: 'Correzione saldo', txId: null }); redraw();
+        };
         body.querySelectorAll('[data-ed]').forEach(b => b.onclick = () => {
           const d = S.state.debts.find(x => x.id === b.dataset.ed); if (!d) return;
           if (d.txId) { if (confirm('Questa voce è collegata a un movimento. Scollegarla (il movimento resta)?')) S.remove('debts', d.id).then(redraw); }
@@ -324,7 +334,7 @@ function debtEntrySheet(person, type, done) {
       <div class="frow"><label>Data</label><input id="eDate" type="date" value="${C.today()}"></div>
       <div class="frow"><label>Nota</label><input id="eNote" placeholder="Facoltativa"></div>
       <div class="frow"><label>Registra su</label><select id="eAcc"><option value="">Solo promemoria</option><option value="carta">Carta (${dt.kind === 'out' ? 'uscita' : 'entrata'})</option><option value="contanti">Contanti (${dt.kind === 'out' ? 'uscita' : 'entrata'})</option></select></div>
-    </div><p class="hint">Scegli Carta o Contanti per creare anche il movimento nel mese; “Solo promemoria” non tocca i saldi.</p>`, {
+    </div>`, {
     onMount: w => setTimeout(() => $('#eAmt', w).focus(), 300),
     onSave: async w => {
       const amt = C.r2(num($('#eAmt', w).value)), date = $('#eDate', w).value, note = $('#eNote', w).value.trim(), acc = $('#eAcc', w).value;
@@ -402,15 +412,15 @@ function viewAltro() {
   return `<div class="bar"><h1>Altro</h1></div>${warn}
   <div class="sechead"><span>Backup e dati</span></div>
   <div class="list">
-    <button class="row" data-act="export"><div class="main"><div class="ttl">Esporta backup (JSON)</div><div class="sm">${S.state.meta.lastBackup ? 'Ultimo: ' + new Date(S.state.meta.lastBackup).toLocaleDateString('it-IT') : 'Mai eseguito'}</div></div></button>
-    <label class="row"><div class="main"><div class="ttl">Importa / ripristina backup</div><div class="sm">Scegli un file .json (anche dati-iniziali.json)</div></div><input type="file" accept=".json,application/json" hidden data-import="ask"></label>
-    <button class="row" data-act="csv"><div class="main"><div class="ttl">Esporta tutti i movimenti (CSV)</div><div class="sm">Apribile con Excel / Numbers</div></div></button>
+    <button class="row" data-act="export"><div class="main"><div class="ttl">Esporta backup (JSON)</div></div></button>
+    <label class="row"><div class="main"><div class="ttl">Importa / ripristina backup</div></div><input type="file" accept=".json,application/json" hidden data-import="ask"></label>
+    <button class="row" data-act="csv"><div class="main"><div class="ttl">Esporta tutti i movimenti (CSV)</div></div></button>
   </div>
   <div class="sechead"><span>Riepilogo</span></div>
   <div class="card"><div class="kv"><span>Mesi</span><b>${S.state.periods.length}</b></div><div class="kv"><span>Movimenti</span><b>${n}</b></div><div class="kv"><span>Voci di debito</span><b>${S.state.debts.length}</b></div></div>
   <div class="sechead"><span>App</span></div>
   <div class="list">
-    <button class="row" data-act="update"><div class="main"><div class="ttl">Aggiorna app</div><div class="sm">Ricarica l’ultima versione (i dati restano)</div></div></button>
+    <button class="row" data-act="update"><div class="main"><div class="ttl">Aggiorna app</div></div></button>
     <button class="row" data-act="wipe"><div class="main"><div class="ttl neg">Cancella tutti i dati</div></div></button>
   </div>`;
 }
