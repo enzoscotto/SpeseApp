@@ -1,0 +1,81 @@
+// Calcoli: replicano le formule dei fogli Excel.
+import { state, txOf, period, save, uid } from './store.js';
+
+const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
+export const money = n => eur.format(Math.abs(n) < 0.005 ? 0 : n);
+export const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + eur.format(Math.abs(n));
+export const r2 = n => Math.round(n * 100) / 100;
+
+export const pad = n => String(n).padStart(2, '0');
+export const isoDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export const today = () => isoDate(new Date());
+const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+export const MESI_BREVI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+export const fmtShort = s => { const d = parse(s); return `${d.getDate()} ${MESI_BREVI[d.getMonth()]} ${d.getFullYear()}`; };
+export const fmtDay = s => parse(s).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+
+export function periodLabel(p) {
+  const a = parse(p.start), b = parse(p.end);
+  const last = new Date(a.getFullYear(), a.getMonth() + 1, 0).getDate();
+  if (a.getDate() === 1 && b.getFullYear() === a.getFullYear() && b.getMonth() === a.getMonth() && b.getDate() === last) return `${MESI[a.getMonth()]} ${a.getFullYear()}`;
+  return `${a.getDate()} ${MESI_BREVI[a.getMonth()]} ${a.getFullYear()} – ${b.getDate()} ${MESI_BREVI[b.getMonth()]} ${b.getFullYear()}`;
+}
+export const periodYear = p => p.start.slice(0, 4);
+
+export function stats(p) {
+  const t = txOf(p.id);
+  const sum = (acc, kind) => r2(t.filter(x => x.account === acc && x.kind === kind).reduce((s, x) => s + x.amount, 0));
+  const card = { in: sum('carta', 'in'), out: sum('carta', 'out') };
+  const cash = { in: sum('contanti', 'in'), out: sum('contanti', 'out') };
+  const sal = p.salary || 0;
+  card.start = p.startCard || 0; cash.start = p.startCash || 0;
+  card.rest = r2(card.start + sal + card.in - card.out);   // G5
+  cash.rest = r2(cash.start + cash.in - cash.out);          // O5
+  // "vero totale uscite" (N2): inizio + stipendio - restanti + rettifica
+  const real = r2(card.start + cash.start + sal - card.rest - cash.rest + (p.adjust || 0));
+  const saved = p.salary == null ? null : r2(sal - real);   // F2
+  return { card, cash, real, saved, count: t.length, total: r2(card.rest + cash.rest) };
+}
+
+// Saldo di chiusura del periodo precedente (per aprire un nuovo periodo)
+export function restBefore(startIso) {
+  const prev = [...state.periods].filter(p => p.start < startIso).pop();
+  if (!prev) return { card: 0, cash: 0 };
+  const s = stats(prev);
+  return { card: s.card.rest, cash: s.cash.rest };
+}
+
+export function ensurePeriodFor(dateIso) {
+  const cand = state.periods.filter(p => p.start <= dateIso && dateIso <= p.end).pop();
+  if (cand) return cand;
+  const d = parse(dateIso);
+  const start = isoDate(new Date(d.getFullYear(), d.getMonth(), 1));
+  const end = isoDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+  const r = restBefore(start);
+  const p = { id: start, start, end, startCard: r.card, startCash: r.cash, salary: null, adjust: 0 };
+  if (state.periods.some(x => x.id === p.id)) p.id = start + '-b' + uid().slice(0, 4);
+  save('periods', p);
+  return p;
+}
+
+export function currentPeriod() {
+  const t = today();
+  return state.periods.filter(p => p.start <= t && t <= p.end).pop() || state.periods[state.periods.length - 1];
+}
+
+export const display = t => (t.category ? t.category + ' - ' : '') + t.desc;
+
+// ---- debiti ----
+export const DEBT_TYPES = {
+  lent: { label: 'Ho prestato', sign: 1, kind: 'out' },
+  repaidToMe: { label: 'Mi ha restituito', sign: -1, kind: 'in' },
+  borrowed: { label: 'Mi ha prestato', sign: -1, kind: 'in' },
+  iRepaid: { label: 'Ho restituito', sign: 1, kind: 'out' },
+};
+export function people() {
+  const m = new Map();
+  for (const d of state.debts) m.set(d.person, r2((m.get(d.person) || 0) + d.amount));
+  for (const n of state.meta.people || []) if (!m.has(n)) m.set(n, 0);
+  return [...m.entries()].map(([name, bal]) => ({ name, bal })).sort((a, b) => Math.abs(b.bal) - Math.abs(a.bal) || a.name.localeCompare(b.name));
+}
