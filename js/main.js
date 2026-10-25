@@ -103,7 +103,7 @@ function rowHtml(t, showAcct, showPeriod) {
     debt ? `<span class="tag dbt">${esc(debt.person)}</span>` : '', showPeriod ? `<span>${esc(fmtShort(t.date))}</span>` : ''].join('');
   const title = (t.category ? `<b>${esc(t.category)}</b>${t.desc ? ' - ' : ''}` : '') + esc(t.desc);
   return `<button class="row" data-act="editTx" data-id="${t.id}"><div class="main"><div class="ttl">${title || '—'}</div>${sm ? `<div class="sm">${sm}</div>` : ''}</div>
-    <div class="amt num">${t.kind === 'in' ? '+' : '−'}${money(t.amount)}</div></button>`;
+    <div class="amt num ${t.kind === 'in' ? 'pos' : 'neg'}">${t.kind === 'in' ? '+' : '−'}${money(t.amount)}</div></button>`;
 }
 const byDateDesc = (a, b) => b[0].date.localeCompare(a[0].date) || b[1] - a[1];
 
@@ -171,7 +171,7 @@ function allCats() {
 const peopleNames = () => C.people().map(p => p.name).sort((a, b) => a.localeCompare(b));
 
 function openTxSheet(existing, preset = {}) {
-  const e = existing, debt0 = e && S.state.debts.find(d => d.txId === e.id);
+  const e = existing, debt0 = e && S.state.debts.find(d => d.txId === e.id), ret0 = e && S.state.transactions.find(x => x.rientroOf === e.id);
   const f = {
     kind: e ? e.kind : (preset.kind || 'out'), acct: e ? e.account : (preset.acct || S.state.meta.lastAcct || 'carta'), giro: false, giroDir: 'prelievo',
   };
@@ -189,6 +189,13 @@ function openTxSheet(existing, preset = {}) {
     </div>
     <datalist id="catList">${allCats().slice(0, 150).map(c => `<option value="${esc(c)}">`).join('')}</datalist>
     <div class="chips" id="fChips">${recentCats().map(c => `<button data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+    <div class="form" id="fRetBox">
+      <div class="frow"><label id="fRetLbl" style="width:auto;flex:1;color:var(--text)"></label><label class="switch"><input type="checkbox" id="fRet"><i></i></label></div>
+      <div id="fRetRows" hidden>
+        <div class="frow"><label>Importo</label><input id="fRetAmt" inputmode="decimal" placeholder="0,00"></div>
+        <div class="frow"><label>Data</label><input id="fRetDate" type="date"></div>
+      </div>
+    </div>
     <div id="fDebtBox"><div class="form">
       <div class="frow"><label>Debito con</label><select id="fPerson"><option value="">— nessuno —</option>${peopleNames().map(n => `<option ${debt0?.person === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="__new">+ Nuova persona…</option></select></div>
       <div class="frow" id="fDtRow" hidden><label>Tipo</label><select id="fDt"></select></div>
@@ -208,6 +215,9 @@ function openTxSheet(existing, preset = {}) {
         const types = Object.entries(DEBT_TYPES).filter(([, t]) => t.kind === (f.kind === 'in' ? 'in' : 'out'));
         sel.innerHTML = types.map(([k, t]) => `<option value="${k}" ${k === keep ? 'selected' : ''}>${t.label}</option>`).join('');
         $('#fDtRow', w).hidden = !$('#fPerson', w).value;
+        $('#fRetBox', w).hidden = f.kind !== 'out';
+        $('#fRetLbl', w).textContent = f.acct === 'carta' ? 'Mi rientra come contanti' : 'Mi rientra come carta';
+        $('#fRetRows', w).hidden = !$('#fRet', w).checked;
       };
       $$('#fKind button', w).forEach(b => b.onclick = () => { f.kind = b.dataset.v; sync(); });
       $$('#fAcct button', w).forEach(b => b.onclick = () => { f.acct = b.dataset.v; sync(); });
@@ -220,10 +230,23 @@ function openTxSheet(existing, preset = {}) {
         }
         sync();
       };
+      const ret = $('#fRet', w); let retAmtTouched = !!ret0, retDateTouched = !!ret0;
+      if (ret0) { ret.checked = true; $('#fRetAmt', w).value = String(ret0.amount).replace('.', ','); $('#fRetDate', w).value = ret0.date; }
+      $('#fRetAmt', w).oninput = () => { retAmtTouched = true; };
+      $('#fRetDate', w).oninput = () => { retDateTouched = true; };
+      $('#fAmt', w).addEventListener('input', () => { if (!retAmtTouched) $('#fRetAmt', w).value = $('#fAmt', w).value; });
+      $('#fDate', w).addEventListener('input', () => { if (!retDateTouched) $('#fRetDate', w).value = $('#fDate', w).value; });
+      ret.onchange = () => {
+        if (ret.checked) { if (!retAmtTouched) $('#fRetAmt', w).value = $('#fAmt', w).value; if (!retDateTouched) $('#fRetDate', w).value = $('#fDate', w).value; }
+        sync();
+      };
       const del = $('[data-del]', w);
       if (del) del.onclick = async () => {
         const partner = e.pair && S.state.transactions.find(t => t.pair === e.pair && t.id !== e.id);
         if (!confirm(partner ? 'Eliminare questo giroconto (entrambi i movimenti)?' : 'Eliminare questo movimento?')) return;
+        const back = S.state.transactions.find(x => x.rientroOf === e.id);
+        if (back && !confirm('Questo movimento ha un rientro collegato. Eliminare anche il rientro?')) return;
+        if (back) await S.remove('transactions', back.id);
         for (const d of S.state.debts.filter(d => d.txId === e.id || d.txId === partner?.id)) await S.remove('debts', d.id);
         await S.remove('transactions', e.id); if (partner) await S.remove('transactions', partner.id);
         w.remove(); render(); toast('Eliminato');
@@ -237,6 +260,9 @@ function openTxSheet(existing, preset = {}) {
       if (!(amount > 0)) return toast('Inserisci un importo'), false;
       if (!date) return toast('Inserisci la data'), false;
       const amt = C.r2(amount);
+      const wantRet = !f.giro && f.kind === 'out' && $('#fRet', w).checked;
+      const retAmt = wantRet ? C.r2(num($('#fRetAmt', w).value)) : 0, retDate = wantRet ? $('#fRetDate', w).value : '';
+      if (wantRet && (!(retAmt > 0) || !retDate)) return toast('Importo e data del rientro'), false;
       if (f.giro) {
         const p = C.ensurePeriodFor(date), pair = S.uid();
         const mk = (account, kind, category, desc) => ({ id: S.uid(), periodId: p.id, date, account, kind, amount: amt, category, desc, pair });
@@ -260,6 +286,12 @@ function openTxSheet(existing, preset = {}) {
           const type = $('#fDt', w).value, dt = DEBT_TYPES[type];
           await S.save('debts', { id: old?.id || S.uid(), person, type, amount: C.r2(dt.sign * amt), date, note: display(t), txId: t.id });
         } else if (old) await S.remove('debts', old.id);
+        const back = S.state.transactions.find(x => x.rientroOf === t.id);
+        if (wantRet) {
+          const target = f.acct === 'carta' ? 'contanti' : 'carta';
+          await S.save('transactions', { ...(back || {}), id: back?.id || S.uid(), periodId: C.ensurePeriodFor(retDate).id, date: retDate, account: target, kind: 'in', amount: retAmt,
+            category: back ? back.category : (target === 'contanti' ? 'Contanti' : 'Bonifico'), desc: back ? back.desc : 'Soldi ' + (desc || cat), rientroOf: t.id });
+        } else if (back) await S.remove('transactions', back.id);
         await S.setMeta('lastAcct', f.acct);
         ui.periodId = periodId;
       }

@@ -146,3 +146,11 @@ input,select,textarea{font:inherit;font-size:16px;color:var(--text)}
 .acc.sel{outline:3px solid var(--text);outline-offset:2px}
 .acc .top{display:flex;justify-content:space-between;align-items:baseline;gap:6px;white-space:nowrap;font-size:19px;font-weight:700;letter-spacing:-.5px;line-height:1.2;margin-bottom:8px}
 .acc .l{display:flex;justify-content:space-between;font-size:13px;opacity:.9}
+
+/* interruttore */
+.switch{position:relative;width:51px;height:31px;flex:0 0 auto;width:51px!important;color:inherit}
+.switch input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;z-index:1}
+.switch i{position:absolute;inset:0;background:var(--chip);border-radius:99px;transition:.2s}
+.switch i::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.3);transition:.2s}
+.switch input:checked+i{background:var(--green)}
+.switch input:checked+i::after{transform:translateX(20px)}
