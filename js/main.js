@@ -176,9 +176,8 @@ function openTxSheet(existing, preset = {}) {
     kind: e ? e.kind : (preset.kind || 'out'), acct: e ? e.account : (preset.acct || S.state.meta.lastAcct || 'carta'), giro: false, giroDir: 'prelievo',
   };
   const body = `
-    <div class="seg big" id="fKind" style="margin-bottom:12px">${e ? '' : ''}<button data-v="out">Uscita</button><button data-v="in">Entrata</button>${e ? '' : '<button data-v="giro">Giroconto</button>'}</div>
+    <div class="seg big" id="fKind" style="margin-bottom:12px">${e ? '' : ''}<button data-v="out">Uscita</button><button data-v="in">Entrata</button>${e ? '' : '<button data-v="prelievo">Prelievo</button><button data-v="versamento">Versamento</button>'}</div>
     <div class="seg" id="fAcct" style="margin-bottom:12px"><button data-v="carta">Carta</button><button data-v="contanti">Contanti</button></div>
-    <div class="seg" id="fGiro" style="margin-bottom:12px" hidden><button data-v="prelievo">Carta → Contanti</button><button data-v="versamento">Contanti → Carta</button></div>
     <div class="form">
       <div class="frow amount"><input id="fAmt" inputmode="decimal" placeholder="0,00" value="${e ? String(e.amount).replace('.', ',') : ''}" autocomplete="off"></div>
       <div class="frow"><label>Data</label><input id="fDate" type="date" value="${e ? e.date : C.today()}"></div>
@@ -207,9 +206,9 @@ function openTxSheet(existing, preset = {}) {
       const setSeg = (id, val) => $$(`#${id} button`, w).forEach(b => b.classList.toggle('on', b.dataset.v === val));
       const $$ = (s, r) => [...r.querySelectorAll(s)];
       const sync = () => {
-        f.giro = f.kind === 'giro';
-        setSeg('fKind', f.kind); setSeg('fAcct', f.acct); setSeg('fGiro', f.giroDir);
-        $('#fAcct', w).hidden = f.giro; $('#fGiro', w).hidden = !f.giro; $('#fTextRows', w).hidden = f.giro; $('#fChips', w).hidden = f.giro; $('#fDebtBox', w).hidden = f.giro;
+        f.giro = f.kind === 'prelievo' || f.kind === 'versamento'; if (f.giro) f.giroDir = f.kind;
+        setSeg('fKind', f.kind); setSeg('fAcct', f.acct);
+        $('#fAcct', w).hidden = f.giro; $('#fTextRows', w).hidden = f.giro; $('#fChips', w).hidden = f.giro; $('#fDebtBox', w).hidden = f.giro;
         // tipi di debito coerenti con entrata/uscita
         const sel = $('#fDt', w), keep = sel.value || debt0?.type;
         const types = Object.entries(DEBT_TYPES).filter(([, t]) => t.kind === (f.kind === 'in' ? 'in' : 'out'));
@@ -221,7 +220,6 @@ function openTxSheet(existing, preset = {}) {
       };
       $$('#fKind button', w).forEach(b => b.onclick = () => { f.kind = b.dataset.v; sync(); });
       $$('#fAcct button', w).forEach(b => b.onclick = () => { f.acct = b.dataset.v; sync(); });
-      $$('#fGiro button', w).forEach(b => b.onclick = () => { f.giroDir = b.dataset.v; sync(); });
       $$('#fChips button', w).forEach(b => b.onclick = () => { $('#fCat', w).value = b.dataset.c; $('#fDesc', w).focus(); });
       $('#fPerson', w).onchange = ev => {
         if (ev.target.value === '__new') {
