@@ -1,5 +1,5 @@
 // Service worker: l'app funziona offline. Incrementa VERSION a ogni aggiornamento dei file.
-const VERSION = 'spese-v1';
+const VERSION = 'spese-v2';
 const FILES = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/main.js', 'js/store.js', 'js/calc.js', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
@@ -9,5 +9,5 @@ self.addEventListener('activate', e => {
 // rete prima (così gli aggiornamenti arrivano subito), cache come ripiego offline
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(fetch(e.request).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); return r; }).catch(() => caches.match(e.request, { ignoreSearch: true })));
+  e.respondWith(fetch(e.request, { cache: 'no-cache' }).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); return r; }).catch(() => caches.match(e.request, { ignoreSearch: true })));
 });
