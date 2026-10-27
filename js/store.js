@@ -5,6 +5,9 @@ let db = null;
 
 export const state = { periods: [], transactions: [], debts: [], meta: {} };
 let byPeriod = new Map();
+const listeners = [];
+export const onChange = f => listeners.push(f);
+const changed = () => listeners.forEach(f => f());
 
 function req(r) { return new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
 
@@ -43,21 +46,24 @@ export async function save(store, obj) {
   if (store === 'periods') sortPeriods();
   reindex();
   await req(tx(store).objectStore(store).put(obj));
+  changed();
 }
 export async function remove(store, id) {
   state[store] = state[store].filter(x => x.id !== id);
   reindex();
   await req(tx(store).objectStore(store).delete(id));
+  changed();
 }
 export async function setMeta(key, value) {
   state.meta[key] = value;
   await req(tx('meta').objectStore('meta').put({ id: key, value }));
+  if (key === 'people') changed();
 }
 
 export const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9));
 
 export function exportData() {
-  return { version: 1, exportedAt: new Date().toISOString(), periods: state.periods, transactions: state.transactions, debts: state.debts };
+  return { version: 1, exportedAt: new Date().toISOString(), periods: state.periods, transactions: state.transactions, debts: state.debts, people: state.meta.people || [] };
 }
 
 export function validate(d) {
@@ -86,7 +92,7 @@ export async function importData(d, mode) {
       state[s] = [...m.values()];
     }
   }
-  sortPeriods(); reindex();
+  sortPeriods(); reindex(); changed();
 }
 
 export async function wipe() {

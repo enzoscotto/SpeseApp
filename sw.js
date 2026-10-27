@@ -1,6 +1,6 @@
 // Service worker: l'app funziona offline. Incrementa VERSION a ogni aggiornamento dei file.
-const VERSION = 'spese-v3';
-const FILES = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/main.js', 'js/store.js', 'js/calc.js', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
+const VERSION = 'spese-v4';
+const FILES = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/main.js', 'js/store.js', 'js/calc.js', 'js/sync.js', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {

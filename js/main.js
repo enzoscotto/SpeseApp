@@ -1,5 +1,6 @@
 import * as S from './store.js';
 import * as C from './calc.js';
+import * as Sync from './sync.js';
 import { money, signed, display, periodLabel, fmtDay, fmtShort, DEBT_TYPES } from './calc.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -42,7 +43,7 @@ function renderTabs() {
   const d = backupDays();
   $('#tabs').innerHTML = t('mese', 'Mese', IC.mese) + t('debiti', 'Debiti', IC.debiti) +
     `<button class="plus" data-act="add" aria-label="Aggiungi"><span>${IC.plus}</span></button>` +
-    t('stat', 'Statistiche', IC.stat) + t('altro', 'Altro', IC.altro, S.state.transactions.length > 0 && (d === null || d > 30));
+    t('stat', 'Statistiche', IC.stat) + t('altro', 'Altro', IC.altro, !Sync.config() && S.state.transactions.length > 0 && (d === null || d > 30));
 }
 
 function render() {
@@ -275,6 +276,7 @@ function openTxSheet(existing, preset = {}) {
         const per = S.period(periodId);
         if (!per || date < per.start || date > per.end) periodId = C.ensurePeriodFor(date).id;
         const t = { ...(e || {}), id: e?.id || S.uid(), periodId, date, account: f.acct, kind: f.kind, amount: amt, category: cat, desc };
+        if (!(e && e.raw && e.category === cat && e.desc === desc)) delete t.raw;
         await S.save('transactions', t);
         const partner = e?.pair && S.state.transactions.find(x => x.pair === e.pair && x.id !== e.id);
         if (partner) await S.save('transactions', { ...partner, amount: amt, date, periodId });
@@ -438,8 +440,10 @@ function viewStat() {
 // ---------- ALTRO ----------
 function viewAltro() {
   const d = backupDays(), n = S.state.transactions.length;
-  const warn = n > 0 && (d === null || d > 30) ? `<div class="warn">⚠️ ${d === null ? 'Non hai ancora fatto nessun backup.' : `Ultimo backup ${d} giorni fa.`} I dati sono salvati solo su questo iPhone: esporta un backup e salvalo su iCloud Drive.</div>` : '';
+  const warn = !Sync.config() && n > 0 && (d === null || d > 30) ? `<div class="warn">⚠️ ${d === null ? 'Non hai ancora fatto nessun backup.' : `Ultimo backup ${d} giorni fa.`} I dati sono salvati solo su questo iPhone: esporta un backup e salvalo su iCloud Drive.</div>` : '';
   return `<div class="bar"><h1>Altro</h1></div>${warn}
+  <div class="sechead"><span>Excel e sincronizzazione</span></div>
+  <div class="list"><button class="row" data-act="syncSheet"><div class="main"><div class="ttl">Sincronizzazione GitHub</div><div class="sm">${esc(syncLine())}</div></div></button></div>
   <div class="sechead"><span>Backup e dati</span></div>
   <div class="list">
     <button class="row" data-act="export"><div class="main"><div class="ttl">Esporta backup (JSON)</div></div></button>
@@ -453,6 +457,42 @@ function viewAltro() {
     <button class="row" data-act="update"><div class="main"><div class="ttl">Aggiorna app</div></div></button>
     <button class="row" data-act="wipe"><div class="main"><div class="ttl neg">Cancella tutti i dati</div></div></button>
   </div>`;
+}
+
+function syncLine() {
+  const c = Sync.config(); if (!c) return 'Non attiva';
+  if (Sync.status.msg) return Sync.status.msg;
+  const t = S.state.meta.lastSync;
+  return t ? 'Attiva · ultimo invio ' + new Date(t).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Attiva';
+}
+
+function syncSheet() {
+  const c = Sync.config();
+  const body = c ? `<div class="form"><div class="frow"><label>Repository</label><input value="${esc(c.repo)}" readonly></div></div>
+      <button class="btn" data-now>Sincronizza ora</button>
+      <button class="btn sec" data-restore>Ripristina dati da GitHub</button>
+      <button class="btn red" data-off>Disattiva</button>`
+    : `<div class="form">
+        <div class="frow"><label>Repository</label><input id="syRepo" placeholder="utente/nome" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+        <div class="frow"><label>Token</label><input id="syTok" type="password" placeholder="github_pat_…" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+      </div><button class="btn" data-on>Attiva e invia i dati</button>`;
+  openSheet('Sincronizzazione GitHub', body, {
+    onMount: (w, close) => {
+      const on = $('[data-on]', w);
+      if (on) on.onclick = async () => {
+        on.textContent = 'Connessione…'; on.disabled = true;
+        try { await Sync.enable($('#syRepo', w).value, $('#syTok', w).value); close(); render(); toast('Sincronizzazione attiva ✓'); }
+        catch (e) { on.textContent = 'Attiva e invia i dati'; on.disabled = false; alert(e.message); }
+      };
+      const now = $('[data-now]', w); if (now) now.onclick = async () => { await Sync.push(); close(); render(); };
+      const off = $('[data-off]', w); if (off) off.onclick = async () => { if (confirm('Disattivare la sincronizzazione? Il token viene rimosso da questo telefono.')) { await Sync.disable(); close(); render(); } };
+      const rs = $('[data-restore]', w); if (rs) rs.onclick = async () => {
+        if (!confirm('Sostituire TUTTI i dati dell’app con quelli su GitHub?')) return;
+        try { const d = await Sync.download(); await S.importData(d, 'replace'); if (d.people) await S.setMeta('people', d.people); ui.periodId = null; close(); render(); toast('Dati ripristinati'); }
+        catch (e) { alert(e.message); }
+      };
+    }
+  });
 }
 
 async function doExport() {
@@ -505,7 +545,7 @@ const actions = {
   newPerson, person: el => openPerson(el.dataset.id),
   statYear: el => { ui.statYear = el.dataset.id; render(); },
   searchCat: el => { ui.q = el.dataset.id; ui.tab = 'mese'; render(); window.scrollTo(0, 0); },
-  export: doExport, csv: doCsv,
+  export: doExport, csv: doCsv, syncSheet,
   startEmpty: async () => { C.ensurePeriodFor(C.today()); render(); },
   update: async () => { const regs = await navigator.serviceWorker?.getRegistrations?.() || []; for (const r of regs) await r.unregister(); for (const k of await caches.keys()) await caches.delete(k); location.reload(); },
   wipe: async () => { if (confirm('Cancellare TUTTI i dati dall’app? Operazione irreversibile (fai prima un backup).') && confirm('Sei sicuro?')) { await S.wipe(); ui.periodId = null; render(); toast('Dati cancellati'); } },
@@ -522,7 +562,11 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id
     if (S.state.periods.length) { C.ensurePeriodFor(C.today()); }
     if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   } catch (err) { $('#view').innerHTML = `<div class="card"><b>Impossibile aprire l’archivio dati.</b><p class="muted">${esc(err.message)}<br>Se usi la navigazione privata, apri l’app normalmente.</p></div>`; return; }
+  S.onChange(() => Sync.schedule());
+  Sync.setStatusListener(() => { if (ui.tab === 'altro' && !document.querySelector('#sheetRoot .sheet')) render(); });
+  Sync.resumeIfDirty();
+  window.addEventListener('online', Sync.resumeIfDirty);
   render();
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && S.state.periods.length) { C.ensurePeriodFor(C.today()); if (ui.tab !== 'mese' || !$('#q') || document.activeElement !== $('#q')) renderTabs(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) Sync.resumeIfDirty(); if (!document.hidden && S.state.periods.length) { C.ensurePeriodFor(C.today()); if (ui.tab !== 'mese' || !$('#q') || document.activeElement !== $('#q')) renderTabs(); } });
 })();
