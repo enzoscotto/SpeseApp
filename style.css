@@ -154,3 +154,19 @@ input,select,textarea{font:inherit;font-size:16px;color:var(--text)}
 .switch i::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.3);transition:.2s}
 .switch input:checked+i{background:var(--green)}
 .switch input:checked+i::after{transform:translateX(20px)}
+
+/* movimenti a schede */
+.mvs{display:flex;flex-direction:column;gap:8px}
+.mv{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--card);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
+button.mv:active{background:var(--chip)}
+.mv .main{flex:1;min-width:0}
+.mv .mvt{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mv .amt{font-weight:700;white-space:nowrap}
+.chips2{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:6px;font-size:12px}
+.tag.cat{background:var(--chip);color:var(--text)}
+.tag.nocat{background:transparent;color:var(--muted);border:1px dashed var(--sep)}
+.tag{font-size:12px;padding:2px 9px}
+.catgrid{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.catgrid button{display:inline-flex;align-items:center;gap:5px;background:var(--card);border-radius:99px;padding:6px 12px;font-size:14px;box-shadow:var(--shadow)}
+.catgrid button.on{background:var(--accent);color:#fff}
+.catsel{margin-top:8px;width:100%;padding:7px 8px;border-radius:9px;border:0;background:var(--chip);-webkit-appearance:none;appearance:none}

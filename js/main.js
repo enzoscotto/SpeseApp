@@ -100,10 +100,11 @@ function accCard(id, name, a) {
 
 function rowHtml(t, showAcct, showPeriod) {
   const debt = S.state.debts.find(d => d.txId === t.id);
-  const sm = [showAcct ? `<span class="tag ${t.account === 'carta' ? 'card' : 'cash'}">${t.account === 'carta' ? 'Carta' : 'Contanti'}</span>` : '',
-    debt ? `<span class="tag dbt">${esc(debt.person)}</span>` : '', showPeriod ? `<span>${esc(fmtShort(t.date))}</span>` : ''].join('');
-  const title = (t.category ? `<b>${esc(t.category)}</b>${t.desc ? ' - ' : ''}` : '') + esc(t.desc);
-  return `<button class="row" data-act="editTx" data-id="${t.id}"><div class="main"><div class="ttl">${title || '—'}</div>${sm ? `<div class="sm">${sm}</div>` : ''}</div>
+  const chips = [`<span class="tag ${t.account === 'carta' ? 'card' : 'cash'}">${t.account === 'carta' ? 'Carta' : 'Contanti'}</span>`,
+    t.cat ? `<span class="tag cat">${esc(C.catIcon(t.cat))} ${esc(t.cat)}</span>` : '<span class="tag nocat">Senza categoria</span>',
+    debt ? `<span class="tag dbt">${esc(debt.person)}</span>` : '', showPeriod ? `<span class="muted">${esc(fmtShort(t.date))}</span>` : ''].join('');
+  const title = esc(t.cat === 'Giroconti' ? display(t) : (t.desc || t.category || '—'));
+  return `<button class="mv" data-act="editTx" data-id="${t.id}"><div class="main"><div class="mvt">${title}</div><div class="chips2">${chips}</div></div>
     <div class="amt num ${t.kind === 'in' ? 'pos' : 'neg'}">${t.kind === 'in' ? '+' : '−'}${money(t.amount)}</div></button>`;
 }
 const byDateDesc = (a, b) => b[0].date.localeCompare(a[0].date) || b[1] - a[1];
@@ -114,14 +115,14 @@ function renderList() {
   let items, global = !!q;
   if (global) {
     items = S.state.transactions.map((t, i) => [t, i]).filter(([t]) => (ui.acct === 'tutti' || t.account === ui.acct) &&
-      (display(t) + ' ' + t.amount + ' ' + (S.state.debts.find(d => d.txId === t.id)?.person || '')).toLowerCase().includes(q));
+      (display(t) + ' ' + (t.cat || '') + ' ' + t.amount + ' ' + (S.state.debts.find(d => d.txId === t.id)?.person || '')).toLowerCase().includes(q));
   } else {
     items = S.txOf(ui.periodId).map((t, i) => [t, i]).filter(([t]) => ui.acct === 'tutti' || t.account === ui.acct);
   }
   items.sort(byDateDesc);
   if (!items.length) { box.innerHTML = `<div class="empty">${global ? 'Nessun risultato' : 'Nessun movimento.<br>Tocca + per aggiungerne uno.'}</div>`; return; }
   let html = '', day = null, shown = items.slice(0, global ? 300 : 2000), buf = [], dsum = 0;
-  const flush = () => { if (day) html += `<div class="dayh"><span>${esc(fmtDay(day))}</span><span class="num">${signed(dsum)}</span></div><div class="list">${buf.join('')}</div>`; buf = []; dsum = 0; };
+  const flush = () => { if (day) html += `<div class="dayh"><span>${esc(fmtDay(day))}</span><span class="num">${signed(dsum)}</span></div><div class="mvs">${buf.join('')}</div>`; buf = []; dsum = 0; };
   for (const [t] of shown) {
     if (t.date !== day) { flush(); day = t.date; }
     buf.push(rowHtml(t, ui.acct === 'tutti', global)); dsum += t.kind === 'in' ? t.amount : -t.amount;
@@ -160,21 +161,13 @@ function editPeriod() {
 }
 
 // ---------- form movimento ----------
-function recentCats() {
-  const cut = new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10), m = new Map();
-  for (const t of S.state.transactions) if (t.category && t.date >= cut && !t.pair) m.set(t.category, (m.get(t.category) || 0) + 1);
-  return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 9).map(x => x[0]);
-}
-function allCats() {
-  const m = new Map(); for (const t of S.state.transactions) if (t.category) m.set(t.category, (m.get(t.category) || 0) + 1);
-  return [...m.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0]);
-}
 const peopleNames = () => C.people().map(p => p.name).sort((a, b) => a.localeCompare(b));
 
 function openTxSheet(existing, preset = {}) {
   const e = existing, debt0 = e && S.state.debts.find(d => d.txId === e.id), ret0 = e && S.state.transactions.find(x => x.rientroOf === e.id);
   const f = {
     kind: e ? e.kind : (preset.kind || 'out'), acct: e ? e.account : (preset.acct || S.state.meta.lastAcct || 'carta'), giro: false, giroDir: 'prelievo',
+    cat: e ? (e.cat || C.guessCat(display(e), e.kind, e.desc)) : null, catManual: !!(e && e.cat),
   };
   const body = `
     <div class="seg big" id="fKind" style="margin-bottom:12px">${e ? '' : ''}<button data-v="out">Uscita</button><button data-v="in">Entrata</button>${e ? '' : '<button data-v="prelievo">Prelievo</button><button data-v="versamento">Versamento</button>'}</div>
@@ -182,13 +175,9 @@ function openTxSheet(existing, preset = {}) {
     <div class="form">
       <div class="frow amount"><input id="fAmt" inputmode="decimal" placeholder="0,00" value="${e ? String(e.amount).replace('.', ',') : ''}" autocomplete="off"></div>
       <div class="frow"><label>Data</label><input id="fDate" type="date" value="${e ? e.date : C.today()}"></div>
-      <div id="fTextRows">
-        <div class="frow"><label>Tipo</label><input id="fCat" list="catList" placeholder="es. Amazon, Uscita, Bonifico" value="${esc(e?.category || '')}" autocomplete="off" autocapitalize="sentences"></div>
-        <div class="frow"><label>Motivo</label><input id="fDesc" placeholder="Descrizione" value="${esc(e?.desc || '')}" autocomplete="off" autocapitalize="sentences"></div>
-      </div>
+      <div id="fTextRows"><div class="frow"><label>Motivo</label><input id="fDesc" placeholder="Descrizione" value="${esc(e?.desc || '')}" autocomplete="off" autocapitalize="sentences"></div></div>
     </div>
-    <datalist id="catList">${allCats().slice(0, 150).map(c => `<option value="${esc(c)}">`).join('')}</datalist>
-    <div class="chips" id="fChips">${recentCats().map(c => `<button data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+    <div class="catgrid" id="fChips">${C.categories().map(c => `<button data-c="${esc(c.name)}"><span>${esc(c.icon)}</span>${esc(c.name)}</button>`).join('')}</div>
     <div class="form" id="fRetBox">
       <div class="frow"><label id="fRetLbl" style="width:auto;flex:1;color:var(--text)"></label><label class="switch"><input type="checkbox" id="fRet"><i></i></label></div>
       <div id="fRetRows" hidden>
@@ -221,7 +210,10 @@ function openTxSheet(existing, preset = {}) {
       };
       $$('#fKind button', w).forEach(b => b.onclick = () => { f.kind = b.dataset.v; sync(); });
       $$('#fAcct button', w).forEach(b => b.onclick = () => { f.acct = b.dataset.v; sync(); });
-      $$('#fChips button', w).forEach(b => b.onclick = () => { $('#fCat', w).value = b.dataset.c; $('#fDesc', w).focus(); });
+      const drawCat = () => $$('#fChips button', w).forEach(b => b.classList.toggle('on', b.dataset.c === f.cat));
+      $$('#fChips button', w).forEach(b => b.onclick = () => { f.cat = f.cat === b.dataset.c && f.catManual ? null : b.dataset.c; f.catManual = !!f.cat; drawCat(); });
+      $('#fDesc', w).addEventListener('input', () => { if (f.catManual) return; f.cat = C.guessCat($('#fDesc', w).value, f.kind === 'in' ? 'in' : 'out'); drawCat(); });
+      drawCat();
       $('#fPerson', w).onchange = ev => {
         if (ev.target.value === '__new') {
           const n = (prompt('Nome della persona:') || '').trim();
@@ -264,19 +256,21 @@ function openTxSheet(existing, preset = {}) {
       if (wantRet && (!(retAmt > 0) || !retDate)) return toast('Importo e data del rientro'), false;
       if (f.giro) {
         const p = C.ensurePeriodFor(date), pair = S.uid();
-        const mk = (account, kind, category, desc) => ({ id: S.uid(), periodId: p.id, date, account, kind, amount: amt, category, desc, pair });
+        const mk = (account, kind, category, desc) => ({ id: S.uid(), periodId: p.id, date, account, kind, amount: amt, category, desc, pair, cat: 'Giroconti' });
         const out = f.giroDir === 'prelievo'
           ? [mk('carta', 'out', 'Prelievo', 'Bancomat'), mk('contanti', 'in', 'Prelievo', 'Da carta')]
           : [mk('contanti', 'out', 'Versamento', 'Contanti'), mk('carta', 'in', 'Versamento', 'Contanti')];
         for (const t of out) await S.save('transactions', t);
       } else {
-        const cat = $('#fCat', w).value.trim(), desc = $('#fDesc', w).value.trim();
-        if (!cat && !desc) return toast('Scrivi tipo o motivo'), false;
+        const cat = f.cat || '', desc = $('#fDesc', w).value.trim();
+        if (!cat && !desc) return toast('Scegli una categoria o scrivi il motivo'), false;
         let periodId = e?.periodId;
         const per = S.period(periodId);
         if (!per || date < per.start || date > per.end) periodId = C.ensurePeriodFor(date).id;
-        const t = { ...(e || {}), id: e?.id || S.uid(), periodId, date, account: f.acct, kind: f.kind, amount: amt, category: cat, desc };
-        if (!(e && e.raw && e.category === cat && e.desc === desc)) delete t.raw;
+        const t = { ...(e || {}), id: e?.id || S.uid(), periodId, date, account: f.acct, kind: f.kind, amount: amt, category: cat, desc, cat: cat || undefined };
+        // movimenti importati dagli Excel: se il motivo non cambia, nel foglio resta il testo originale
+        if (e && e.raw && e.desc === desc) { t.category = e.category; t.desc = e.desc; t.raw = e.raw; } else delete t.raw;
+        if (cat && desc) await S.setMeta('learned', { ...(S.state.meta.learned || {}), [learnKey(desc)]: cat });
         await S.save('transactions', t);
         const partner = e?.pair && S.state.transactions.find(x => x.pair === e.pair && x.id !== e.id);
         if (partner) await S.save('transactions', { ...partner, amount: amt, date, periodId });
@@ -290,7 +284,7 @@ function openTxSheet(existing, preset = {}) {
         if (wantRet) {
           const target = f.acct === 'carta' ? 'contanti' : 'carta';
           await S.save('transactions', { ...(back || {}), id: back?.id || S.uid(), periodId: C.ensurePeriodFor(retDate).id, date: retDate, account: target, kind: 'in', amount: retAmt,
-            category: back ? back.category : (target === 'contanti' ? 'Contanti' : 'Bonifico'), desc: back ? back.desc : 'Soldi ' + (desc || cat), rientroOf: t.id });
+            category: back ? back.category : 'Rimborsi e rientri', cat: back?.cat || 'Rimborsi e rientri', desc: back ? back.desc : 'Soldi ' + (desc || cat), rientroOf: t.id });
         } else if (back) await S.remove('transactions', back.id);
         await S.setMeta('lastAcct', f.acct);
         ui.periodId = periodId;
@@ -375,7 +369,7 @@ function debtEntrySheet(person, type, done) {
       if (acc) {
         const p = C.ensurePeriodFor(date);
         const cat = type === 'lent' || type === 'borrowed' ? 'Prestito' : 'Rimborso';
-        const t = { id: S.uid(), periodId: p.id, date, account: acc, kind: dt.kind, amount: amt, category: cat, desc: person + (note ? ' - ' + note : '') };
+        const t = { id: S.uid(), periodId: p.id, date, account: acc, kind: dt.kind, amount: amt, category: cat, cat: 'Prestiti e debiti', desc: person + (note ? ' - ' + note : '') };
         await S.save('transactions', t); txId = t.id;
       }
       await S.save('debts', { id: S.uid(), person, type, amount: C.r2(dt.sign * amt), date, note, txId });
@@ -390,7 +384,7 @@ function linkSheet(person, done) {
       const run = () => {
         const q = $('#lq', w).value.trim().toLowerCase(), linked = new Set(S.state.debts.map(d => d.txId));
         const res = S.state.transactions.map((t, i) => [t, i]).filter(([t]) => !linked.has(t.id) && !t.pair && (!q || display(t).toLowerCase().includes(q))).sort(byDateDesc).slice(0, 80);
-        $('#lres', w).innerHTML = res.length ? `<div class="list">${res.map(([t]) => rowHtml(t, true, true).replace('data-act="editTx"', 'data-pick')).join('')}</div>` : '<div class="empty">Nessun movimento</div>';
+        $('#lres', w).innerHTML = res.length ? `<div class="mvs">${res.map(([t]) => rowHtml(t, true, true).replace('data-act="editTx"', 'data-pick')).join('')}</div>` : '<div class="empty">Nessun movimento</div>';
         $('#lres', w).querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
           const t = S.state.transactions.find(x => x.id === b.dataset.id);
           const opts = Object.entries(DEBT_TYPES).filter(([, d]) => d.kind === t.kind);
@@ -419,7 +413,7 @@ function viewStat() {
   const tot = rows.reduce((a, { p, s }) => ({ sal: a.sal + (p.salary || 0), real: a.real + s.real, sav: a.sav + (s.saved || 0) }), { sal: 0, real: 0, sav: 0 });
   const max = Math.max(1, ...rows.map(r => Math.max(r.s.real, r.s.saved || 0)));
   const cats = new Map(); let outTot = 0;
-  for (const { p } of rows) for (const t of S.txOf(p.id)) if (t.kind === 'out' && !t.pair) { const k = t.category || 'Altro'; cats.set(k, (cats.get(k) || 0) + t.amount); outTot += t.amount; }
+  for (const { p } of rows) for (const t of S.txOf(p.id)) if (t.kind === 'out' && !t.pair && t.cat !== 'Giroconti') { const k = t.cat || 'Senza categoria'; cats.set(k, (cats.get(k) || 0) + t.amount); outTot += t.amount; }
   const top = [...cats.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
   const showBars = rows.length <= 14;
   return `<div class="bar"><h1>Statistiche</h1></div>
@@ -431,8 +425,8 @@ function viewStat() {
     <div class="kv"><span>Media spesa mensile</span><b class="num">${money(rows.length ? tot.real / rows.length : 0)}</b></div>
   </div>
   ${showBars ? `<div class="card"><div class="sechead" style="margin:0 0 4px"><span>Mese per mese</span><span><span style="color:var(--accent)">■</span> spesa <span style="color:var(--green)">■</span> risparmio</span></div><div class="bars">${rows.map(({ p, s }) => `<div class="b"><div style="display:flex;gap:2px;align-items:flex-end;width:100%;height:100%"><div class="col" style="height:${Math.max(1, s.real / max * 100)}%"></div><div class="col sv" style="height:${Math.max(1, Math.max(0, s.saved || 0) / max * 100)}%"></div></div><div class="m">${C.MESI_BREVI[+p.start.slice(5, 7) - 1]}</div></div>`).join('')}</div></div>` : ''}
-  <div class="sechead"><span>Uscite per tipo</span><span class="num">${money(outTot)}</span></div>
-  <div class="card">${top.map(([k, v]) => `<button class="hbar" style="display:block;width:100%;text-align:left" data-act="searchCat" data-id="${esc(k)}"><div class="top"><span>${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / top[0][1] * 100}%"></div></div></button>`).join('') || '<div class="empty">—</div>'}</div>
+  <div class="sechead"><span>Uscite per categoria</span><span class="num">${money(outTot)}</span></div>
+  <div class="card">${top.map(([k, v]) => `<button class="hbar" style="display:block;width:100%;text-align:left" data-act="searchCat" data-id="${esc(k)}"><div class="top"><span>${esc(C.catIcon(k))} ${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / top[0][1] * 100}%"></div></div></button>`).join('') || '<div class="empty">—</div>'}</div>
   <div class="sechead"><span>Per mese</span></div>
   <div class="list">${[...rows].reverse().map(({ p, s }) => `<button class="row" data-act="gotoPeriod" data-id="${esc(p.id)}"><div class="main"><div class="ttl">${esc(periodLabel(p))}</div><div class="sm num">Spesa ${money(s.real)}</div></div><div class="amt num ${s.saved == null ? 'muted' : s.saved >= 0 ? 'pos' : 'neg'}">${s.saved == null ? '—' : signed(s.saved)}</div></button>`).join('')}</div>`;
 }
@@ -442,6 +436,8 @@ function viewAltro() {
   const d = backupDays(), n = S.state.transactions.length;
   const warn = !Sync.config() && n > 0 && (d === null || d > 30) ? `<div class="warn">⚠️ ${d === null ? 'Non hai ancora fatto nessun backup.' : `Ultimo backup ${d} giorni fa.`} I dati sono salvati solo su questo iPhone: esporta un backup e salvalo su iCloud Drive.</div>` : '';
   return `<div class="bar"><h1>Altro</h1></div>${warn}
+  <div class="sechead"><span>Categorie</span></div>
+  <div class="list"><button class="row" data-act="catSheet"><div class="main"><div class="ttl">Gestisci categorie</div><div class="sm">${S.state.transactions.filter(t => !t.cat).length} movimenti da categorizzare</div></div></button></div>
   <div class="sechead"><span>Excel e sincronizzazione</span></div>
   <div class="list"><button class="row" data-act="syncSheet"><div class="main"><div class="ttl">Sincronizzazione GitHub</div><div class="sm">${esc(syncLine())}</div></div></button></div>
   <div class="sechead"><span>Backup e dati</span></div>
@@ -457,6 +453,79 @@ function viewAltro() {
     <button class="row" data-act="update"><div class="main"><div class="ttl">Aggiorna app</div></div></button>
     <button class="row" data-act="wipe"><div class="main"><div class="ttl neg">Cancella tutti i dati</div></div></button>
   </div>`;
+}
+
+// ---------- categorie ----------
+const nocat = () => S.state.transactions.filter(t => !t.cat);
+const learnKey = d => d.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+async function autoAssign(silent) {
+  const upd = [];
+  for (const t of nocat()) { const g = C.guessCat(display(t), t.kind, t.desc); if (g) upd.push({ ...t, cat: g }); }
+  await S.bulkSave('transactions', upd);
+  await S.setMeta('catAuto', 1);
+  if (!silent) toast(`${upd.length} categorie assegnate, ${nocat().length} da rivedere`);
+  return upd.length;
+}
+function catSheet() {
+  const draw = () => {
+    const cnt = new Map(); S.state.transactions.forEach(t => t.cat && cnt.set(t.cat, (cnt.get(t.cat) || 0) + 1));
+    return `<button class="btn" data-review>Da rivedere (${nocat().length})</button><button class="btn sec" data-auto>Assegna automaticamente ai movimenti senza categoria</button>
+      <div class="sechead"><span>Le tue categorie</span></div>
+      <div class="list">${C.categories().map(c => `<button class="row" data-cat="${esc(c.name)}"><div class="main"><div class="ttl">${esc(c.icon)}  ${esc(c.name)}</div></div><div class="amt num muted" style="font-weight:400">${cnt.get(c.name) || 0}</div></button>`).join('')}</div>
+      <button class="btn sec" data-new style="margin-top:12px">+ Nuova categoria</button>`;
+  };
+  openSheet('Categorie', draw(), {
+    onMount: w => {
+      const body = $('.body', w);
+      const redraw = () => { body.innerHTML = draw(); wire(); render(); };
+      const saveCats = async list => { await S.setMeta('categories', list); };
+      const wire = () => {
+        $('[data-review]', body).onclick = () => reviewSheet(redraw);
+        $('[data-auto]', body).onclick = async () => { await autoAssign(); redraw(); };
+        $('[data-new]', body).onclick = async () => {
+          const name = (prompt('Nome della categoria:') || '').trim(); if (!name) return;
+          if (C.categories().some(c => c.name.toLowerCase() === name.toLowerCase())) return toast('Esiste già');
+          const icon = (prompt('Emoji (facoltativa):', '🏷️') || '🏷️').trim();
+          const list = C.categories(); list.splice(list.length - 1, 0, { name, icon }); await saveCats(list); redraw();
+        };
+        body.querySelectorAll('[data-cat]').forEach(b => b.onclick = async () => {
+          const old = b.dataset.cat, cur = C.categories().find(c => c.name === old);
+          const n = prompt(`Nuovo nome per “${old}” (vuoto = elimina la categoria):`, old); if (n === null) return;
+          if (!n.trim()) {
+            if (!confirm(`Eliminare “${old}”? I suoi movimenti restano senza categoria.`)) return;
+            await bulkCat(old, null); await saveCats(C.categories().filter(c => c.name !== old));
+          } else if (n.trim() !== old) {
+            const ic = (prompt('Emoji:', cur.icon) || cur.icon).trim();
+            await bulkCat(old, n.trim()); await saveCats(C.categories().map(c => c.name === old ? { name: n.trim(), icon: ic } : c));
+          } else { const ic = (prompt('Emoji:', cur.icon) || cur.icon).trim(); await saveCats(C.categories().map(c => c.name === old ? { ...c, icon: ic } : c)); }
+          redraw();
+        });
+      };
+      wire();
+    }
+  });
+}
+// rinomina/elimina una categoria su tutti i movimenti (il testo Excel dei movimenti nuovi segue il nome)
+async function bulkCat(oldName, newName) {
+  const upd = S.state.transactions.filter(t => t.cat === oldName).map(t => {
+    const x = { ...t, cat: newName || undefined };
+    if (!t.raw && t.category === oldName) x.category = newName || '';
+    return x;
+  });
+  await S.bulkSave('transactions', upd);
+}
+function reviewSheet(done) {
+  const list = nocat().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
+  const opts = `<option value="">Scegli…</option>` + C.categories().map(c => `<option>${esc(c.name)}</option>`).join('');
+  openSheet('Da rivedere', list.length ? `<div class="mvs">${list.map(t => `<div class="mv" style="cursor:default"><div class="main"><div class="mvt">${esc(display(t))}</div><div class="chips2"><span class="tag ${t.account === 'carta' ? 'card' : 'cash'}">${t.account === 'carta' ? 'Carta' : 'Contanti'}</span><span class="muted">${esc(fmtShort(t.date))}</span></div>
+      <select class="catsel" data-id="${t.id}">${opts}</select></div><div class="amt num ${t.kind === 'in' ? 'pos' : 'neg'}">${t.kind === 'in' ? '+' : '−'}${money(t.amount)}</div></div>`).join('')}</div>` : '<div class="empty">Tutto categorizzato ✓</div>', {
+    onMount: w => w.querySelectorAll('.catsel').forEach(sel => sel.onchange = async () => {
+      const t = S.state.transactions.find(x => x.id === sel.dataset.id); if (!t || !sel.value) return;
+      await S.save('transactions', { ...t, cat: sel.value });
+      if (t.desc) await S.setMeta('learned', { ...(S.state.meta.learned || {}), [learnKey(t.desc)]: sel.value });
+      sel.closest('.mv').remove(); done();
+    })
+  });
 }
 
 function syncLine() {
@@ -526,6 +595,7 @@ async function doImport(file, mode) {
       else return;
     }
     await S.importData(d, mode);
+    await autoAssign(true);
     if (d.people) await S.setMeta('people', d.people);
     ui.periodId = null; ui.tab = 'mese'; C.ensurePeriodFor(C.today());
     render(); toast(`Importati ${d.transactions.length} movimenti`);
@@ -545,7 +615,7 @@ const actions = {
   newPerson, person: el => openPerson(el.dataset.id),
   statYear: el => { ui.statYear = el.dataset.id; render(); },
   searchCat: el => { ui.q = el.dataset.id; ui.tab = 'mese'; render(); window.scrollTo(0, 0); },
-  export: doExport, csv: doCsv, syncSheet,
+  export: doExport, csv: doCsv, syncSheet, catSheet,
   startEmpty: async () => { C.ensurePeriodFor(C.today()); render(); },
   update: async () => { const regs = await navigator.serviceWorker?.getRegistrations?.() || []; for (const r of regs) await r.unregister(); for (const k of await caches.keys()) await caches.delete(k); location.reload(); },
   wipe: async () => { if (confirm('Cancellare TUTTI i dati dall’app? Operazione irreversibile (fai prima un backup).') && confirm('Sei sicuro?')) { await S.wipe(); ui.periodId = null; render(); toast('Dati cancellati'); } },
@@ -559,7 +629,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id
 (async function boot() {
   try {
     await S.load();
-    if (S.state.periods.length) { C.ensurePeriodFor(C.today()); }
+    if (S.state.periods.length) { C.ensurePeriodFor(C.today()); if (!S.state.meta.catAuto) await autoAssign(true); }
     if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   } catch (err) { $('#view').innerHTML = `<div class="card"><b>Impossibile aprire l’archivio dati.</b><p class="muted">${esc(err.message)}<br>Se usi la navigazione privata, apri l’app normalmente.</p></div>`; return; }
   S.onChange(() => Sync.schedule());

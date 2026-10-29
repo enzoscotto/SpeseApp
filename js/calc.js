@@ -79,3 +79,44 @@ export function people() {
   for (const n of state.meta.people || []) if (!m.has(n)) m.set(n, 0);
   return [...m.entries()].map(([name, bal]) => ({ name, bal })).sort((a, b) => Math.abs(b.bal) - Math.abs(a.bal) || a.name.localeCompare(b.name));
 }
+
+// ---- categorie ----
+export const DEFAULT_CATS = [
+  ['Cibo e uscite', '🍕'], ['Shopping online', '📦'], ['Viaggi', '✈️'], ['Mare', '🏖️'], ['Motorino e auto', '🛵'],
+  ['Salute', '🩺'], ['Cura persona', '💈'], ['Casa', '🏠'], ['Tasse e bollette', '🧾'], ['Abbonamenti', '🔁'],
+  ['Famiglia', '👪'], ['Svago', '🎮'], ['Regali', '🎁'], ['Vestiti', '👕'], ['Prestiti e debiti', '🤝'],
+  ['Rimborsi e rientri', '↩️'], ['Guadagni', '💼'], ['Giroconti', '🔄'], ['Altro', '🏷️'],
+];
+export const categories = () => state.meta.categories || DEFAULT_CATS.map(([name, icon]) => ({ name, icon }));
+export const catIcon = name => categories().find(c => c.name === name)?.icon || '🏷️';
+
+// Parole chiave, in ordine di priorita' (la prima regola che combacia vince)
+const RULES = [
+  ['Giroconti', /^(versamento|prelievo)\b|\bversamento\b|\bprelievo|bancomat|conversione|\bhype\b/],
+  ['Prestiti e debiti', /prestit|presit|cambiale|debito/],
+  ['Famiglia', /postepay|ricarica (mamma|papa|alessandro|antima)|contributo/],
+  ['Guadagni', /\blavoro\b|riprese|guadagno|stipendio|ebitemp/],
+  ['Motorino e auto', /motorino|mototino|benzina|\bauto\b|casello|finanziamento|assicurazione|bollo auto/],
+  ['Tasse e bollette', /\btasse|bolletta|imposta|bollett|fastweb|\bluce\b|\btim\b|pagopa|\bgas\b|elettricita|spid|poste/],
+  ['Salute', /psicolog|\bvisit[ae]\b|medicin|fisioter|dentist|tamponi|farmac|oculist/],
+  ['Cura persona', /barbiere|capelli|\bbarba\b|parrucch/],
+  ['Abbonamenti', /spotify|iliad|icloud|now ?tv|\bhbo\b|netflix|prime\b|abbonament|sofware|witcher|claude|software|palestra|aruba|epic games|apple|dazn|disney|\bchat/],
+  ['Svago', /cinema|concerto|comicon|stadio|teatro|steam|gioco|giochi|playstation|\bpartita\b|calcetto|serata|discoteca|controller|peaky/],
+  ['Mare', /\bmare\b|\blido\b|spiagg/],
+  ['Vestiti', /new balance|maxisport|mutande|vestit|\bovs\b|scarp|felpa|pull ?& ?bear|zara|maglia|jeans|giacca|tshirt/],
+  ['Regali', /regalo|compleanno|gioielli/],
+  ['Viaggi', /viaggio|treno|aereo|easyjet|italo|trenitalia|\bmetro\b|\buber\b|flixbus|hotel|\bvolo\b|biglietto|biglietti|parcheggio|autostrada|pedaggio/],
+  ['Casa', /\bcasa\b|ikea|elettricista|tavol|divano|mobil|ferro da stiro|\bletto\b|cucina/],
+  ['Cibo e uscite', /pizz|sushi|pranzo|\bcena\b|panin|kebab|drink|spritz|birr|aperitiv|gelat|cornett|caff|colazion|donald|poke|just eat|glovo|deliveroo|uber eats|cinese|sfizi|\bspesa\b|\bbar\b|\bpub\b|peroni|cappuccino|patatine|\bmenu\b|wok|bibite|succo|\bcoca\b|poppella|pasticc|\btaco|bellini|sagra|hamburger|mc ?do|sigarett|cicchett|chinott|ristorante|ramen|thai|cereali|salderiso|parigin|acqua|giallo tufo/],
+  ['Famiglia', /\bmamma\b|\bpapa\b|monete/],
+  ['Shopping online', /amazon|paypal|aliexpress|temu|ebay|shein|\bordine\b|shoppy|\bpsk\b|\brata\b/],
+];
+const plain = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+export function guessCat(text, kind, descOnly) {
+  const t = plain(text), names = new Set(categories().map(c => c.name));
+  const learned = state.meta.learned || {}, k = plain(descOnly ?? text);
+  if (learned[k] && names.has(learned[k])) return learned[k];
+  for (const [name, re] of RULES) if (names.has(name) && re.test(t)) return name;
+  if (kind === 'in' && names.has('Rimborsi e rientri')) return 'Rimborsi e rientri';
+  return null;
+}

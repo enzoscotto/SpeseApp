@@ -102,3 +102,14 @@ export async function wipe() {
   state.periods = []; state.transactions = []; state.debts = []; state.meta = {};
   reindex();
 }
+
+export async function bulkSave(store, objs) {
+  if (!objs.length) return;
+  const m = new Map(state[store].map(x => [x.id, x]));
+  for (const o of objs) m.set(o.id, o);
+  state[store] = [...m.values()]; reindex();
+  const t = tx(store);
+  for (const o of objs) t.objectStore(store).put(o);
+  await new Promise((res, rej) => { t.oncomplete = res; t.onerror = () => rej(t.error); });
+  changed();
+}
