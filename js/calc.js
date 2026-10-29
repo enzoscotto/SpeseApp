@@ -1,9 +1,14 @@
 // Calcoli: replicano le formule dei fogli Excel.
 import { state, txOf, period, save, uid } from './store.js';
 
-const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
-export const money = n => eur.format(Math.abs(n) < 0.005 ? 0 : n);
-export const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + eur.format(Math.abs(n));
+const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', useGrouping: 'always' });
+// Modalita' privacy: money/signed nascondono le cifre; moneyRaw/signedRaw (usate dai movimenti) restano sempre visibili.
+let hidden = false;
+export const setPrivacy = v => { hidden = !!v; };
+export const moneyRaw = n => eur.format(Math.abs(n) < 0.005 ? 0 : n);
+export const signedRaw = n => (n > 0 ? '+' : n < 0 ? '−' : '') + eur.format(Math.abs(n));
+export const money = n => (hidden ? '•••• €' : moneyRaw(n));
+export const signed = n => (hidden ? '•••• €' : signedRaw(n));
 export const r2 = n => Math.round(n * 100) / 100;
 
 export const pad = n => String(n).padStart(2, '0');
@@ -21,6 +26,7 @@ export function periodLabel(p) {
   if (a.getDate() === 1 && b.getFullYear() === a.getFullYear() && b.getMonth() === a.getMonth() && b.getDate() === last) return `${MESI[a.getMonth()]} ${a.getFullYear()}`;
   return `${a.getDate()} ${MESI_BREVI[a.getMonth()]} ${a.getFullYear()} – ${b.getDate()} ${MESI_BREVI[b.getMonth()]} ${b.getFullYear()}`;
 }
+export const monthName = p => MESI[parse(p.start).getMonth()].toLowerCase();
 export const periodYear = p => p.start.slice(0, 4);
 
 export function stats(p) {
@@ -82,41 +88,68 @@ export function people() {
 
 // ---- categorie ----
 export const DEFAULT_CATS = [
-  ['Cibo e uscite', '🍕'], ['Shopping online', '📦'], ['Viaggi', '✈️'], ['Mare', '🏖️'], ['Motorino e auto', '🛵'],
-  ['Salute', '🩺'], ['Cura persona', '💈'], ['Casa', '🏠'], ['Tasse e bollette', '🧾'], ['Abbonamenti', '🔁'],
-  ['Famiglia', '👪'], ['Svago', '🎮'], ['Regali', '🎁'], ['Vestiti', '👕'], ['Prestiti e debiti', '🤝'],
-  ['Rimborsi e rientri', '↩️'], ['Guadagni', '💼'], ['Giroconti', '🔄'], ['Altro', '🏷️'],
+  ['Cibo e uscite', '🍕', '#FF9F0A'], ['Shopping online', '📦', '#BF5AF2'], ['Viaggi', '✈️', '#0A84FF'], ['Mare', '🏖️', '#32D2E6'],
+  ['Motorino e auto', '🛵', '#FF6B3D'], ['Salute', '🩺', '#2DD4A7'], ['Cura persona', '💈', '#FF6FA5'], ['Casa', '🏠', '#C08A5A'],
+  ['Tasse e bollette', '🧾', '#7C8AA5'], ['Abbonamenti', '🔁', '#6E6BF0'], ['Svago', '🎮', '#FFD60A'], ['Regali', '🎁', '#FF375F'],
+  ['Vestiti', '👕', '#E879F9'], ['Prestiti e debiti', '🤝', '#D4A017'], ['Rimborsi e rientri', '↩️', '#8FE04A'],
+  ['Guadagni', '💼', '#34D399'], ['Riconversione', '🔄', '#94A3B8'], ['Altro', '🏷️', '#9CA3AF'],
 ];
-export const categories = () => state.meta.categories || DEFAULT_CATS.map(([name, icon]) => ({ name, icon }));
+export const PALETTE = ['#FF9F0A', '#BF5AF2', '#0A84FF', '#32D2E6', '#FF6B3D', '#2DD4A7', '#FF6FA5', '#C08A5A', '#6E6BF0', '#FFD60A', '#FF375F', '#E879F9'];
+const defColor = name => DEFAULT_CATS.find(c => c[0] === name)?.[2];
+export const categories = () => (state.meta.categories || DEFAULT_CATS.map(([name, icon, color]) => ({ name, icon, color })))
+  .map(c => ({ ...c, color: c.color || defColor(c.name) || '#9CA3AF' }));
 export const catIcon = name => categories().find(c => c.name === name)?.icon || '🏷️';
+export const catColor = name => categories().find(c => c.name === name)?.color || '#8E8E93';
+
+// Sottocategorie di "Shopping online": i siti
+export const SUBS = ['Amazon', 'PayPal', 'AliExpress', 'Temu', 'eBay', 'Shein', 'TikTok Shop', 'Altri siti'];
+const SITES = [['Amazon', /amazon/], ['AliExpress', /aliexpress/], ['Temu', /temu/], ['eBay', /ebay/], ['Shein', /shein/],
+  ['TikTok Shop', /tik ?tok/], ['PayPal', /pay ?pal/]];
+export const subs = () => state.meta.subs || SUBS;
+export function guessSub(text) {
+  const t = plain(text);
+  for (const n of subs()) { const k = plain(n); if (n !== 'Altri siti' && k.length >= 3 && t.includes(k)) return n; }
+  for (const [name, re] of SITES) if (re.test(t)) return name;
+  return 'Altri siti';
+}
 
 // Parole chiave, in ordine di priorita' (la prima regola che combacia vince)
 const RULES = [
-  ['Giroconti', /^(versamento|prelievo)\b|\bversamento\b|\bprelievo|bancomat|conversione|\bhype\b/],
+  ['Riconversione', /^(versamento|prelievo)\b|\bversamento\b|\bprelievo|bancomat|conversione|\bhype\b|postepay|ricarica (mamma|papa|alessandro|antima)/],
   ['Prestiti e debiti', /prestit|presit|cambiale|debito/],
-  ['Famiglia', /postepay|ricarica (mamma|papa|alessandro|antima)|contributo/],
   ['Guadagni', /\blavoro\b|riprese|guadagno|stipendio|ebitemp/],
-  ['Motorino e auto', /motorino|mototino|benzina|\bauto\b|casello|finanziamento|assicurazione|bollo auto/],
-  ['Tasse e bollette', /\btasse|bolletta|imposta|bollett|fastweb|\bluce\b|\btim\b|pagopa|\bgas\b|elettricita|spid|poste/],
+  ['Abbonamenti', /spotify|iliad|icloud|now ?tv|\bhbo\b|netflix|prime\b|abbonament|claude|software|sofware|witcher|palestra|aruba|epic games|apple|dazn|disney|\bchat/],
+  ['Shopping online', /amazon|aliexpress|temu|ebay|shein|vinted|zalando|tik ?tok|shoppy|\bpsk\b|istant gaming|\bhrk\b|decathlon|idealo/],
+  ['Motorino e auto', /motorino|mototino|benzina|\bauto\b|casello|finanziamento|assicurazione|tagliando/],
+  ['Tasse e bollette', /\btasse|bolletta|bollett|fastweb|imposta|\bluce\b|\btim\b|pagopa|\bgas\b|elettricita|spid|\bposte\b/],
   ['Salute', /psicolog|\bvisit[ae]\b|medicin|fisioter|dentist|tamponi|farmac|oculist/],
   ['Cura persona', /barbiere|capelli|\bbarba\b|parrucch/],
-  ['Abbonamenti', /spotify|iliad|icloud|now ?tv|\bhbo\b|netflix|prime\b|abbonament|sofware|witcher|claude|software|palestra|aruba|epic games|apple|dazn|disney|\bchat/],
-  ['Svago', /cinema|concerto|comicon|stadio|teatro|steam|gioco|giochi|playstation|\bpartita\b|calcetto|serata|discoteca|controller|peaky/],
+  ['Svago', /cinema|concerto|comicon|stadio|teatro|steam|gioco|giochi|playstation|\bpartita\b|calcetto|serata|discoteca|peaky|museo/],
   ['Mare', /\bmare\b|\blido\b|spiagg/],
   ['Vestiti', /new balance|maxisport|mutande|vestit|\bovs\b|scarp|felpa|pull ?& ?bear|zara|maglia|jeans|giacca|tshirt/],
-  ['Regali', /regalo|compleanno|gioielli/],
+  ['Regali', /regal[oi]|compleanno|gioielli/],
   ['Viaggi', /viaggio|treno|aereo|easyjet|italo|trenitalia|\bmetro\b|\buber\b|flixbus|hotel|\bvolo\b|biglietto|biglietti|parcheggio|autostrada|pedaggio/],
   ['Casa', /\bcasa\b|ikea|elettricista|tavol|divano|mobil|ferro da stiro|\bletto\b|cucina/],
-  ['Cibo e uscite', /pizz|sushi|pranzo|\bcena\b|panin|kebab|drink|spritz|birr|aperitiv|gelat|cornett|caff|colazion|donald|poke|just eat|glovo|deliveroo|uber eats|cinese|sfizi|\bspesa\b|\bbar\b|\bpub\b|peroni|cappuccino|patatine|\bmenu\b|wok|bibite|succo|\bcoca\b|poppella|pasticc|\btaco|bellini|sagra|hamburger|mc ?do|sigarett|cicchett|chinott|ristorante|ramen|thai|cereali|salderiso|parigin|acqua|giallo tufo/],
-  ['Famiglia', /\bmamma\b|\bpapa\b|monete/],
-  ['Shopping online', /amazon|paypal|aliexpress|temu|ebay|shein|\bordine\b|shoppy|\bpsk\b|\brata\b/],
+  ['Cibo e uscite', /pizz|sushi|pranzo|\bcena\b|panin|kebab|drink|spritz|birr|aperitiv|gelat|cornett|caff|colazion|donald|poke|just eat|glovo|deliveroo|uber eats|cinese|sfizi|\bspesa\b|\bbar\b|\bpub\b|peroni|cappuccino|patatine|\bmenu\b|wok|bibite|succo|\bcoca\b|poppella|pasticc|\btaco|bellini|sagra|hamburger|mc ?do|sigarett|cicchett|chinott|ristorante|ramen|thai|cereali|salderiso|parigin|acqua|giallo tufo|bistrot|cookies|donut/],
+  ['Shopping online', /pay ?pal|\bordine\b|\brata\b|acquisto/],
 ];
-const plain = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+export const plain = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 export function guessCat(text, kind, descOnly) {
-  const t = plain(text), names = new Set(categories().map(c => c.name));
+  const t = plain(text).replace(/\(prestito[^)]*\)/g, ''), names = new Set(categories().map(c => c.name));   // il totale tra parentesi non e' un prestito
   const learned = state.meta.learned || {}, k = plain(descOnly ?? text);
   if (learned[k] && names.has(learned[k])) return learned[k];
   for (const [name, re] of RULES) if (names.has(name) && re.test(t)) return name;
   if (kind === 'in' && names.has('Rimborsi e rientri')) return 'Rimborsi e rientri';
   return null;
 }
+
+export const inAmt = n => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',');
+
+// icona (chiave in icons.js) di ogni categoria
+const GLYPHS = {
+  'Cibo e uscite': 'silverware-fork-knife', 'Shopping online': 'shopping', 'Viaggi': 'airplane', 'Mare': 'umbrella-beach',
+  'Motorino e auto': 'moped', 'Salute': 'medical-bag', 'Cura persona': 'content-cut', 'Casa': 'home', 'Tasse e bollette': 'receipt-text',
+  'Abbonamenti': 'sync', 'Svago': 'gamepad-variant', 'Regali': 'gift', 'Vestiti': 'tshirt-crew', 'Prestiti e debiti': 'handshake',
+  'Rimborsi e rientri': 'cash-refund', 'Guadagni': 'briefcase', 'Riconversione': 'swap-horizontal', 'Altro': 'tag',
+};
+export const glyphKey = name => (name ? GLYPHS[name] || 'tag' : 'help');

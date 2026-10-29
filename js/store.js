@@ -57,13 +57,13 @@ export async function remove(store, id) {
 export async function setMeta(key, value) {
   state.meta[key] = value;
   await req(tx('meta').objectStore('meta').put({ id: key, value }));
-  if (key === 'people') changed();
+  if (key === 'people' || key === 'groups') changed();
 }
 
 export const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9));
 
 export function exportData() {
-  return { version: 1, exportedAt: new Date().toISOString(), periods: state.periods, transactions: state.transactions, debts: state.debts, people: state.meta.people || [] };
+  return { version: 1, exportedAt: new Date().toISOString(), periods: state.periods, transactions: state.transactions, debts: state.debts, people: state.meta.people || [], categories: state.meta.categories, subs: state.meta.subs, groups: state.meta.groups || {} };
 }
 
 export function validate(d) {
@@ -110,6 +110,16 @@ export async function bulkSave(store, objs) {
   state[store] = [...m.values()]; reindex();
   const t = tx(store);
   for (const o of objs) t.objectStore(store).put(o);
+  await new Promise((res, rej) => { t.oncomplete = res; t.onerror = () => rej(t.error); });
+  changed();
+}
+
+export async function bulkRemove(store, ids) {
+  if (!ids.length) return;
+  const gone = new Set(ids);
+  state[store] = state[store].filter(x => !gone.has(x.id)); reindex();
+  const t = tx(store);
+  for (const id of ids) t.objectStore(store).delete(id);
   await new Promise((res, rej) => { t.oncomplete = res; t.onerror = () => rej(t.error); });
   changed();
 }

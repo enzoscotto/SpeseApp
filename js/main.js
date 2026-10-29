@@ -1,34 +1,46 @@
 import * as S from './store.js';
 import * as C from './calc.js';
 import * as Sync from './sync.js';
-import { money, signed, display, periodLabel, fmtDay, fmtShort, DEBT_TYPES } from './calc.js';
+import { ICONS } from './icons.js';
+import { money, signed, moneyRaw, signedRaw, display, periodLabel, fmtDay, fmtShort, DEBT_TYPES } from './calc.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const ui = { tab: 'mese', periodId: null, acct: 'tutti', q: '', statYear: null };
+const ui = { open: new Set(), sel: null, searchOpen: false, anim: '', tab: 'mese', periodId: null, acct: 'tutti', q: '', statYear: null, catf: '', allMonths: false };
 
 const IC = {
   mese: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   debiti: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.3"/><path d="M3 20c.5-3.5 3-5.5 6-5.5s5.5 2 6 5.5"/><path d="M17 6.5a3 3 0 0 1 0 5.5M18.5 15c1.6.7 2.6 2.4 2.9 4.5"/></svg>',
   stat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>',
   altro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>',
+  searchBtn: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>',
+  filter: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M3 6h9M18 6h3M3 12h3M12 12h9M3 18h11M20 18h1"/><circle cx="15" cy="6" r="2.2"/><circle cx="9" cy="12" r="2.2"/><circle cx="17" cy="18" r="2.2"/></svg>',
+  eye: '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeoff: '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.9 17.9A10.6 10.6 0 0 1 12 19c-6.4 0-10-7-10-7a18.6 18.6 0 0 1 5.1-5.9M9.9 4.2A9.9 9.9 0 0 1 12 4c6.4 0 10 7 10 7a18.7 18.7 0 0 1-2.2 3.2M1 1l22 22"/><path d="M14.1 14.1a3 3 0 1 1-4.2-4.2"/></svg>',
   plus: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   left: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
   right: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
   chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>',
+  folder: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
   x: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
 };
+
+// icone piene delle categorie
+const glyph = (name, size = 22) => `<svg class="gl" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><path d="${ICONS[C.glyphKey(name)] || ICONS.tag}"/></svg>`;
+const mini = (name, color, size = 15) => `<i class="mini" style="--cc:${color || C.catColor(name)}">${glyph(name, size)}</i>`;
 
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2200); }
 const num = v => { const n = Number(String(v ?? '').replace(/[€\s]/g, '').replace(/\./g, m => (String(v).includes(',') ? '' : m)).replace(',', '.')); return Number.isFinite(n) ? n : NaN; };
 const backupDays = () => S.state.meta.lastBackup ? Math.floor((Date.now() - new Date(S.state.meta.lastBackup)) / 864e5) : null;
 
 // ---------- sheets ----------
-function openSheet(title, body, { onSave, saveLabel = 'Salva', onMount } = {}) {
+function openSheet(title, body, { onSave, saveLabel = 'Salva', deleteLabel, onMount } = {}) {
   const root = $('#sheetRoot');
   const wrap = document.createElement('div');
-  wrap.innerHTML = `<div class="back"></div><div class="sheet" role="dialog"><div class="head"><button data-x>Chiudi</button><h2>${esc(title)}</h2>${onSave ? `<button class="save" data-save>${esc(saveLabel)}</button>` : '<span style="width:52px"></span>'}</div><div class="body">${body}</div></div>`;
+  const foot = onSave || deleteLabel
+    ? `<div class="foot">${deleteLabel ? `<button class="fbtn del" data-del>${esc(deleteLabel)}</button>` : ''}${onSave ? `<button class="fbtn save" data-save>${esc(saveLabel)}</button>` : ''}</div>` : '';
+  wrap.innerHTML = `<div class="back"></div><div class="sheet" role="dialog"><div class="head"><button data-x>Chiudi</button><h2>${esc(title)}</h2><span style="width:52px"></span></div><div class="body">${body}</div>${foot}</div>`;
   root.appendChild(wrap);
   const close = () => wrap.remove();
   $('.back', wrap).onclick = close; $('[data-x]', wrap).onclick = close;
@@ -41,25 +53,66 @@ function openSheet(title, body, { onSave, saveLabel = 'Salva', onMount } = {}) {
 function renderTabs() {
   const t = (id, label, ic, dot) => `<button data-act="tab" data-id="${id}" class="${ui.tab === id ? 'on' : ''} ${dot ? 'dot' : ''}">${ic}<span>${label}</span></button>`;
   const d = backupDays();
-  $('#tabs').innerHTML = t('mese', 'Mese', IC.mese) + t('debiti', 'Debiti', IC.debiti) +
-    `<button class="plus" data-act="add" aria-label="Aggiungi"><span>${IC.plus}</span></button>` +
-    t('stat', 'Statistiche', IC.stat) + t('altro', 'Altro', IC.altro, !Sync.config() && S.state.transactions.length > 0 && (d === null || d > 30));
+  $('#tabs').innerHTML = '<div class="tabpill">' + t('mese', 'Mese', IC.mese) + t('stat', 'Statistiche', IC.stat) +
+    t('altro', 'Altro', IC.altro, !Sync.config() && S.state.transactions.length > 0 && (d === null || d > 30)) + '</div>' +
+    `<button class="plus" data-act="add" aria-label="Aggiungi">${IC.plus}</button>`;
 }
 
 function render() {
+  if (ui.tab !== 'mese') ui.sel = null;
   renderTabs();
   const v = $('#view');
-  v.innerHTML = ({ mese: viewMese, debiti: viewDebiti, stat: viewStat, altro: viewAltro })[ui.tab]();
-  if (ui.tab === 'mese') { renderList(); fitAcc(); }
+  const anim = ui.anim; ui.anim = '';
+  v.innerHTML = ({ mese: viewMese, stat: viewStat, altro: viewAltro })[ui.tab]();
+  if (anim) { v.classList.remove('anim-next', 'anim-prev'); void v.offsetWidth; v.classList.add('anim-' + anim); setTimeout(() => v.classList.remove('anim-' + anim), 260); }
+  if (ui.tab === 'mese') { renderList(); fitBx(); }
+  if (ui.tab === 'stat') { const b = $('.bars.sc'); if (b) b.scrollLeft = b.scrollWidth; }
+  renderSelBar();
+  renderFab();
 }
 
-// Nome e totale di Carta/Contanti restano sulla stessa riga, alla stessa grandezza (anche oltre 10.000 €)
-function fitAcc() {
-  const tops = [...document.querySelectorAll('.acc .top')]; if (!tops.length) return;
-  let size = 19; tops.forEach(t => t.style.fontSize = size + 'px');
-  while (size > 10 && tops.some(t => t.scrollWidth > t.clientWidth + 0.5)) { size -= 0.5; tops.forEach(t => t.style.fontSize = size + 'px'); }
+// i saldi restano su una riga anche con 5 cifre: stessa grandezza per Carta e Contanti
+function fitBx() {
+  const vs = [...document.querySelectorAll('.bx-v')]; if (!vs.length) return;
+  let size = 26; vs.forEach(v => v.style.fontSize = size + 'px');
+  while (size > 11 && vs.some(v => v.scrollWidth > v.clientWidth + 0.5)) { size -= 0.5; vs.forEach(v => v.style.fontSize = size + 'px'); }
 }
-window.addEventListener('resize', fitAcc);
+window.addEventListener('resize', fitBx);
+
+// ---------- filtri della lista ----------
+function filterSheet() {
+  const nNone = S.state.transactions.filter(t => !t.cat).length;
+  const row = (val, label, ico) => `<button class="row" data-f="${esc(val)}"><div class="main"><div class="ttl lbl">${ico || ''} ${esc(label)}</div></div>${ui.catf === val ? '<span class="pos">✓</span>' : ''}</button>`;
+  const body = `<div class="form"><div class="frow"><label style="width:auto;flex:1;color:var(--text)">Cerca in tutti i mesi</label><label class="switch"><input type="checkbox" id="fAll" ${ui.allMonths ? 'checked' : ''}><i></i></label></div></div>
+    <div class="sechead"><span>Categoria</span></div>
+    <div class="list">${row('', 'Tutte le categorie') + row('__none', `Senza categoria (${nNone})`) + C.categories().map(c => row(c.name, c.name, mini(c.name, c.color))).join('')}</div>`;
+  openSheet('Filtri', body, {
+    onMount: (w, close) => {
+      $('#fAll', w).onchange = ev => { ui.allMonths = ev.target.checked; render(); };
+      w.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { ui.catf = b.dataset.f; if (ui.catf) ui.allMonths = ui.allMonths || false; close(); render(); });
+    }
+  });
+}
+
+// ---------- privacy e cambio mese ----------
+const eyeBtn = () => `<button class="iconbtn ${privacyOn() ? 'on' : ''}" data-act="privacy" aria-label="${privacyOn() ? 'Mostra le cifre' : 'Nascondi le cifre'}" aria-pressed="${privacyOn()}">${privacyOn() ? IC.eyeoff : IC.eye}</button>`;
+function privacyOn() { try { return localStorage.getItem('privacy') === '1'; } catch { return false; } }
+function setPrivacyOn(v) { try { localStorage.setItem('privacy', v ? '1' : '0'); } catch { /* ignore */ } C.setPrivacy(v); }
+
+let swipe = null, noClickUntil = 0;
+document.addEventListener('pointerdown', e => {
+  swipe = ui.tab === 'mese' && e.isPrimary && e.target.closest('#view') && !e.target.closest('input,select,textarea')
+    ? { x: e.clientX, y: e.clientY } : null;
+});
+document.addEventListener('pointerup', e => {
+  if (!swipe) return;
+  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
+  if (Math.abs(dx) < 55 || Math.abs(dx) < 1.6 * Math.abs(dy)) return;
+  noClickUntil = Date.now() + 350;                 // lo scorrimento non deve aprire il riquadro su cui e' finito il dito
+  actions[dx < 0 ? 'next' : 'prev']();
+});
+document.addEventListener('pointercancel', () => { swipe = null; });
+document.addEventListener('click', e => { if (Date.now() < noClickUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
 
 // ---------- MESE ----------
 function curPeriod() { return S.period(ui.periodId) || C.currentPeriod(); }
@@ -74,58 +127,139 @@ function viewMese() {
   }
   const p = curPeriod(); ui.periodId = p.id;
   const st = C.stats(p), i = S.state.periods.findIndex(x => x.id === p.id);
-  const hero = p.salary == null
-    ? `<div class="lbl">Risparmiato</div><div class="big muted" style="font-size:24px">In attesa dello stipendio…</div>`
-    : `<div class="lbl">Risparmiato</div><div class="big num ${st.saved >= 0 ? '' : 'neg'}">${signed(st.saved).replace('+', '')}</div>`;
+  const isCur = C.currentPeriod()?.id === p.id;
+  const ICO_CARD = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19M6.5 15h4"/></svg>';
+  const ICO_CASH = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.8"/><path d="M6 9.5v.01M18 14.5v.01"/></svg>';
+  const balances = isCur ? `
+  <div class="bxs">
+    <div class="bx carta"><div class="bx-t">${ICO_CARD}<span>Carta</span></div><div class="bx-v num">${money(st.card.rest)}</div></div>
+    <div class="bx contanti"><div class="bx-t">${ICO_CASH}<span>Contanti</span></div><div class="bx-v num">${money(st.cash.rest)}</div></div>
+  </div>` : '';
+  const pct = p.salary > 0 ? Math.round(st.real / p.salary * 100) : null;
+  const level = pct == null ? '' : pct > 100 ? 'over' : pct > 85 ? 'warn' : '';
+  const sav = p.salary == null ? `<span>Risparmiato</span><b class="muted">in attesa stipendio</b>`
+    : `<span>Risparmiato</span><b class="num">${st.saved >= 0 ? money(st.saved) : '−' + money(-st.saved)}</b>`;
   return `
+  <div id="topArea">
   <div class="bar">
     <button class="periodbtn" data-act="pickPeriod"><span>${esc(periodLabel(p))}</span>${IC.chev}</button>
-    <div class="nav"><button class="iconbtn" data-act="prev" ${i <= 0 ? 'disabled' : ''}>${IC.left}</button><button class="iconbtn" data-act="next" ${i >= S.state.periods.length - 1 ? 'disabled' : ''}>${IC.right}</button></div>
+    <div class="nav">
+      <button class="iconbtn ${ui.q ? 'on' : ''}" data-act="searchToggle" aria-label="Cerca">${IC.searchBtn}</button>
+      <button class="iconbtn ${ui.catf || ui.allMonths ? 'on' : ''}" data-act="filterSheet" aria-label="Filtra per categoria">${IC.filter}</button>
+      ${eyeBtn()}
+    </div>
   </div>
-  <button class="card hero" data-act="editPeriod" style="display:block;width:100%;text-align:left">
-    ${hero}
-    <div class="sub num"><span>Stipendio <b>${p.salary == null ? '—' : money(p.salary)}</b></span><span>Spesa reale <b>${money(st.real)}</b></span><span>Totale <b>${money(st.total)}</b></span></div>
-  </button>
-  <div class="accs">${accCard('carta', 'Carta', st.card)}${accCard('contanti', 'Contanti', st.cash)}</div>
-  <div class="search">${IC.search}<input id="q" type="search" placeholder="Cerca in tutti i mesi" value="${esc(ui.q)}" enterkeyhint="search" autocomplete="off" autocapitalize="off"></div>
+  ${ui.searchOpen || ui.q ? `<div class="search">${IC.search}<input id="q" type="search" placeholder="Cerca in tutti i mesi" value="${esc(ui.q)}" enterkeyhint="search" autocomplete="off" autocapitalize="off"></div>` : ''}
+  ${balances}
+  <div class="duo">
+    <button class="dbox spent" data-act="summary"><span>Speso</span><b class="num">${money(st.real)}</b></button>
+    <button class="dbox saved ${p.salary != null && st.saved < 0 ? 'bad' : ''}" data-act="summary"><span>Risparmiato</span><b class="num">${p.salary == null ? '—' : (st.saved >= 0 ? money(st.saved) : '−' + money(-st.saved))}</b></button>
+  </div>
+  </div>
   <div class="seg" id="acctSeg">${['tutti', 'carta', 'contanti'].map(a => `<button data-act="acct" data-id="${a}" class="${ui.acct === a ? 'on' : ''}">${{ tutti: 'Tutti', carta: 'Carta', contanti: 'Contanti' }[a]}</button>`).join('')}</div>
+  ${ui.catf || ui.allMonths ? `<button class="activef" data-act="clearFilters">${esc(ui.catf === '__none' ? 'Senza categoria' : ui.catf || 'Tutte le categorie')}${ui.allMonths ? ' · tutti i mesi' : ''}<i>✕</i></button>` : ''}
   <div id="listBox"></div>`;
 }
-function accCard(id, name, a) {
-  return `<button class="acc ${id} ${ui.acct === id ? 'sel' : ''}" data-act="acct" data-id="${ui.acct === id ? 'tutti' : id}">
-    <div class="top"><span>${name}</span><span class="num">${money(a.rest)}</span></div>
-    <div class="l num"><span>Entrate</span><span>${money(a.in)}</span></div>
-    <div class="l num"><span>Uscite</span><span>${money(a.out)}</span></div></button>`;
+
+function rowHtml(t, showAcct, showPeriod, sub, plain, extra) {
+  const debt = S.state.debts.find(d => d.txId === t.id);
+  const un = t.unpaid ? `<span class="tag red">Da incassare${t.expected ? ' ' + moneyRaw(Math.max(0, t.expected - t.amount)) : ''}</span>` : '';
+  const ico = glyph(t.cat), cc = t.cat ? C.catColor(t.cat) : '';
+  const chips = [`<span class="tag ${t.account === 'carta' ? 'card' : 'cash'}">${t.account === 'carta' ? 'Carta' : 'Contanti'}</span>`,
+    t.cat ? `<span class="tag cat">${esc(t.cat)}${t.sub ? ' · ' + esc(t.sub) : ''}</span>` : '<span class="tag nocat">Senza categoria</span>',
+    debt ? `<span class="tag dbt">${esc(debt.person)}</span>` : '', un, showPeriod ? `<span class="muted">${esc(fmtShort(t.date))}</span>` : '', extra || ''].join('');
+  const title = esc(t.cat === 'Riconversione' && t.pair ? display(t) : (t.desc || t.category || '—'));
+  const selOn = !plain && ui.sel?.has(t.id), lock = !plain && ui.sel && lockedIds.has(t.id), chk = !plain && ui.sel ? `<span class="chk ${selOn ? 'on' : ''} ${lock ? 'lk' : ''}"></span>` : '';
+  return `<button class="mv ${selOn ? 'selected' : ''} ${lock ? 'lock' : ''} ${cc ? 'cc' : ''} ${t.unpaid ? 'unp' : ''} ${sub ? 'sub' : ''} ${t.account === 'carta' ? 'ac-carta' : 'ac-cash'}" ${cc ? `style="--cc:${cc}"` : ''} data-act="editTx" data-id="${t.id}">${chk}<div class="ico">${ico}</div><div class="main"><div class="mvt">${title}</div><div class="chips2">${chips}</div></div>
+    <div class="amt num ${t.kind === 'in' ? 'pos' : 'neg'}">${t.kind === 'in' ? '+' : '−'}${moneyRaw(t.amount)}</div></button>`;
+}
+// ---------- gruppi di movimenti ----------
+// Un gruppo ha un nome (meta.groups[gid]) e i suoi movimenti hanno `gid`. Il gruppo e' sempre una tua scelta.
+const groupsOn = () => { try { return localStorage.getItem('groups') !== '0'; } catch { return true; } };
+const setGroupsOn = v => { try { localStorage.setItem('groups', v ? '1' : '0'); } catch { /* ignore */ } };
+const groupsClosed = () => { try { return localStorage.getItem('gclosed') === '1'; } catch { return false; } };
+const setGroupsClosed = v => { try { localStorage.setItem('gclosed', v ? '1' : '0'); } catch { /* ignore */ } };
+const groups = () => S.state.meta.groups || {};
+const gName = gid => groups()[gid]?.name || 'Gruppo';
+const gMembers = gid => S.state.transactions.filter(t => t.gid === gid);
+const netOf = x => x.kind === 'in' ? x.amount : -x.amount;
+const gTotal = list => list.reduce((s, x) => s + netOf(x), 0);
+const sgnCls = v => v > 0.005 ? 'pos' : v < -0.005 ? 'neg' : '';
+const groupedIds = () => new Set(S.state.transactions.filter(t => t.gid && groups()[t.gid]).map(t => t.id));
+let lockedIds = new Set();
+async function pruneGroups() {
+  const g = groups(), used = new Set(S.state.transactions.map(t => t.gid).filter(Boolean));
+  const keep = Object.fromEntries(Object.entries(g).filter(([id]) => used.has(id)));
+  if (Object.keys(keep).length !== Object.keys(g).length) await S.setMeta('groups', keep);
+}
+// i vecchi collegamenti (principale + sotto-movimenti) diventano gruppi con nome
+async function migrateGroups() {
+  if ((S.state.meta.groupsV || 0) >= 1) return;
+  const all = S.state.transactions, byId = new Map(all.map(t => [t.id, t]));
+  const par = t => t.of || (String(t.grp || '').includes(':') ? null : t.rientroOf) || null;
+  const top = t => { let x = t; for (let i = 0; i < 8; i++) { const p = byId.get(par(x)); if (!p || p === x) break; x = p; } return x; };
+  const fam = new Map();
+  for (const t of all) { const r = top(t); if (!fam.has(r.id)) fam.set(r.id, []); fam.get(r.id).push(t); }
+  const gs = { ...groups() }, upd = [];
+  for (const [rid, ms] of fam) {
+    if (ms.length < 2) continue;
+    const root = byId.get(rid); gs[rid] = { name: root.desc || root.category || 'Gruppo' };
+    for (const m of ms) upd.push({ ...m, gid: rid, of: undefined });
+  }
+  if (upd.length) { await S.bulkSave('transactions', upd); await S.setMeta('groups', gs); }
+  await S.setMeta('groupsV', 1);
+}
+function groupItems(list) {   // list: movimenti gia' filtrati e ordinati -> [{ t } | { gid, kids }]
+  const seen = new Map(), out = [];
+  for (const t of list) {
+    if (!t.gid || !groups()[t.gid]) { out.push({ t }); continue; }
+    let g = seen.get(t.gid);
+    if (!g) { g = { gid: t.gid, kids: [] }; seen.set(t.gid, g); out.push(g); }
+    g.kids.push(t);
+  }
+  return out;
+}
+function groupHtml(g, showAcct, showPeriod) {
+  const all = gMembers(g.gid), tot = gTotal(all), n = all.length;
+  const closed = groupsClosed(), col = closed && !ui.sel && !ui.open.has(g.gid), first = g.kids[0].date;
+  const head = `<button class="mv gh" data-act="openGroup" data-id="${g.gid}"><div class="ico">${IC.folder}</div><div class="main"><div class="mvt">${esc(gName(g.gid))}</div><div class="chips2"><span class="muted">${n} ${n === 1 ? 'movimento' : 'movimenti'}</span></div></div><div class="amt num ${sgnCls(tot)}">${signedRaw(tot)}</div>${closed ? `<span class="gtgl ${col ? '' : 'up'}" data-act="toggleGroup" data-id="${g.gid}">${IC.chev}</span>` : ''}</button>`;
+  return `<div class="mvg ${col ? 'col' : ''}">${head}${col ? '' : g.kids.map(k => rowHtml(k, showAcct, showPeriod || k.date !== first, true)).join('')}</div>`;
 }
 
-function rowHtml(t, showAcct, showPeriod) {
-  const debt = S.state.debts.find(d => d.txId === t.id);
-  const chips = [`<span class="tag ${t.account === 'carta' ? 'card' : 'cash'}">${t.account === 'carta' ? 'Carta' : 'Contanti'}</span>`,
-    t.cat ? `<span class="tag cat">${esc(C.catIcon(t.cat))} ${esc(t.cat)}</span>` : '<span class="tag nocat">Senza categoria</span>',
-    debt ? `<span class="tag dbt">${esc(debt.person)}</span>` : '', showPeriod ? `<span class="muted">${esc(fmtShort(t.date))}</span>` : ''].join('');
-  const title = esc(t.cat === 'Giroconti' ? display(t) : (t.desc || t.category || '—'));
-  return `<button class="mv" data-act="editTx" data-id="${t.id}"><div class="main"><div class="mvt">${title}</div><div class="chips2">${chips}</div></div>
-    <div class="amt num ${t.kind === 'in' ? 'pos' : 'neg'}">${t.kind === 'in' ? '+' : '−'}${money(t.amount)}</div></button>`;
-}
+const relDay = d => {
+  if (d === C.today()) return 'Oggi';
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  if (d === C.isoDate(y)) return 'Ieri';
+  const t = fmtDay(d); return t[0].toUpperCase() + t.slice(1);
+};
 const byDateDesc = (a, b) => b[0].date.localeCompare(a[0].date) || b[1] - a[1];
 
 function renderList() {
   const box = $('#listBox'); if (!box) return;
+  box.classList.toggle('selmode', !!ui.sel);
+  lockedIds = ui.sel ? groupedIds() : new Set();
   const q = ui.q.trim().toLowerCase();
-  let items, global = !!q;
+  const global = !!q || ui.allMonths;
+  const okCat = t => !ui.catf || (ui.catf === '__none' ? !t.cat : t.cat === ui.catf);
+  const okAcct = t => ui.acct === 'tutti' || t.account === ui.acct;
+  const qNone = q === 'senza categoria';   // anche scrivendolo nella ricerca
+  let items;
   if (global) {
-    items = S.state.transactions.map((t, i) => [t, i]).filter(([t]) => (ui.acct === 'tutti' || t.account === ui.acct) &&
-      (display(t) + ' ' + (t.cat || '') + ' ' + t.amount + ' ' + (S.state.debts.find(d => d.txId === t.id)?.person || '')).toLowerCase().includes(q));
+    items = S.state.transactions.map((t, i) => [t, i]).filter(([t]) => okAcct(t) && okCat(t) && (!q || (qNone ? !t.cat :
+      (display(t) + ' ' + (t.cat || '') + ' ' + t.amount + ' ' + (S.state.debts.find(d => d.txId === t.id)?.person || '')).toLowerCase().includes(q))));
   } else {
-    items = S.txOf(ui.periodId).map((t, i) => [t, i]).filter(([t]) => ui.acct === 'tutti' || t.account === ui.acct);
+    items = S.txOf(ui.periodId).map((t, i) => [t, i]).filter(([t]) => okAcct(t) && okCat(t));
   }
   items.sort(byDateDesc);
-  if (!items.length) { box.innerHTML = `<div class="empty">${global ? 'Nessun risultato' : 'Nessun movimento.<br>Tocca + per aggiungerne uno.'}</div>`; return; }
-  let html = '', day = null, shown = items.slice(0, global ? 300 : 2000), buf = [], dsum = 0;
-  const flush = () => { if (day) html += `<div class="dayh"><span>${esc(fmtDay(day))}</span><span class="num">${signed(dsum)}</span></div><div class="mvs">${buf.join('')}</div>`; buf = []; dsum = 0; };
-  for (const [t] of shown) {
-    if (t.date !== day) { flush(); day = t.date; }
-    buf.push(rowHtml(t, ui.acct === 'tutti', global)); dsum += t.kind === 'in' ? t.amount : -t.amount;
+  if (!items.length) { box.innerHTML = `<div class="empty">${global || ui.catf ? 'Nessun movimento con questi filtri' : 'Nessun movimento.<br>Tocca + per aggiungerne uno.'}</div>`; return; }
+  const entries = groupsOn() ? groupItems(items.map(([t]) => t)) : items.map(([t]) => ({ t }));
+  let html = '', day = null, shown = entries.slice(0, global ? 300 : 2000), buf = [], dsum = 0;
+  const flush = () => { if (day) html += `<div class="dayh"><span>${esc(relDay(day))}</span><span class="num">${signed(dsum)}</span></div><div class="mvs">${buf.join('')}</div>`; buf = []; dsum = 0; };
+  for (const en of shown) {
+    const date = en.gid ? en.kids[0].date : en.t.date;
+    if (date !== day) { flush(); day = date; }
+    if (en.gid) { buf.push(groupHtml(en, ui.acct === 'tutti', global)); dsum += gTotal(en.kids); }
+    else { buf.push(rowHtml(en.t, ui.acct === 'tutti', global)); dsum += netOf(en.t); }
   }
   flush();
   if (global) html = `<div class="muted" style="margin:10px 4px 0;font-size:13px">${items.length} risultati${items.length > 300 ? ' (primi 300)' : ''} · totale ${signed(items.reduce((s, [t]) => s + (t.kind === 'in' ? t.amount : -t.amount), 0))}</div>` + html;
@@ -150,6 +284,19 @@ function editPeriod() {
       <div class="frow"><label>Inizio contanti</label><input id="pCash" inputmode="decimal" value="${v(p.startCash)}"></div>
       <div class="frow"><label>Rettifica</label><input id="pAdj" inputmode="decimal" value="${v(p.adjust || 0)}"></div>
     </div>`, {
+    deleteLabel: 'Elimina mese',
+    onMount: (w, close) => {
+      const del = $('[data-del]', w); if (!del) return;
+      del.onclick = async () => {
+        if (C.currentPeriod()?.id === p.id) return toast('Il mese corrente non si può eliminare');
+        const txs = S.txOf(p.id), ids = txs.map(t => t.id), idset = new Set(ids);
+        if (!confirm(txs.length ? `Eliminare ${periodLabel(p)} con i suoi ${txs.length} movimenti? Non si può annullare.` : `Eliminare ${periodLabel(p)}?`)) return;
+        await S.bulkRemove('debts', S.state.debts.filter(d => idset.has(d.txId)).map(d => d.id));
+        await S.bulkRemove('transactions', ids);
+        await S.remove('periods', p.id);
+        ui.periodId = C.currentPeriod().id; close(); render(); toast('Mese eliminato');
+      };
+    },
     onSave: async w => {
       const g = id => $(id, w).value.trim(), n = id => g(id) === '' ? null : num(g(id));
       const sal = n('#pSal'), sc = n('#pCard') ?? 0, sk = n('#pCash') ?? 0, adj = n('#pAdj') ?? 0;
@@ -163,35 +310,156 @@ function editPeriod() {
 // ---------- form movimento ----------
 const peopleNames = () => C.people().map(p => p.name).sort((a, b) => a.localeCompare(b));
 
+// ---------- spese per categoria (statistiche) ----------
+// Prestiti e riconversioni non sono spese. Un rimborso registrato sulla stessa riga di una spesa (stesso gruppo) la riduce:
+// cosi' un acquisto pagato da te e rimborsato da altri conta solo per la parte che ti e' costata davvero.
+const NOT_SPEND = new Set(['Riconversione', 'Prestiti e debiti']);
+function netSpend(txs) {
+  const pools = new Map(), res = new Map();
+  for (const t of txs) if (t.kind === 'in' && t.cat === 'Rimborsi e rientri' && (t.gid || t.grp)) pools.set(t.gid || t.grp, (pools.get(t.gid || t.grp) || 0) + t.amount);
+  for (const t of txs) {
+    if (t.kind !== 'out' || t.pair || NOT_SPEND.has(t.cat)) continue;
+    let v = t.amount;
+    const key = t.gid || t.grp, pool = key ? pools.get(key) || 0 : 0;
+    if (pool > 0) { const take = Math.min(v, pool); pools.set(key, pool - take); v -= take; }
+    res.set(t.id, v);
+  }
+  return res;
+}
+
+// ---------- riepilogo del mese ----------
+function summarySheet() {
+  const p = curPeriod(), st = C.stats(p), isCur = C.currentPeriod()?.id === p.id, when = isCur ? 'Questo mese' : 'In ' + C.monthName(p);
+  const cats = new Map(), mtx = S.txOf(p.id), net = netSpend(mtx);
+  for (const t of mtx) if (net.has(t.id)) { const k = t.cat || 'Senza categoria'; cats.set(k, (cats.get(k) || 0) + net.get(t.id)); }
+  const top = [...cats.entries()].filter(([, v]) => v > 0.005).sort((a, b) => b[1] - a[1]);
+  const body = `
+    <div class="sumhero">
+      <div class="sh-l">${when} hai risparmiato</div>
+      <div class="sh-v num ${p.salary != null && st.saved < 0 ? 'neg' : ''}">${p.salary == null ? 'in attesa dello stipendio' : (st.saved >= 0 ? money(st.saved) : '−' + money(-st.saved))}</div>
+    </div>
+    <div class="card" style="padding:6px 16px">
+      <div class="kv"><span>Stipendio</span><b class="num">${p.salary == null ? '—' : money(p.salary)}</b></div>
+      <div class="kv"><span>Hai speso</span><b class="num">${money(st.real)}</b></div>
+    </div>
+    <div class="sechead"><span>Per categoria</span></div>
+    <div class="card">${top.map(([k, v]) => `<div class="hbar"><div class="top"><span class="lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / top[0][1] * 100}%;background:${k === 'Senza categoria' ? '#9CA3AF' : C.catColor(k)}"></div></div></div>`).join('') || '<div class="empty">Nessuna uscita</div>'}</div>
+    <button class="btn sec" data-edit>Modifica dati del mese</button>`;
+  openSheet(periodLabel(p), body, { onMount: (w, close) => { $('[data-edit]', w).onclick = () => { close(); editPeriod(); }; } });
+}
+
+// ---------- menu del + ----------
+function openAddMenu() {
+  const plus = $('#tabs .plus'); if (!plus) return;
+  const r = plus.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const items = [['out', 'Uscita', '💸'], ['in', 'Entrata', '💰'], ['stipendio', 'Stipendio', '💼'], ['prelievo', 'Prelievo', '🏧'], ['versamento', 'Versamento', '🏦']];
+  const ang = [180, 158, 136, 114, 92], R = Math.min(172, cx - 50), D = 56;
+  const root = document.createElement('div'); root.className = 'addmenu';
+  root.innerHTML = '<div class="amback"></div>' + items.map(([k, label, ic], n) => {
+    const a = ang[n] * Math.PI / 180, x = cx + R * Math.cos(a) - D / 2, y = cy - R * Math.sin(a) - D / 2;
+    return `<button class="am" data-k="${k}" style="left:${x}px;top:${y}px;--dx:${cx - D / 2 - x}px;--dy:${cy - D / 2 - y}px;--d:${n * 35}ms"><span class="amdot">${ic}</span><span class="amlbl">${label}</span></button>`;
+  }).join('') + `<button class="amx" style="left:${cx - 23}px;top:${cy - 23}px" aria-label="Chiudi">${IC.plus.replace('width="26" height="26"', 'width="26" height="26" style="transform:rotate(45deg)"')}</button>`;
+  document.body.appendChild(root);
+  setTimeout(() => root.classList.add('on'), 20);
+  const close = () => { root.classList.remove('on'); setTimeout(() => root.remove(), 200); };
+  $('.amback', root).onclick = close; $('.amx', root).onclick = close;
+  root.querySelectorAll('.am').forEach(b => b.onclick = () => { close(); const k = b.dataset.k; if (k === 'stipendio') openSalarySheet(); else openTxSheet(null, { kind: k }); });
+}
+
+function openSalarySheet() {
+  const p = curPeriod();
+  openSheet('Stipendio', `<div class="form">
+      <div class="frow"><label>Mese</label><span style="flex:1;text-align:right">${esc(periodLabel(p))}</span></div>
+      <div class="frow amount"><input id="sAmt" inputmode="decimal" placeholder="0,00" value="${p.salary != null ? C.inAmt(p.salary) : ''}" autocomplete="off"></div>
+    </div>`, {
+    onMount: w => setTimeout(() => $('#sAmt', w).focus(), 300),
+    onSave: async w => {
+      const v = num($('#sAmt', w).value);
+      if (!(v > 0)) return toast('Inserisci l’importo'), false;
+      await S.save('periods', { ...p, salary: C.r2(v) });
+      render(); toast('Stipendio registrato ✓');
+    }
+  });
+}
+
+// il rientro di un'uscita: creato dall'app (rientroOf) oppure stesso gruppo/riga degli Excel importati
+const findBack = t => t && (S.state.transactions.find(x => x.rientroOf === t.id) ||
+  (t.grp && t.kind === 'out' ? S.state.transactions.find(x => x.grp === t.grp && x.id !== t.id && x.kind === 'in' && x.account !== t.account && !x.pair) : null));
+
+// scelta di piu' movimenti da aggiungere a un gruppo (quelli gia' in un gruppo non compaiono)
+function pickMany(title, refDate, cb) {
+  const ex = groupedIds(), ref = Date.parse(refDate) || Date.now(), sel = new Set();
+  openSheet(title, `<div class="search" style="margin-top:0">${IC.search}<input id="pq" type="search" placeholder="Cerca un movimento" autocomplete="off"></div><div id="pres"></div>`, {
+    saveLabel: 'Aggiungi',
+    onMount: w => {
+      const run = () => {
+        const q = $('#pq', w).value.trim().toLowerCase();
+        const res = S.state.transactions.filter(t => !ex.has(t.id) && (!q || (display(t) + ' ' + (t.cat || '') + ' ' + t.amount).toLowerCase().includes(q)))
+          .sort((a, b) => Math.abs(Date.parse(a.date) - ref) - Math.abs(Date.parse(b.date) - ref)).slice(0, 80);
+        $('#pres', w).innerHTML = res.length ? `<div class="mvs">${res.map(t => rowHtml(t, true, true, false, true).replace('data-act="editTx"', 'data-pick')
+          .replace('class="mv ', `class="mv ${sel.has(t.id) ? 'selected' : ''} `).replace('<div class="ico">', `<span class="chk ${sel.has(t.id) ? 'on' : ''}"></span><div class="ico">`)).join('')}</div>` : '<div class="empty">Nessun movimento</div>';
+        $('#pres', w).querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
+          const id = b.dataset.id, on = !sel.has(id); if (on) sel.add(id); else sel.delete(id);
+          b.classList.toggle('selected', on); b.querySelector('.chk').classList.toggle('on', on);
+        });
+      };
+      $('#pq', w).oninput = run; run();
+    },
+    onSave: async () => {
+      if (!sel.size) return toast('Seleziona almeno un movimento'), false;
+      await cb([...sel]);
+    }
+  });
+}
+
+// scelta di un gruppo esistente (o nuovo) per un movimento
+function pickGroup(cb) {
+  const gs = Object.keys(groups()).filter(id => gMembers(id).length);
+  openSheet('Scegli il gruppo', `<div class="list">${gs.map(id => { const ms = gMembers(id), tot = gTotal(ms); return `<button class="row" data-g="${id}"><div class="main"><div class="ttl">${esc(gName(id))}</div><div class="sm">${ms.length} ${ms.length === 1 ? 'movimento' : 'movimenti'} · ${signedRaw(tot)}</div></div></button>`; }).join('')}<button class="row" data-new><div class="main"><div class="ttl" style="color:var(--accent)">+ Nuovo gruppo</div></div></button></div>`, {
+    onMount: (w, close) => {
+      w.querySelectorAll('[data-g]').forEach(b => b.onclick = () => { cb(b.dataset.g, null); close(); });
+      $('[data-new]', w).onclick = () => { const n = (prompt('Nome del gruppo:') || '').trim(); if (!n) return; cb(S.uid(), n); close(); };
+    }
+  });
+}
+
 function openTxSheet(existing, preset = {}) {
-  const e = existing, debt0 = e && S.state.debts.find(d => d.txId === e.id), ret0 = e && S.state.transactions.find(x => x.rientroOf === e.id);
+  const e = existing, debt0 = e && S.state.debts.find(d => d.txId === e.id), ret0 = e && findBack(e);
   const f = {
     kind: e ? e.kind : (preset.kind || 'out'), acct: e ? e.account : (preset.acct || S.state.meta.lastAcct || 'carta'), giro: false, giroDir: 'prelievo',
-    cat: e ? (e.cat || C.guessCat(display(e), e.kind, e.desc)) : null, catManual: !!(e && e.cat),
+    cat: e ? (e.cat || null) : null, catManual: !!(e && e.cat), catClicked: false, sub: e?.sub || null, subManual: !!e?.sub,
+    gid: e?.gid || null, newName: null,
   };
   const body = `
-    <div class="seg big" id="fKind" style="margin-bottom:12px">${e ? '' : ''}<button data-v="out">Uscita</button><button data-v="in">Entrata</button>${e ? '' : '<button data-v="prelievo">Prelievo</button><button data-v="versamento">Versamento</button>'}</div>
+    <div class="seg big" id="fKind" style="margin-bottom:12px" ${e ? '' : 'hidden'}><button data-v="out">Uscita</button><button data-v="in">Entrata</button></div>
     <div class="seg" id="fAcct" style="margin-bottom:12px"><button data-v="carta">Carta</button><button data-v="contanti">Contanti</button></div>
     <div class="form">
-      <div class="frow amount"><input id="fAmt" inputmode="decimal" placeholder="0,00" value="${e ? String(e.amount).replace('.', ',') : ''}" autocomplete="off"></div>
+      <div class="frow amount"><input id="fAmt" inputmode="decimal" placeholder="0,00" value="${e ? C.inAmt(e.amount) : ''}" autocomplete="off"></div>
       <div class="frow"><label>Data</label><input id="fDate" type="date" value="${e ? e.date : C.today()}"></div>
       <div id="fTextRows"><div class="frow"><label>Motivo</label><input id="fDesc" placeholder="Descrizione" value="${esc(e?.desc || '')}" autocomplete="off" autocapitalize="sentences"></div></div>
     </div>
-    <div class="catgrid" id="fChips">${C.categories().map(c => `<button data-c="${esc(c.name)}"><span>${esc(c.icon)}</span>${esc(c.name)}</button>`).join('')}</div>
+    <div class="catgrid" id="fChips">${C.categories().map(c => `<button data-c="${esc(c.name)}" style="--cc:${c.color}">${mini(c.name, c.color, 15)}${esc(c.name)}</button>`).join('')}</div>
+    <div class="catgrid" id="fSubs" hidden></div>
     <div class="form" id="fRetBox">
       <div class="frow"><label id="fRetLbl" style="width:auto;flex:1;color:var(--text)"></label><label class="switch"><input type="checkbox" id="fRet"><i></i></label></div>
       <div id="fRetRows" hidden>
         <div class="frow"><label>Importo</label><input id="fRetAmt" inputmode="decimal" placeholder="0,00"></div>
         <div class="frow"><label>Data</label><input id="fRetDate" type="date"></div>
+        <div class="frow"><label style="width:auto;flex:1;color:var(--text)">Non ancora ricevuto</label><label class="switch"><input type="checkbox" id="fRetUn"><i></i></label></div>
       </div>
+    </div>
+    <div class="form" id="fUnBox" hidden>
+      <div class="frow"><label style="width:auto;flex:1;color:var(--text)">Non ancora ricevuto (casella rossa)</label><label class="switch"><input type="checkbox" id="fUn"><i></i></label></div>
+      <div class="frow" id="fExpRow" hidden><label>Atteso</label><input id="fExp" inputmode="decimal" placeholder="0,00"></div>
     </div>
     <div id="fDebtBox"><div class="form">
       <div class="frow"><label>Debito con</label><select id="fPerson"><option value="">— nessuno —</option>${peopleNames().map(n => `<option ${debt0?.person === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="__new">+ Nuova persona…</option></select></div>
       <div class="frow" id="fDtRow" hidden><label>Tipo</label><select id="fDt"></select></div>
     </div></div>
-    ${e ? `<button class="btn red" data-del style="margin-top:6px">Elimina movimento</button>` : ''}`;
+    <div id="fLinkBox" hidden></div>
+    ${e?.unpaid ? `<button class="btn" data-paid style="margin-top:6px">Segna come incassato</button>` : ''}`;
 
-  openSheet(e ? 'Modifica movimento' : 'Nuovo movimento', body, {
+  openSheet(e ? 'Modifica movimento' : ({ out: 'Nuova uscita', in: 'Nuova entrata', prelievo: 'Prelievo', versamento: 'Versamento' }[f.kind] || 'Nuovo movimento'), body, { deleteLabel: e ? 'Elimina' : null,
     onMount: (w) => {
       const setSeg = (id, val) => $$(`#${id} button`, w).forEach(b => b.classList.toggle('on', b.dataset.v === val));
       const $$ = (s, r) => [...r.querySelectorAll(s)];
@@ -207,12 +475,32 @@ function openTxSheet(existing, preset = {}) {
         $('#fRetBox', w).hidden = f.kind !== 'out';
         $('#fRetLbl', w).textContent = f.acct === 'carta' ? 'Mi rientra come contanti' : 'Mi rientra come carta';
         $('#fRetRows', w).hidden = !$('#fRet', w).checked;
+        $('#fUnBox', w).hidden = f.kind !== 'in';
+        $('#fExpRow', w).hidden = !$('#fUn', w).checked;
+        drawCat();
+        drawLink();
       };
       $$('#fKind button', w).forEach(b => b.onclick = () => { f.kind = b.dataset.v; sync(); });
       $$('#fAcct button', w).forEach(b => b.onclick = () => { f.acct = b.dataset.v; sync(); });
-      const drawCat = () => $$('#fChips button', w).forEach(b => b.classList.toggle('on', b.dataset.c === f.cat));
-      $$('#fChips button', w).forEach(b => b.onclick = () => { f.cat = f.cat === b.dataset.c && f.catManual ? null : b.dataset.c; f.catManual = !!f.cat; drawCat(); });
-      $('#fDesc', w).addEventListener('input', () => { if (f.catManual) return; f.cat = C.guessCat($('#fDesc', w).value, f.kind === 'in' ? 'in' : 'out'); drawCat(); });
+      const drawCat = () => {
+        $$('#fChips button', w).forEach(b => b.classList.toggle('on', b.dataset.c === f.cat));
+        const shop = f.cat === 'Shopping online' && !f.giro;
+        $('#fSubs', w).hidden = !shop;
+        $$('#fSubs button', w).forEach(b => b.classList.toggle('on', b.dataset.s === f.sub));
+      };
+      const guessSubNow = () => { if (f.cat === 'Shopping online' && !f.subManual) f.sub = C.guessSub($('#fDesc', w).value || e?.raw || ''); };
+      $$('#fChips button', w).forEach(b => b.onclick = () => { f.cat = f.cat === b.dataset.c && f.catManual ? null : b.dataset.c; f.catManual = !!f.cat; f.catClicked = true; guessSubNow(); drawCat(); });
+      const buildSubs = () => {
+        $('#fSubs', w).innerHTML = C.subs().map(x => `<button data-s="${esc(x)}">${esc(x)}</button>`).join('') + '<button data-newsub>+ Nuovo sito</button>';
+        $$('#fSubs button[data-s]', w).forEach(b => b.onclick = () => { f.sub = b.dataset.s; f.subManual = true; drawCat(); });
+        $('#fSubs [data-newsub]', w).onclick = async () => {
+          const n = (prompt('Nome del sito:') || '').trim(); if (!n) return;
+          if (!C.subs().some(x => x.toLowerCase() === n.toLowerCase())) await S.setMeta('subs', [...C.subs().filter(x => x !== 'Altri siti'), n, 'Altri siti']);
+          f.sub = C.subs().find(x => x.toLowerCase() === n.toLowerCase()); f.subManual = true; buildSubs(); drawCat();
+        };
+      };
+      buildSubs();
+      $('#fDesc', w).addEventListener('input', () => { if (!f.catManual) f.cat = C.guessCat($('#fDesc', w).value, f.kind === 'in' ? 'in' : 'out'); guessSubNow(); drawCat(); });
       drawCat();
       $('#fPerson', w).onchange = ev => {
         if (ev.target.value === '__new') {
@@ -222,7 +510,11 @@ function openTxSheet(existing, preset = {}) {
         sync();
       };
       const ret = $('#fRet', w); let retAmtTouched = !!ret0, retDateTouched = !!ret0;
-      if (ret0) { ret.checked = true; $('#fRetAmt', w).value = String(ret0.amount).replace('.', ','); $('#fRetDate', w).value = ret0.date; }
+      if (ret0) { ret.checked = true; $('#fRetAmt', w).value = C.inAmt(ret0.unpaid ? (ret0.expected ?? ret0.amount) : ret0.amount); $('#fRetDate', w).value = ret0.date; $('#fRetUn', w).checked = !!ret0.unpaid; }
+      if (e?.unpaid) { $('#fUn', w).checked = true; $('#fExp', w).value = C.inAmt(e.expected ?? e.amount); }
+      $('#fUn', w).onchange = sync;
+      const paid = $('[data-paid]', w);
+      if (paid) paid.onclick = async () => { await S.save('transactions', { ...e, amount: e.expected ?? e.amount, unpaid: undefined, expected: undefined }); w.remove(); render(); toast('Segnato come incassato ✓'); };
       $('#fRetAmt', w).oninput = () => { retAmtTouched = true; };
       $('#fRetDate', w).oninput = () => { retDateTouched = true; };
       $('#fAmt', w).addEventListener('input', () => { if (!retAmtTouched) $('#fRetAmt', w).value = $('#fAmt', w).value; });
@@ -231,15 +523,27 @@ function openTxSheet(existing, preset = {}) {
         if (ret.checked) { if (!retAmtTouched) $('#fRetAmt', w).value = $('#fAmt', w).value; if (!retDateTouched) $('#fRetDate', w).value = $('#fDate', w).value; }
         sync();
       };
+      const drawLink = () => {
+        const box = $('#fLinkBox', w);
+        box.hidden = !groupsOn() || f.giro; if (box.hidden) return;
+        const name = f.gid ? (f.newName || gName(f.gid)) : null;
+        box.innerHTML = `<div class="sechead"><span>Gruppo</span></div>` + (name
+          ? `<div class="form linked"><div class="lrow"><div class="lt"><b>${esc(name)}</b><span>Questo movimento fa parte del gruppo</span></div><button data-lk="leave" aria-label="Rimuovi dal gruppo">${IC.x}</button></div></div>`
+          : `<div class="linkbtns"><button class="btn sec" data-lk="join">Aggiungi a un gruppo</button></div>`);
+        const leave = $('[data-lk=leave]', box), join = $('[data-lk=join]', box);
+        if (leave) leave.onclick = () => { f.gid = null; f.newName = null; drawLink(); };
+        if (join) join.onclick = () => pickGroup((gid, nn) => { f.gid = gid; f.newName = nn; drawLink(); });
+      };
       const del = $('[data-del]', w);
       if (del) del.onclick = async () => {
         const partner = e.pair && S.state.transactions.find(t => t.pair === e.pair && t.id !== e.id);
         if (!confirm(partner ? 'Eliminare questo giroconto (entrambi i movimenti)?' : 'Eliminare questo movimento?')) return;
-        const back = S.state.transactions.find(x => x.rientroOf === e.id);
+        const back = findBack(e);
         if (back && !confirm('Questo movimento ha un rientro collegato. Eliminare anche il rientro?')) return;
         if (back) await S.remove('transactions', back.id);
         for (const d of S.state.debts.filter(d => d.txId === e.id || d.txId === partner?.id)) await S.remove('debts', d.id);
         await S.remove('transactions', e.id); if (partner) await S.remove('transactions', partner.id);
+        await pruneGroups();
         w.remove(); render(); toast('Eliminato');
       };
       sync();
@@ -247,31 +551,41 @@ function openTxSheet(existing, preset = {}) {
       w._f = f;
     },
     onSave: async w => {
-      const amount = num($('#fAmt', w).value), date = $('#fDate', w).value;
-      if (!(amount > 0)) return toast('Inserisci un importo'), false;
+      const amount = num($('#fAmt', w).value) || 0, date = $('#fDate', w).value;
+      const unIn = f.kind === 'in' && !f.giro && $('#fUn', w).checked;
+      const exp = unIn ? C.r2(num($('#fExp', w).value) || amount) : 0;
+      if (!(amount > 0) && !(unIn && exp > 0)) return toast('Inserisci un importo'), false;
       if (!date) return toast('Inserisci la data'), false;
       const amt = C.r2(amount);
       const wantRet = !f.giro && f.kind === 'out' && $('#fRet', w).checked;
+      const retUn = wantRet && $('#fRetUn', w).checked;
       const retAmt = wantRet ? C.r2(num($('#fRetAmt', w).value)) : 0, retDate = wantRet ? $('#fRetDate', w).value : '';
       if (wantRet && (!(retAmt > 0) || !retDate)) return toast('Importo e data del rientro'), false;
       if (f.giro) {
         const p = C.ensurePeriodFor(date), pair = S.uid();
-        const mk = (account, kind, category, desc) => ({ id: S.uid(), periodId: p.id, date, account, kind, amount: amt, category, desc, pair, cat: 'Giroconti' });
+        const mk = (account, kind, category, desc) => ({ id: S.uid(), periodId: p.id, date, account, kind, amount: amt, category, desc, pair, grp: pair, cat: 'Riconversione' });
         const out = f.giroDir === 'prelievo'
           ? [mk('carta', 'out', 'Prelievo', 'Bancomat'), mk('contanti', 'in', 'Prelievo', 'Da carta')]
           : [mk('contanti', 'out', 'Versamento', 'Contanti'), mk('carta', 'in', 'Versamento', 'Contanti')];
         for (const t of out) await S.save('transactions', t);
       } else {
         const cat = f.cat || '', desc = $('#fDesc', w).value.trim();
+        const sub = cat === 'Shopping online' ? (f.sub || 'Altri siti') : '';
         if (!cat && !desc) return toast('Scegli una categoria o scrivi il motivo'), false;
         let periodId = e?.periodId;
         const per = S.period(periodId);
         if (!per || date < per.start || date > per.end) periodId = C.ensurePeriodFor(date).id;
-        const t = { ...(e || {}), id: e?.id || S.uid(), periodId, date, account: f.acct, kind: f.kind, amount: amt, category: cat, desc, cat: cat || undefined };
+        const tid = e?.id || S.uid();
+        const t = { ...(e || {}), id: tid, grp: wantRet ? (e?.grp || tid) : (e?.grp === tid && !S.state.transactions.some(m => m.grp === tid && m.id !== tid && m.rientroOf !== tid) ? undefined : e?.grp), unpaid: unIn || undefined, expected: unIn ? exp : undefined, periodId, date, account: f.acct, kind: f.kind, amount: amt, category: sub ? cat + ' - ' + sub : cat, desc, cat: cat || undefined, sub: sub || undefined, catSet: (f.catClicked || e?.catSet) || undefined };
         // movimenti importati dagli Excel: se il motivo non cambia, nel foglio resta il testo originale
         if (e && e.raw && e.desc === desc) { t.category = e.category; t.desc = e.desc; t.raw = e.raw; } else delete t.raw;
+        if (groupsOn() && !f.giro) {
+          t.gid = f.gid || undefined;
+          if (f.gid && f.newName) await S.setMeta('groups', { ...groups(), [f.gid]: { name: f.newName } });
+        }
         if (cat && desc) await S.setMeta('learned', { ...(S.state.meta.learned || {}), [learnKey(desc)]: cat });
         await S.save('transactions', t);
+        await pruneGroups();
         const partner = e?.pair && S.state.transactions.find(x => x.pair === e.pair && x.id !== e.id);
         if (partner) await S.save('transactions', { ...partner, amount: amt, date, periodId });
         // debito collegato
@@ -280,11 +594,11 @@ function openTxSheet(existing, preset = {}) {
           const type = $('#fDt', w).value, dt = DEBT_TYPES[type];
           await S.save('debts', { id: old?.id || S.uid(), person, type, amount: C.r2(dt.sign * amt), date, note: display(t), txId: t.id });
         } else if (old) await S.remove('debts', old.id);
-        const back = S.state.transactions.find(x => x.rientroOf === t.id);
+        const back = findBack(t) || ret0;
         if (wantRet) {
           const target = f.acct === 'carta' ? 'contanti' : 'carta';
-          await S.save('transactions', { ...(back || {}), id: back?.id || S.uid(), periodId: C.ensurePeriodFor(retDate).id, date: retDate, account: target, kind: 'in', amount: retAmt,
-            category: back ? back.category : 'Rimborsi e rientri', cat: back?.cat || 'Rimborsi e rientri', desc: back ? back.desc : 'Soldi ' + (desc || cat), rientroOf: t.id });
+          await S.save('transactions', { ...(back || {}), id: back?.id || S.uid(), periodId: C.ensurePeriodFor(retDate).id, date: retDate, account: target, kind: 'in', amount: retUn ? (back?.unpaid ? back.amount : 0) : retAmt, unpaid: retUn || undefined, expected: retUn ? retAmt : undefined, grp: t.grp,
+            category: back ? back.category : 'Rimborsi e rientri', cat: back?.cat || 'Rimborsi e rientri', desc: back ? back.desc : 'Soldi ' + (desc || cat), rientroOf: back ? back.rientroOf : t.id });
         } else if (back) await S.remove('transactions', back.id);
         await S.setMeta('lastAcct', f.acct);
         ui.periodId = periodId;
@@ -295,17 +609,17 @@ function openTxSheet(existing, preset = {}) {
 }
 
 // ---------- DEBITI ----------
-function viewDebiti() {
+function debtsSheet() {
   const ppl = C.people(), owed = ppl.filter(p => p.bal > 0).reduce((s, p) => s + p.bal, 0), owe = -ppl.filter(p => p.bal < 0).reduce((s, p) => s + p.bal, 0);
-  return `<div class="bar"><h1>Debiti</h1><button class="iconbtn" data-act="newPerson" aria-label="Nuova persona">${IC.plus.replace('width="26" height="26"', 'width="22" height="22"')}</button></div>
-  <div class="grid2"><div class="card acc"><div class="t">Ti devono</div><div class="v num pos">${money(owed)}</div></div><div class="card acc"><div class="t">Devi</div><div class="v num neg">${money(owe)}</div></div></div>
-  ${ppl.length ? `<div class="list" style="margin-top:4px">${ppl.map(p => `<button class="row" data-act="person" data-id="${esc(p.name)}"><div class="main"><div class="ttl"><b>${esc(p.name)}</b></div><div class="sm">${p.bal > 0 ? 'ti deve' : p.bal < 0 ? 'devi' : 'in pari'}</div></div><div class="amt num ${p.bal > 0 ? 'pos' : p.bal < 0 ? 'neg' : 'muted'}">${money(Math.abs(p.bal))}</div></button>`).join('')}</div>`
-    : `<div class="empty">Nessun debito registrato</div>`}`;
+  openSheet('Debiti', `<div class="grid2"><div class="card acc"><div class="t">Ti devono</div><div class="v num pos">${money(owed)}</div></div><div class="card acc"><div class="t">Devi</div><div class="v num neg">${money(owe)}</div></div></div>
+  ${ppl.length ? `<div class="list">${ppl.map(p => `<button class="row" data-act="person" data-id="${esc(p.name)}"><div class="main"><div class="ttl"><b>${esc(p.name)}</b></div><div class="sm">${p.bal > 0 ? 'ti deve' : p.bal < 0 ? 'devi' : 'in pari'}</div></div><div class="amt num ${p.bal > 0 ? 'pos' : p.bal < 0 ? 'neg' : 'muted'}">${money(Math.abs(p.bal))}</div></button>`).join('')}</div>`
+    : `<div class="empty">Nessun debito registrato</div>`}
+  <button class="btn sec" data-act="newPerson" style="margin-top:12px">Nuova persona</button>`);
 }
 
 function newPerson() {
   const n = (prompt('Nome della persona:') || '').trim(); if (!n) return;
-  S.setMeta('people', [...new Set([...(S.state.meta.people || []), n])]).then(() => { render(); openPerson(n); });
+  S.setMeta('people', [...new Set([...(S.state.meta.people || []), n])]).then(() => { $('#sheetRoot').innerHTML = ''; render(); openPerson(n); });
 }
 
 function openPerson(name) {
@@ -328,7 +642,7 @@ function openPerson(name) {
         $('[data-link]', body).onclick = () => linkSheet(name, redraw);
         $('[data-fix]', body).onclick = async () => {
           const cur = C.r2(S.state.debts.filter(d => d.person === name).reduce((a, d) => a + d.amount, 0));
-          const v = prompt(`Saldo attuale con ${name} (positivo = ti deve):`, String(cur).replace('.', ',')); if (v === null) return;
+          const v = prompt(`Saldo attuale con ${name} (positivo = ti deve):`, C.inAmt(cur)); if (v === null) return;
           const target = num(v); if (Number.isNaN(target)) return toast('Numero non valido');
           const diff = C.r2(target - cur); if (!diff) return;
           await S.save('debts', { id: S.uid(), person: name, type: null, amount: diff, date: C.today(), note: 'Correzione saldo', txId: null }); redraw();
@@ -384,7 +698,7 @@ function linkSheet(person, done) {
       const run = () => {
         const q = $('#lq', w).value.trim().toLowerCase(), linked = new Set(S.state.debts.map(d => d.txId));
         const res = S.state.transactions.map((t, i) => [t, i]).filter(([t]) => !linked.has(t.id) && !t.pair && (!q || display(t).toLowerCase().includes(q))).sort(byDateDesc).slice(0, 80);
-        $('#lres', w).innerHTML = res.length ? `<div class="mvs">${res.map(([t]) => rowHtml(t, true, true).replace('data-act="editTx"', 'data-pick')).join('')}</div>` : '<div class="empty">Nessun movimento</div>';
+        $('#lres', w).innerHTML = res.length ? `<div class="mvs">${res.map(([t]) => rowHtml(t, true, true, false, true).replace('data-act="editTx"', 'data-pick')).join('')}</div>` : '<div class="empty">Nessun movimento</div>';
         $('#lres', w).querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
           const t = S.state.transactions.find(x => x.id === b.dataset.id);
           const opts = Object.entries(DEBT_TYPES).filter(([, d]) => d.kind === t.kind);
@@ -403,39 +717,131 @@ function linkSheet(person, done) {
 }
 
 // ---------- STATISTICHE ----------
+const WEEKDAYS = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica'];
+const isoToDate = x => { const [y, m, d] = x.split('-').map(Number); return new Date(y, m - 1, d); };
+const dayDiff = (a, b) => Math.round((isoToDate(a) - isoToDate(b)) / 864e5);
+const wdIdx = d => (d.getDay() + 6) % 7;   // lunedi = 0
+
+function lineChart(vals) {
+  const W = 300, H = 90, pad = 6, mn = Math.min(...vals), span = (Math.max(...vals) - mn) || 1;
+  const x = i => pad + i * (W - 2 * pad) / (vals.length - 1), y = v => H - pad - (v - mn) / span * (H - 2 * pad);
+  const pts = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  return `<svg class="line" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b62f0" stop-opacity=".35"/><stop offset="1" stop-color="#2b62f0" stop-opacity="0"/></linearGradient></defs><polygon points="${pad},${H} ${pts} ${W - pad},${H}" fill="url(#lg)"/><polyline points="${pts}" fill="none" stroke="#2b62f0" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
+}
+
+// sezioni delle statistiche che si aprono e si chiudono (la scelta si ricorda); all'inizio sono aperte solo le principali
+const STAT_DEF = { trend: true, cat: true };
+const statOpen = () => { try { return JSON.parse(localStorage.getItem('statopen') || '{}'); } catch { return {}; } };
+
 function viewStat() {
+  const head = `<div class="bar"><h1>Statistiche</h1><div class="nav">${eyeBtn()}</div></div>`;
   const ps = S.state.periods;
-  if (!ps.length) return `<div class="bar"><h1>Statistiche</h1></div><div class="empty">Nessun dato</div>`;
+  if (!ps.length) return head + '<div class="empty">Nessun dato</div>';
   const years = [...new Set(ps.map(C.periodYear))].sort();
   if (!ui.statYear || (ui.statYear !== 'tutto' && !years.includes(ui.statYear))) ui.statYear = years[years.length - 1];
-  const sel = ps.filter(p => ui.statYear === 'tutto' || C.periodYear(p) === ui.statYear);
-  const rows = sel.map(p => ({ p, s: C.stats(p) }));
+  const today = C.today();
+  const rows = ps.filter(p => ui.statYear === 'tutto' || C.periodYear(p) === ui.statYear).map(p => ({ p, s: C.stats(p) }));
   const tot = rows.reduce((a, { p, s }) => ({ sal: a.sal + (p.salary || 0), real: a.real + s.real, sav: a.sav + (s.saved || 0) }), { sal: 0, real: 0, sav: 0 });
+  const rate = tot.sal > 0 ? tot.sav / tot.sal * 100 : null;
+
+  // giorni trascorsi e spesa per giorno della settimana
+  const wdCnt = Array(7).fill(0), wdSum = Array(7).fill(0); let days = 0;
+  for (const { p } of rows) for (let d = isoToDate(p.start), e = isoToDate(p.end < today ? p.end : today); d <= e; d.setDate(d.getDate() + 1)) { wdCnt[wdIdx(d)]++; days++; }
+
+  // spese nette (senza prestiti e ricariche tra i tuoi conti)
+  const rtx = rows.flatMap(({ p }) => S.txOf(p.id)), net = netSpend(rtx);
+  const cats = new Map(), subs = new Map(), subsc = new Map(), dayTot = new Map(), accs = { carta: 0, contanti: 0 }; let outTot = 0;
+  for (const t of rtx) {
+    const v = net.get(t.id); if (!(v > 0)) continue;
+    const k = t.cat || 'Senza categoria';
+    cats.set(k, (cats.get(k) || 0) + v); outTot += v; accs[t.account] += v;
+    dayTot.set(t.date, (dayTot.get(t.date) || 0) + v);
+    wdSum[wdIdx(isoToDate(t.date))] += v;
+    if (t.cat === 'Shopping online') { const sk = t.sub || 'Altri siti'; subs.set(sk, (subs.get(sk) || 0) + v); }
+    if (t.cat === 'Abbonamenti') {
+      const key = (t.desc || t.category || '').trim().toLowerCase(), e = subsc.get(key) || { name: t.desc || t.category || '—', n: 0, tot: 0, last: t };
+      e.n++; e.tot += v; if (t.date >= e.last.date) e.last = t; subsc.set(key, e);
+    }
+  }
+  const top = [...cats.entries()].sort((a, b) => b[1] - a[1]).slice(0, 14);
+  const subList = [...subs.entries()].sort((a, b) => b[1] - a[1]);
+  const subscList = [...subsc.values()].sort((a, b) => b.last.amount - a.last.amount).slice(0, 8);
+  const big = rtx.filter(t => net.get(t.id) > 0).sort((a, b) => net.get(b.id) - net.get(a.id)).slice(0, 5);
+
+  // mese in corso
+  const cp = C.currentPeriod(); let now = '';
+  if (cp && cp.start <= today && today <= cp.end) {
+    const cs = C.stats(cp), total = dayDiff(cp.end, cp.start) + 1, el = dayDiff(today, cp.start) + 1, perDay = cs.real / el, proj = perDay * total, sal = cp.salary;
+    now = `<div class="card nowc"><div class="t">Mese in corso · ${esc(C.monthName(cp))}</div>
+      <div class="v num">${money(cs.real)} <small>spesi in ${el} ${el === 1 ? 'giorno' : 'giorni'}</small></div>
+      ${sal > 0 ? `<div class="hbar"><div class="track"><div class="fill" style="width:${Math.min(100, cs.real / sal * 100)}%"></div></div></div>` : ''}
+      <div class="sm">${perDay > 0 ? `${money(perDay)} al giorno. A questo ritmo chiudi il mese a circa <b class="num">${money(proj)}</b>${sal > 0 ? `, il ${Math.round(proj / sal * 100)}% dello stipendio` : ''}.` : 'Ancora nessuna spesa questo mese.'}</div></div>`;
+  }
+
+  // record
+  const doneRows = rows.filter(r => r.p.end < today), spent = doneRows.filter(r => r.s.real > 0), saved = doneRows.filter(r => r.s.saved != null);
+  const pick = (list, f, better) => list.length ? list.reduce((a, b) => better(f(b), f(a)) ? b : a) : null;
+  const dear = pick(spent, r => r.s.real, (b, a) => b > a), cheap = pick(spent, r => r.s.real, (b, a) => b < a), best = pick(saved, r => r.s.saved, (b, a) => b > a);
+  let topDay = null; for (const [d, v] of dayTot) if (!topDay || v > topDay[1]) topDay = [d, v];
+  const tile = (t, v, sub, id) => `<${id ? `button data-act="gotoPeriod" data-id="${esc(id)}"` : 'div'} class="card acc"><div class="t">${t}</div><div class="v num">${v}</div><div class="s">${sub}</div></${id ? 'button' : 'div'}>`;
+  const records = [dear && tile('Mese più caro', money(dear.s.real), esc(periodLabel(dear.p)), dear.p.id), cheap && tile('Mese più leggero', money(cheap.s.real), esc(periodLabel(cheap.p)), cheap.p.id),
+    best && tile('Miglior risparmio', money(best.s.saved), esc(periodLabel(best.p)), best.p.id), topDay && tile('Giorno più costoso', money(topDay[1]), esc(fmtShort(topDay[0])))].filter(Boolean);
+
+  // grafici
   const max = Math.max(1, ...rows.map(r => Math.max(r.s.real, r.s.saved || 0)));
-  const cats = new Map(); let outTot = 0;
-  for (const { p } of rows) for (const t of S.txOf(p.id)) if (t.kind === 'out' && !t.pair && t.cat !== 'Giroconti') { const k = t.cat || 'Senza categoria'; cats.set(k, (cats.get(k) || 0) + t.amount); outTot += t.amount; }
-  const top = [...cats.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
-  const showBars = rows.length <= 14;
-  return `<div class="bar"><h1>Statistiche</h1></div>
+  const lbl = pp => { const m = C.MESI_BREVI[+pp.start.slice(5, 7) - 1]; return ui.statYear === 'tutto' ? `${m}<br>${pp.start.slice(2, 4)}` : m; };
+  const bal = rows.map(r => r.s.total), dBal = bal.length ? bal[bal.length - 1] - bal[0] : 0;
+  const avgWd = wdSum.map((v, i) => wdCnt[i] ? v / wdCnt[i] : 0), maxWd = Math.max(0, ...avgWd), hotWd = avgWd.indexOf(maxWd);
+  const accTot = accs.carta + accs.contanti, pc = accTot ? accs.carta / accTot * 100 : 0;
+  const ppl = C.people(), owed = ppl.filter(x => x.bal > 0).reduce((a, x) => a + x.bal, 0), owe = -ppl.filter(x => x.bal < 0).reduce((a, x) => a + x.bal, 0);
+
+  const so = statOpen();
+  const sec = (key, title, right, body) => {
+    const open = so[key] ?? !!STAT_DEF[key];
+    return `<div class="ssec"><button class="sechead sh" data-act="statToggle" data-id="${key}" aria-expanded="${open}"><span>${title}</span><span class="sr">${right || ''}<i class="gch ${open ? 'up' : ''}">${IC.chev}</i></span></button><div class="sbody" ${open ? '' : 'hidden'}>${body}</div></div>`;
+  };
+  return `${head}
   <div class="seg" style="overflow-x:auto">${[...years, 'tutto'].map(y => `<button data-act="statYear" data-id="${y}" class="${ui.statYear === y ? 'on' : ''}">${y === 'tutto' ? 'Tutto' : y}</button>`).join('')}</div>
-  <div class="card" style="margin-top:12px">
-    <div class="kv"><span>Stipendi</span><b class="num">${money(tot.sal)}</b></div>
-    <div class="kv"><span>Spesa reale</span><b class="num">${money(tot.real)}</b></div>
-    <div class="kv"><span>Risparmiato</span><b class="num ${tot.sav >= 0 ? 'pos' : 'neg'}">${signed(tot.sav).replace('+', '')}</b></div>
-    <div class="kv"><span>Media spesa mensile</span><b class="num">${money(rows.length ? tot.real / rows.length : 0)}</b></div>
+  <div style="height:12px"></div>
+  ${now}
+  <div class="card hero"><div class="t">Risparmiato</div><div class="v num ${tot.sav >= 0 ? 'pos' : 'neg'}">${signed(tot.sav).replace('+', '')}</div><div class="sm">${rate !== null ? `${Math.round(rate)}% degli stipendi` : 'in attesa degli stipendi'}</div></div>
+  <div class="grid2">
+    <div class="card acc"><div class="t">Stipendi</div><div class="v num">${money(tot.sal)}</div></div>
+    <div class="card acc"><div class="t">Spesa reale</div><div class="v num">${money(tot.real)}</div></div>
+    <div class="card acc"><div class="t">Media al mese</div><div class="v num">${money(rows.length ? tot.real / rows.length : 0)}</div></div>
+    <div class="card acc"><div class="t">Media al giorno</div><div class="v num">${money(days ? tot.real / days : 0)}</div></div>
   </div>
-  ${showBars ? `<div class="card"><div class="sechead" style="margin:0 0 4px"><span>Mese per mese</span><span><span style="color:var(--accent)">■</span> spesa <span style="color:var(--green)">■</span> risparmio</span></div><div class="bars">${rows.map(({ p, s }) => `<div class="b"><div style="display:flex;gap:2px;align-items:flex-end;width:100%;height:100%"><div class="col" style="height:${Math.max(1, s.real / max * 100)}%"></div><div class="col sv" style="height:${Math.max(1, Math.max(0, s.saved || 0) / max * 100)}%"></div></div><div class="m">${C.MESI_BREVI[+p.start.slice(5, 7) - 1]}</div></div>`).join('')}</div></div>` : ''}
-  <div class="sechead"><span>Uscite per categoria</span><span class="num">${money(outTot)}</span></div>
-  <div class="card">${top.map(([k, v]) => `<button class="hbar" style="display:block;width:100%;text-align:left" data-act="searchCat" data-id="${esc(k)}"><div class="top"><span>${esc(C.catIcon(k))} ${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / top[0][1] * 100}%"></div></div></button>`).join('') || '<div class="empty">—</div>'}</div>
-  <div class="sechead"><span>Per mese</span></div>
-  <div class="list">${[...rows].reverse().map(({ p, s }) => `<button class="row" data-act="gotoPeriod" data-id="${esc(p.id)}"><div class="main"><div class="ttl">${esc(periodLabel(p))}</div><div class="sm num">Spesa ${money(s.real)}</div></div><div class="amt num ${s.saved == null ? 'muted' : s.saved >= 0 ? 'pos' : 'neg'}">${s.saved == null ? '—' : signed(s.saved)}</div></button>`).join('')}</div>`;
+  ${sec('trend', 'Mese per mese', '<span style="color:var(--carta)">■</span> spesa <span style="color:var(--cash)">■</span> risparmio',
+    `<div class="card"><div class="bars ${rows.length > 9 ? 'sc' : ''}">${rows.map(({ p, s }) => `<button class="b" data-act="gotoPeriod" data-id="${esc(p.id)}"><div style="display:flex;gap:2px;align-items:flex-end;width:100%;height:100%"><div class="col" style="height:${Math.max(1, s.real / max * 100)}%"></div><div class="col sv" style="height:${Math.max(1, Math.max(0, s.saved || 0) / max * 100)}%"></div></div><div class="m">${lbl(p)}</div></button>`).join('')}</div></div>`)}
+  ${rows.length >= 2 ? sec('saldo', 'Saldo nel tempo', 'carta + contanti',
+    `<div class="card"><div class="lv"><b class="num">${money(bal[bal.length - 1])}</b><span class="num ${dBal >= 0 ? 'pos' : 'neg'}">${signed(dBal)}</span></div>${lineChart(bal)}<div class="lax"><span>${esc(periodLabel(rows[0].p))}</span><span>${esc(periodLabel(rows[rows.length - 1].p))}</span></div></div>`) : ''}
+  ${records.length ? sec('record', 'Record', '', `<div class="grid2">${records.join('')}</div>`) : ''}
+  ${sec('cat', 'Spese per categoria', `<span class="num">${money(outTot)}</span>`,
+    `<div class="card">${top.map(([k, v]) => `<button class="hbar" style="display:block;width:100%;text-align:left" data-act="searchCat" data-id="${esc(k)}"><div class="top"><span class="lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</span><span class="num">${money(v)} <span class="muted" style="font-weight:600">· ${Math.round(v / outTot * 100)}%</span></span></div><div class="track"><div class="fill" style="width:${v / top[0][1] * 100}%;background:${C.catColor(k)}"></div></div></button>`).join('') || '<div class="empty">—</div>'}</div>
+    <p class="hint" style="margin:-4px 4px 0">Prestiti e ricariche tra i tuoi conti non contano come spesa. Un rimborso nello stesso gruppo o sulla stessa riga riduce la spesa.</p>`)}
+  ${outTot > 0 ? sec('quando', 'Quando spendi', 'media per giorno',
+    `<div class="card"><div class="wd">${avgWd.map((v, i) => `<div class="${i === hotWd ? 'hot' : ''}"><i style="height:${Math.max(3, maxWd ? v / maxWd * 100 : 0)}%"></i><span>${WEEKDAYS[i][0].toUpperCase()}</span></div>`).join('')}</div><div class="sm" style="margin-top:10px;color:var(--muted);font-weight:600">Spendi di più di ${WEEKDAYS[hotWd]}: in media <b class="num" style="color:var(--text)">${money(maxWd)}</b>.</div></div>`)
+  + sec('conto', 'Carta o contanti', 'dove paghi',
+    `<div class="card"><div class="split"><i style="width:${pc}%;background:var(--carta)"></i><i style="flex:1;background:var(--cash)"></i></div><div class="legend"><span><span class="dotc" style="--c:var(--carta)">Carta ${Math.round(pc)}%</span><br><b class="num">${money(accs.carta)}</b></span><span style="text-align:right"><span class="dotc" style="--c:var(--cash)">Contanti ${Math.round(100 - pc)}%</span><br><b class="num">${money(accs.contanti)}</b></span></div></div>`) : ''}
+  ${subscList.length ? sec('abb', 'Abbonamenti', `<span class="num">≈ ${money([...subsc.values()].reduce((a, e) => a + e.tot, 0) / Math.max(1, rows.length))} al mese</span>`,
+    `<div class="card">${subscList.map(e => `<div class="kv"><span>${esc(e.name)}<br><small class="muted">${e.n} ${e.n === 1 ? 'addebito' : 'addebiti'}</small></span><b class="num">${money(e.last.amount)}</b></div>`).join('')}</div>`) : ''}
+  ${big.length ? sec('top', 'Le spese più alte', '', `<div class="mvs">${big.map(t => rowHtml(t, true, true)).join('')}</div>`) : ''}
+  ${subList.length ? sec('shop', 'Shopping online per sito', '', `<div class="card">${subList.map(([k, v]) => `<div class="hbar"><div class="top"><span>${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / subList[0][1] * 100}%"></div></div></div>`).join('')}</div>`) : ''}
+  ${sec('debiti', 'Debiti', `Ti devono ${money(owed)}`,
+    `<div class="list"><button class="row" data-act="debtsSheet"><div class="main"><div class="ttl">Vedi le persone</div><div class="sm">Ti devono ${money(owed)} · Devi ${money(owe)}</div></div><span class="gch rt">${IC.chev}</span></button></div>`)}
+  ${sec('mesi', 'Per mese', '', `<div class="list">${[...rows].reverse().map(({ p, s }) => `<button class="row" data-act="gotoPeriod" data-id="${esc(p.id)}"><div class="main"><div class="ttl">${esc(periodLabel(p))}</div><div class="sm num">Spesa ${money(s.real)}</div></div><div class="amt num ${s.saved == null ? 'muted' : s.saved >= 0 ? 'pos' : 'neg'}">${s.saved == null ? '—' : signed(s.saved)}</div></button>`).join('')}</div>`)}`;
 }
 
 // ---------- ALTRO ----------
 function viewAltro() {
   const d = backupDays(), n = S.state.transactions.length;
   const warn = !Sync.config() && n > 0 && (d === null || d > 30) ? `<div class="warn">⚠️ ${d === null ? 'Non hai ancora fatto nessun backup.' : `Ultimo backup ${d} giorni fa.`} I dati sono salvati solo su questo iPhone: esporta un backup e salvalo su iCloud Drive.</div>` : '';
-  return `<div class="bar"><h1>Altro</h1></div>${warn}
+  return `<div class="bar"><h1>Altro</h1><div class="nav">${eyeBtn()}</div></div>${warn}
+  <div class="sechead"><span>Aspetto</span></div>
+  <div class="list"><button class="row" data-act="themeSheet"><div class="main"><div class="ttl">Tema</div><div class="sm">${{ auto: 'Automatico (come l’iPhone)', light: 'Chiaro', dark: 'Scuro' }[themePref()]}</div></div></button><button class="row" data-act="mvStyleSheet"><div class="main"><div class="ttl">Colori dei movimenti</div><div class="sm">${MVS[mvStyle()]}</div></div></button></div>
+  <div class="sechead"><span>Movimenti</span></div>
+  <div class="list"><label class="row"><div class="main"><div class="ttl">Raggruppa movimenti</div><div class="sm">Crea gruppi con un nome e il totale dei loro movimenti, ad esempio un acquisto per qualcuno e i soldi che ti ridà</div></div><span class="switch"><input type="checkbox" data-groups ${groupsOn() ? 'checked' : ''}><i></i></span></label>
+    <label class="row"><div class="main"><div class="ttl">Chiudi i gruppi</div><div class="sm">Mostra solo il riquadro del gruppo con nome e totale; i movimenti si aprono con la freccia</div></div><span class="switch"><input type="checkbox" data-gclosed ${groupsClosed() ? 'checked' : ''}><i></i></span></label></div>
   <div class="sechead"><span>Categorie</span></div>
   <div class="list"><button class="row" data-act="catSheet"><div class="main"><div class="ttl">Gestisci categorie</div><div class="sm">${S.state.transactions.filter(t => !t.cat).length} movimenti da categorizzare</div></div></button></div>
   <div class="sechead"><span>Excel e sincronizzazione</span></div>
@@ -455,24 +861,130 @@ function viewAltro() {
   </div>`;
 }
 
+// ---------- selezione multipla e nuovo gruppo ----------
+// pallino fisso per iniziare la selezione: resta sullo schermo mentre scorri la lista
+function renderFab() {
+  let b = $('#selFab');
+  if (ui.tab !== 'mese' || ui.sel || !groupsOn()) { b?.remove(); return; }
+  if (!b) {
+    b = document.createElement('button'); b.id = 'selFab'; b.dataset.act = 'selMode'; b.setAttribute('aria-label', 'Seleziona movimenti');
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg>';
+    document.body.appendChild(b);
+  }
+}
+function renderSelBar() {
+  let bar = $('#selBar');
+  if (!ui.sel || ui.tab !== 'mese') { bar?.remove(); return; }
+  if (!bar) { bar = document.createElement('div'); bar.id = 'selBar'; document.body.appendChild(bar); }
+  const n = ui.sel.size;
+  bar.innerHTML = `<span>${n} ${n === 1 ? 'selezionato' : 'selezionati'}</span><button class="sbtn" data-act="selMode">Annulla</button><button class="sbtn go" data-act="createGroup" ${n < 2 ? 'disabled' : ''}>Crea gruppo</button>`;
+}
+function toggleSel(id) { if (lockedIds.has(id)) return toast('Fa già parte di un gruppo'); if (ui.sel.has(id)) ui.sel.delete(id); else ui.sel.add(id); renderList(); renderSelBar(); }
+function createGroup() {
+  const txs = [...(ui.sel || [])].map(id => S.state.transactions.find(t => t.id === id)).filter(Boolean);
+  if (txs.length < 2) return toast('Seleziona almeno due movimenti');
+  const def = (txs.filter(t => t.kind === 'out').sort((a, b) => b.amount - a.amount)[0] || txs[0]).desc || '';
+  openSheet('Nuovo gruppo', `<div class="form"><div class="frow"><label>Nome</label><input id="gnm" value="${esc(def)}" placeholder="Es. Acquisti per Mamma" autocomplete="off" autocapitalize="sentences"></div></div>
+    <div class="gsum">${txs.length} movimenti · totale <b class="num ${sgnCls(gTotal(txs))}">${signedRaw(gTotal(txs))}</b></div>`, {
+    saveLabel: 'Crea gruppo',
+    onMount: w => setTimeout(() => $('#gnm', w).select(), 300),
+    onSave: async w => {
+      const name = $('#gnm', w).value.trim(); if (!name) return toast('Scrivi un nome per il gruppo'), false;
+      const gid = S.uid();
+      await S.setMeta('groups', { ...groups(), [gid]: { name } });
+      await S.bulkSave('transactions', txs.map(t => ({ ...t, gid })));
+      ui.sel = null; render(); toast('Gruppo creato ✓');
+    }
+  });
+}
+
+// foglio del gruppo: nome, totale, movimenti, aggiunta e scioglimento
+function openGroupSheet(gid) {
+  if (!groups()[gid]) return;
+  openSheet('Gruppo', `<div class="form"><div class="frow"><label>Nome</label><input id="gnm" value="${esc(gName(gid))}" autocomplete="off" autocapitalize="sentences"></div></div>
+    <div class="gsum" id="gsum"></div><div id="glist"></div><button class="btn sec" data-add style="margin-top:12px">Aggiungi movimenti</button>`, {
+    saveLabel: 'Salva', deleteLabel: 'Sciogli gruppo',
+    onMount: (w, close) => {
+      const draw = () => {
+        const ms = gMembers(gid).sort((a, b) => b.date.localeCompare(a.date));
+        if (!ms.length) { close(); return; }
+        const tot = gTotal(ms);
+        $('#gsum', w).innerHTML = `${ms.length} ${ms.length === 1 ? 'movimento' : 'movimenti'} · totale <b class="num ${sgnCls(tot)}">${signedRaw(tot)}</b>`;
+        $('#glist', w).innerHTML = `<div class="form linked">${ms.map(x => `<div class="lrow"><div class="lt"><b>${esc(x.desc || x.category || '—')}</b><span>${esc(fmtShort(x.date))} · ${x.account === 'carta' ? 'Carta' : 'Contanti'}</span></div><span class="num ${x.kind === 'in' ? 'pos' : 'neg'}">${x.kind === 'in' ? '+' : '−'}${moneyRaw(x.amount)}</span><button data-rm="${x.id}" aria-label="Rimuovi dal gruppo">${IC.x}</button></div>`).join('')}</div>`;
+        $('#glist', w).querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
+          const x = S.state.transactions.find(t => t.id === b.dataset.rm);
+          await S.save('transactions', { ...x, gid: undefined }); await pruneGroups(); render(); draw();
+        });
+      };
+      $('[data-add]', w).onclick = () => pickMany('Aggiungi al gruppo', gMembers(gid)[0]?.date, async ids => {
+        await S.bulkSave('transactions', ids.map(id => ({ ...S.state.transactions.find(t => t.id === id), gid })));
+        render(); draw();
+      });
+      $('[data-del]', w).onclick = async () => {
+        if (!confirm('Sciogliere il gruppo? I movimenti restano, senza gruppo.')) return;
+        await S.bulkSave('transactions', gMembers(gid).map(t => ({ ...t, gid: undefined })));
+        await pruneGroups(); close(); render(); toast('Gruppo sciolto');
+      };
+      draw();
+    },
+    onSave: async w => {
+      const name = $('#gnm', w).value.trim(); if (!name) return toast('Scrivi un nome per il gruppo'), false;
+      await S.setMeta('groups', { ...groups(), [gid]: { ...groups()[gid], name } });
+      render(); toast('Salvato');
+    }
+  });
+}
+
+// ---------- colori dei movimenti ----------
+const MVS = { rail: 'Striscia a lato', soft: 'Sfondo tenue', solid: 'Barra piena' };
+function mvStyle() { try { const v = localStorage.getItem('mvs'); return MVS[v] ? v : 'soft'; } catch { return 'soft'; } }
+function applyMvStyle(v) { document.documentElement.dataset.mvs = v; try { localStorage.setItem('mvs', v); } catch { /* ignore */ } }
+function mvStyleSheet() {
+  const cur = mvStyle(), d = { rail: 'Movimento neutro con una striscia blu (carta) o verde (contanti) a sinistra', soft: 'Tutta la barra con una tinta leggera del colore del conto', solid: 'Barra blu o verde come i riquadri in alto, con l’importo in una chip bianca' };
+  openSheet('Colori dei movimenti', `<div class="list">${Object.keys(MVS).map(k => `<button class="row" data-s="${k}"><div class="main"><div class="ttl">${MVS[k]}${cur === k ? ' ✓' : ''}</div><div class="sm">${d[k]}</div></div></button>`).join('')}</div>`, {
+    onMount: (w, close) => w.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { applyMvStyle(b.dataset.s); close(); render(); })
+  });
+}
+
+// ---------- tema ----------
+function themePref() { try { return localStorage.getItem('theme') || 'auto'; } catch { return 'auto'; } }
+function applyTheme(t) {
+  const r = document.documentElement;
+  if (t === 'light' || t === 'dark') r.dataset.theme = t; else delete r.dataset.theme;
+  try { localStorage.setItem('theme', t); } catch { /* ignore */ }
+  document.querySelectorAll('meta[name=theme-color]').forEach(m => { m.content = t === 'dark' ? '#0d1020' : t === 'light' ? '#f3f5fb' : m.content; });
+}
+function themeSheet() {
+  const cur = themePref();
+  openSheet('Tema', `<div class="list">${[['auto', 'Automatico', 'Segue il tema dell’iPhone'], ['light', 'Chiaro', ''], ['dark', 'Scuro', '']].map(([k, n, d]) =>
+    `<button class="row" data-t="${k}"><div class="main"><div class="ttl">${n}${cur === k ? ' ✓' : ''}</div>${d ? `<div class="sm">${d}</div>` : ''}</div></button>`).join('')}</div>`, {
+    onMount: (w, close) => w.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { applyTheme(b.dataset.t); close(); render(); })
+  });
+}
+
 // ---------- categorie ----------
 const nocat = () => S.state.transactions.filter(t => !t.cat);
 const learnKey = d => d.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-async function autoAssign(silent) {
-  const upd = [];
-  for (const t of nocat()) { const g = C.guessCat(display(t), t.kind, t.desc); if (g) upd.push({ ...t, cat: g }); }
+// Le categorie le assegni tu. Questa migrazione toglie quelle assegnate in automatico in passato
+// e lascia solo quelle scelte a mano (catSet).
+async function migrateCats() {
+  if ((S.state.meta.catV || 0) >= 3) return;
+  const upd = S.state.transactions.filter(t => t.cat && !t.catSet).map(t => ({ ...t, cat: undefined, sub: undefined }));
   await S.bulkSave('transactions', upd);
-  await S.setMeta('catAuto', 1);
-  if (!silent) toast(`${upd.length} categorie assegnate, ${nocat().length} da rivedere`);
-  return upd.length;
+  await S.setMeta('catV', 3);
 }
 function catSheet() {
   const draw = () => {
     const cnt = new Map(); S.state.transactions.forEach(t => t.cat && cnt.set(t.cat, (cnt.get(t.cat) || 0) + 1));
-    return `<button class="btn" data-review>Da rivedere (${nocat().length})</button><button class="btn sec" data-auto>Assegna automaticamente ai movimenti senza categoria</button>
+    const sc = new Map(); S.state.transactions.forEach(t => t.sub && sc.set(t.sub, (sc.get(t.sub) || 0) + 1));
+    return `
       <div class="sechead"><span>Le tue categorie</span></div>
-      <div class="list">${C.categories().map(c => `<button class="row" data-cat="${esc(c.name)}"><div class="main"><div class="ttl">${esc(c.icon)}  ${esc(c.name)}</div></div><div class="amt num muted" style="font-weight:400">${cnt.get(c.name) || 0}</div></button>`).join('')}</div>
-      <button class="btn sec" data-new style="margin-top:12px">+ Nuova categoria</button>`;
+      <div class="list">${C.categories().map(c => `<button class="row" data-cat="${esc(c.name)}"><div class="main"><div class="ttl lbl">${mini(c.name, c.color)} ${esc(c.name)}</div></div><div class="amt num muted" style="font-weight:400">${cnt.get(c.name) || 0}</div></button>`).join('')}</div>
+      <button class="btn sec" data-new style="margin-top:12px">+ Nuova categoria</button>
+      <button class="btn red" data-reset style="margin-top:10px">Azzera tutte le categorie</button>
+      <div class="sechead"><span>Siti per Shopping online</span></div>
+      <div class="list">${C.subs().map(x => `<button class="row" data-sub="${esc(x)}"><div class="main"><div class="ttl">${esc(x)}</div></div><div class="amt num muted" style="font-weight:400">${sc.get(x) || 0}</div></button>`).join('')}</div>
+      <button class="btn sec" data-newsub style="margin-top:12px">+ Nuovo sito</button>`;
   };
   openSheet('Categorie', draw(), {
     onMount: w => {
@@ -480,13 +992,30 @@ function catSheet() {
       const redraw = () => { body.innerHTML = draw(); wire(); render(); };
       const saveCats = async list => { await S.setMeta('categories', list); };
       const wire = () => {
-        $('[data-review]', body).onclick = () => reviewSheet(redraw);
-        $('[data-auto]', body).onclick = async () => { await autoAssign(); redraw(); };
+        $('[data-reset]', body).onclick = async () => {
+          if (!confirm('Togliere la categoria da TUTTI i movimenti? Nell’Excel tornerà il testo originale.')) return;
+          await S.bulkSave('transactions', S.state.transactions.filter(t => t.cat || t.sub || t.catSet).map(t => ({ ...t, cat: undefined, sub: undefined, catSet: undefined })));
+          toast('Categorie azzerate'); redraw();
+        };
+        $('[data-newsub]', body).onclick = async () => {
+          const n = (prompt('Nome del sito:') || '').trim(); if (!n || C.subs().some(x => x.toLowerCase() === n.toLowerCase())) return;
+          await S.setMeta('subs', [...C.subs().filter(x => x !== 'Altri siti'), n, 'Altri siti']); redraw();
+        };
+        body.querySelectorAll('[data-sub]').forEach(b => b.onclick = async () => {
+          const old = b.dataset.sub; if (old === 'Altri siti') return toast('Questa voce non si modifica');
+          const n = prompt(`Nuovo nome per “${old}” (vuoto = elimina il sito):`, old); if (n === null) return;
+          const upd = S.state.transactions.filter(t => t.sub === old).map(t => {
+            const x = { ...t, sub: n.trim() ? n.trim() : 'Altri siti' };
+            if (!t.raw && t.category === 'Shopping online - ' + old) x.category = 'Shopping online - ' + x.sub;
+            return x;
+          });
+          await S.bulkSave('transactions', upd);
+          await S.setMeta('subs', n.trim() ? C.subs().map(x => x === old ? n.trim() : x) : C.subs().filter(x => x !== old)); redraw();
+        });
         $('[data-new]', body).onclick = async () => {
           const name = (prompt('Nome della categoria:') || '').trim(); if (!name) return;
           if (C.categories().some(c => c.name.toLowerCase() === name.toLowerCase())) return toast('Esiste già');
-          const icon = (prompt('Emoji (facoltativa):', '🏷️') || '🏷️').trim();
-          const list = C.categories(); list.splice(list.length - 1, 0, { name, icon }); await saveCats(list); redraw();
+          const list = C.categories(); list.splice(list.length - 1, 0, { name, color: C.PALETTE[list.length % C.PALETTE.length] }); await saveCats(list); redraw();
         };
         body.querySelectorAll('[data-cat]').forEach(b => b.onclick = async () => {
           const old = b.dataset.cat, cur = C.categories().find(c => c.name === old);
@@ -495,9 +1024,8 @@ function catSheet() {
             if (!confirm(`Eliminare “${old}”? I suoi movimenti restano senza categoria.`)) return;
             await bulkCat(old, null); await saveCats(C.categories().filter(c => c.name !== old));
           } else if (n.trim() !== old) {
-            const ic = (prompt('Emoji:', cur.icon) || cur.icon).trim();
-            await bulkCat(old, n.trim()); await saveCats(C.categories().map(c => c.name === old ? { name: n.trim(), icon: ic } : c));
-          } else { const ic = (prompt('Emoji:', cur.icon) || cur.icon).trim(); await saveCats(C.categories().map(c => c.name === old ? { ...c, icon: ic } : c)); }
+            await bulkCat(old, n.trim()); await saveCats(C.categories().map(c => c.name === old ? { ...c, name: n.trim() } : c));
+          }
           redraw();
         });
       };
@@ -514,20 +1042,6 @@ async function bulkCat(oldName, newName) {
   });
   await S.bulkSave('transactions', upd);
 }
-function reviewSheet(done) {
-  const list = nocat().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
-  const opts = `<option value="">Scegli…</option>` + C.categories().map(c => `<option>${esc(c.name)}</option>`).join('');
-  openSheet('Da rivedere', list.length ? `<div class="mvs">${list.map(t => `<div class="mv" style="cursor:default"><div class="main"><div class="mvt">${esc(display(t))}</div><div class="chips2"><span class="tag ${t.account === 'carta' ? 'card' : 'cash'}">${t.account === 'carta' ? 'Carta' : 'Contanti'}</span><span class="muted">${esc(fmtShort(t.date))}</span></div>
-      <select class="catsel" data-id="${t.id}">${opts}</select></div><div class="amt num ${t.kind === 'in' ? 'pos' : 'neg'}">${t.kind === 'in' ? '+' : '−'}${money(t.amount)}</div></div>`).join('')}</div>` : '<div class="empty">Tutto categorizzato ✓</div>', {
-    onMount: w => w.querySelectorAll('.catsel').forEach(sel => sel.onchange = async () => {
-      const t = S.state.transactions.find(x => x.id === sel.dataset.id); if (!t || !sel.value) return;
-      await S.save('transactions', { ...t, cat: sel.value });
-      if (t.desc) await S.setMeta('learned', { ...(S.state.meta.learned || {}), [learnKey(t.desc)]: sel.value });
-      sel.closest('.mv').remove(); done();
-    })
-  });
-}
-
 function syncLine() {
   const c = Sync.config(); if (!c) return 'Non attiva';
   if (Sync.status.msg) return Sync.status.msg;
@@ -557,7 +1071,7 @@ function syncSheet() {
       const off = $('[data-off]', w); if (off) off.onclick = async () => { if (confirm('Disattivare la sincronizzazione? Il token viene rimosso da questo telefono.')) { await Sync.disable(); close(); render(); } };
       const rs = $('[data-restore]', w); if (rs) rs.onclick = async () => {
         if (!confirm('Sostituire TUTTI i dati dell’app con quelli su GitHub?')) return;
-        try { const d = await Sync.download(); await S.importData(d, 'replace'); if (d.people) await S.setMeta('people', d.people); ui.periodId = null; close(); render(); toast('Dati ripristinati'); }
+        try { const d = await Sync.download(); await S.importData(d, 'replace'); await applyMeta(d); ui.periodId = null; close(); render(); toast('Dati ripristinati'); }
         catch (e) { alert(e.message); }
       };
     }
@@ -585,9 +1099,21 @@ async function doCsv() {
   try { if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file] }); else throw 0; }
   catch (e) { if (e && e.name === 'AbortError') return; const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); }
 }
+// elenco categorie e siti personalizzati inclusi nel backup
+async function applyMeta(d) {
+  if (d.people) await S.setMeta('people', d.people);
+  if (d.categories) await S.setMeta('categories', d.categories);
+  if (d.subs) await S.setMeta('subs', d.subs);
+  if (d.groups) await S.setMeta('groups', { ...groups(), ...d.groups });
+}
+
 async function doImport(file, mode) {
   try {
     const d = JSON.parse(await file.text()); S.validate(d);
+    if (mode === 'ask' && d.periods.length === 0) {   // file parziale (es. categorie proposte): si puo' solo unire
+      if (!confirm(`Applicare le modifiche a ${d.transactions.length} movimenti? Gli altri dati restano com'erano.`)) return;
+      mode = 'merge';
+    }
     if (mode === 'ask') {
       const replace = S.state.transactions.length === 0 || confirm(`Il file contiene ${d.periods.length} mesi e ${d.transactions.length} movimenti.\n\nOK = SOSTITUISCI tutti i dati attuali\nAnnulla = scegli se unire`);
       if (replace) mode = 'replace';
@@ -595,8 +1121,8 @@ async function doImport(file, mode) {
       else return;
     }
     await S.importData(d, mode);
-    await autoAssign(true);
-    if (d.people) await S.setMeta('people', d.people);
+    await S.setMeta('catV', 3);
+    await applyMeta(d);
     ui.periodId = null; ui.tab = 'mese'; C.ensurePeriodFor(C.today());
     render(); toast(`Importati ${d.transactions.length} movimenti`);
   } catch (e) { alert('Importazione non riuscita: ' + e.message); }
@@ -604,32 +1130,53 @@ async function doImport(file, mode) {
 
 // ---------- eventi ----------
 const actions = {
-  tab: el => { ui.tab = el.dataset.id; window.scrollTo(0, 0); render(); },
-  add: () => openTxSheet(null),
-  prev: () => { const i = S.state.periods.findIndex(p => p.id === ui.periodId); if (i > 0) { ui.periodId = S.state.periods[i - 1].id; render(); } },
-  next: () => { const i = S.state.periods.findIndex(p => p.id === ui.periodId); if (i < S.state.periods.length - 1) { ui.periodId = S.state.periods[i + 1].id; render(); } },
-  pickPeriod, editPeriod,
+  tab: el => { ui.sel = null; ui.tab = el.dataset.id; window.scrollTo(0, 0); render(); },
+  add: () => openAddMenu(),
+  prev: () => { const i = S.state.periods.findIndex(p => p.id === ui.periodId); if (i > 0) { ui.periodId = S.state.periods[i - 1].id; ui.anim = 'prev'; render(); } },
+  privacy: () => { setPrivacyOn(!privacyOn()); render(); },
+  filterSheet,
+  clearFilters: () => { ui.catf = ''; ui.allMonths = false; render(); },
+  searchToggle: () => { ui.searchOpen = !(ui.searchOpen || ui.q); if (!ui.searchOpen) ui.q = ''; render(); if (ui.searchOpen) $('#q')?.focus(); },
+  next: () => { const i = S.state.periods.findIndex(p => p.id === ui.periodId); if (i < S.state.periods.length - 1) { ui.periodId = S.state.periods[i + 1].id; ui.anim = 'next'; render(); } },
+  pickPeriod, editPeriod, summary: summarySheet,
   gotoPeriod: el => { ui.periodId = el.dataset.id; ui.tab = 'mese'; ui.q = ''; $('#sheetRoot').innerHTML = ''; render(); window.scrollTo(0, 0); },
   acct: el => { ui.acct = el.dataset.id; render(); },
-  editTx: el => openTxSheet(S.state.transactions.find(t => t.id === el.dataset.id)),
-  newPerson, person: el => openPerson(el.dataset.id),
+  editTx: el => ui.sel ? toggleSel(el.dataset.id) : openTxSheet(S.state.transactions.find(t => t.id === el.dataset.id)),
+  selMode: () => { ui.sel = ui.sel ? null : new Set(); render(); },
+  createGroup,
+  statToggle: el => {
+    const k = el.dataset.id, so = statOpen(), open = !(so[k] ?? !!STAT_DEF[k]);
+    so[k] = open; try { localStorage.setItem('statopen', JSON.stringify(so)); } catch { /* ignore */ }
+    const sec = el.closest('.ssec'); sec.querySelector('.sbody').hidden = !open;
+    el.setAttribute('aria-expanded', open); el.querySelector('.gch').classList.toggle('up', open);
+    if (open) { const b = sec.querySelector('.bars.sc'); if (b) b.scrollLeft = b.scrollWidth; }
+  },
+  openGroup: el => { if (!ui.sel) openGroupSheet(el.dataset.id); },
+  mvStyleSheet,
+  toggleGroup: el => { if (ui.open.has(el.dataset.id)) ui.open.delete(el.dataset.id); else ui.open.add(el.dataset.id); renderList(); },
+  newPerson, debtsSheet, person: el => { $('#sheetRoot').innerHTML = ''; openPerson(el.dataset.id); },
   statYear: el => { ui.statYear = el.dataset.id; render(); },
-  searchCat: el => { ui.q = el.dataset.id; ui.tab = 'mese'; render(); window.scrollTo(0, 0); },
-  export: doExport, csv: doCsv, syncSheet, catSheet,
+  searchCat: el => { ui.q = ''; ui.catf = el.dataset.id === 'Senza categoria' ? '__none' : el.dataset.id; ui.allMonths = true; ui.tab = 'mese'; render(); window.scrollTo(0, 0); },
+  allMonths: () => { ui.allMonths = !ui.allMonths; render(); },
+  export: doExport, csv: doCsv, syncSheet, catSheet, themeSheet,
   startEmpty: async () => { C.ensurePeriodFor(C.today()); render(); },
   update: async () => { const regs = await navigator.serviceWorker?.getRegistrations?.() || []; for (const r of regs) await r.unregister(); for (const k of await caches.keys()) await caches.delete(k); location.reload(); },
   wipe: async () => { if (confirm('Cancellare TUTTI i dati dall’app? Operazione irreversibile (fai prima un backup).') && confirm('Sei sicuro?')) { await S.wipe(); ui.periodId = null; render(); toast('Dati cancellati'); } },
 };
 document.addEventListener('click', e => { const el = e.target.closest('[data-act]'); if (el && actions[el.dataset.act]) { e.preventDefault(); actions[el.dataset.act](el); } });
 document.addEventListener('change', e => { const el = e.target; if (el.matches && el.matches('[data-import]') && el.files[0]) { doImport(el.files[0], el.dataset.import); el.value = ''; } });
+document.addEventListener('change', e => { if (e.target.matches?.('[data-groups]')) setGroupsOn(e.target.checked); if (e.target.matches?.('[data-gclosed]')) { setGroupsClosed(e.target.checked); ui.open.clear(); } });
+document.addEventListener('change', e => { if (e.target.id === 'catf') { ui.catf = e.target.value; renderList(); } });
 document.addEventListener('input', e => { if (e.target.id === 'q') { ui.q = e.target.value; renderList(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'q') e.target.blur(); });
 
 // ---------- avvio ----------
 (async function boot() {
+  C.setPrivacy(privacyOn());
+  applyMvStyle(mvStyle());
   try {
     await S.load();
-    if (S.state.periods.length) { C.ensurePeriodFor(C.today()); if (!S.state.meta.catAuto) await autoAssign(true); }
+    if (S.state.periods.length) { C.ensurePeriodFor(C.today()); await migrateCats(); await migrateGroups(); await pruneGroups(); }
     if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   } catch (err) { $('#view').innerHTML = `<div class="card"><b>Impossibile aprire l’archivio dati.</b><p class="muted">${esc(err.message)}<br>Se usi la navigazione privata, apri l’app normalmente.</p></div>`; return; }
   S.onChange(() => Sync.schedule());
