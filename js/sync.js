@@ -43,6 +43,7 @@ async function put(c, sha, body) {
 export async function push() {
   const c = config(); if (!c) return;
   if (running) { again = true; return; }
+  if (!S.state.transactions.length && !S.state.periods.length) { say('Nessun dato da inviare (i dati su GitHub non vengono toccati)'); return; }
   if (!navigator.onLine) { say('Offline: sincronizzo appena torna la rete'); return; }
   running = true; say('Sincronizzazione…', true);
   try {
@@ -84,14 +85,25 @@ export async function download() {
   return r.json();
 }
 
-export async function enable(repo, token) {
+// controlla repository e token e scarica il file dati se esiste, senza attivare nulla
+export async function probe(repo, token) {
   const c = { repo: repo.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, ''), token: token.trim(), path: 'dati/spese.json' };
   if (!/^[\w.-]+\/[\w.-]+$/.test(c.repo)) throw new Error('Scrivi il repository come utente/nome');
   const r = await fetch(`${API}/repos/${c.repo}`, { headers: hdr(c.token) });
   if (!r.ok) throw await apiError(r);
-  await S.setMeta('sync', c); await S.setMeta('syncSha', null);
-  await push();
-  if (status.msg.startsWith('Errore')) throw new Error(status.msg.slice(8));
+  const f = await fetch(`${API}/repos/${c.repo}/contents/${path(c)}`, { headers: hdr(c.token, 'application/vnd.github.raw+json'), cache: 'no-store' });
+  if (f.status === 404) return { c, exists: false };
+  if (!f.ok) throw await apiError(f);
+  return { c, exists: true, data: await f.json() };
+}
+
+// attiva la sincronizzazione; send = true invia subito i dati del telefono
+export async function enable(c, send) {
+  await S.setMeta('sync', c); await S.setMeta('syncSha', null); await S.setMeta('syncDirty', false);
+  if (send) {
+    await push();
+    if (status.msg.startsWith('Errore')) throw new Error(status.msg.slice(8));
+  }
 }
 
 export async function disable() { await S.setMeta('sync', null); await S.setMeta('syncSha', null); say(''); }

@@ -121,8 +121,9 @@ function viewMese() {
   if (!S.state.periods.length) {
     return `<div class="bar"><h1>Le Mie Spese</h1></div><div class="card" style="text-align:center;padding:28px 18px">
       <div style="font-size:44px">📒</div><h2 style="margin:8px 0">Benvenuto!</h2>
-      <p class="muted">Non ci sono ancora dati. Importa il file <b>dati-iniziali.json</b> con i tuoi 47 fogli oppure parti da zero.</p>
-      <label class="btn" style="margin-top:14px">Importa dati<input type="file" accept=".json,application/json" hidden data-import="replace"></label>
+      <p class="muted">Non ci sono ancora dati su questo telefono. Se li hai già su GitHub, collega il repository e l’app li scarica.</p>
+      <button class="btn" style="margin-top:14px" data-act="${Sync.config() ? 'restoreSync' : 'syncSheet'}">${Sync.config() ? 'Ripristina i dati da GitHub' : 'Collega GitHub e scarica i dati'}</button>
+      <label class="btn sec">Importa da file<input type="file" accept=".json,application/json" hidden data-import="replace"></label>
       <button class="btn sec" data-act="startEmpty">Parti da zero</button></div>`;
   }
   const p = curPeriod(); ui.periodId = p.id;
@@ -1090,6 +1091,40 @@ function syncLine() {
   return t ? 'Attiva · ultimo invio ' + new Date(t).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Attiva';
 }
 
+// collega GitHub: se nel repository ci sono gia' dati li scarica (telefono nuovo), senza mai sovrascriverli con un archivio vuoto
+async function connectSync(repo, token) {
+  const pr = await Sync.probe(repo, token);
+  const localCount = S.state.transactions.length, empty = !localCount && !S.state.periods.length;
+  let choice = 'local';
+  if (pr.exists) {
+    S.validate(pr.data);
+    choice = empty ? 'remote' : await askSyncSource(pr.data, localCount);
+    if (!choice) return false;
+  }
+  if (choice === 'remote') {
+    await S.importData(pr.data, 'replace'); await S.setMeta('catV', 3); await S.setMeta('groupsV', 1); await applyMeta(pr.data);
+    ui.periodId = null; const n0 = S.state.periods.length; C.ensurePeriodFor(C.today());
+    await Sync.enable(pr.c, false); if (S.state.periods.length > n0) Sync.schedule();
+    toast(`Scaricati ${pr.data.transactions.length} movimenti da GitHub`);
+  } else await Sync.enable(pr.c, !empty);
+  return true;
+}
+function askSyncSource(remote, localCount) {
+  return new Promise(resolve => {
+    let done = false; const fin = v => { if (!done) { done = true; resolve(v); } };
+    const when = remote.exportedAt ? new Date(remote.exportedAt).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    const sh = openSheet('Dati già presenti', `<p class="muted" style="margin:0 4px 14px">Su GitHub ci sono <b>${remote.transactions.length}</b> movimenti${when ? ` (ultimo invio ${esc(when)})` : ''}. Su questo telefono ce ne sono <b>${localCount}</b>.</p>
+      <button class="btn" data-r>Scarica quelli di GitHub</button><p class="hint" style="margin:6px 4px 14px">Sostituisce i dati del telefono.</p>
+      <button class="btn sec" data-l>Invia quelli del telefono</button><p class="hint" style="margin:6px 4px 0">Sostituisce i dati su GitHub.</p>`, {
+      onMount: (w, close) => {
+        $('[data-r]', w).onclick = () => { fin('remote'); close(); };
+        $('[data-l]', w).onclick = () => { fin('local'); close(); };
+      }
+    });
+    $('.back', sh.el).addEventListener('click', () => fin(null)); $('[data-x]', sh.el).addEventListener('click', () => fin(null));
+  });
+}
+
 function syncSheet() {
   const c = Sync.config();
   const body = c ? `<div class="form"><div class="frow"><label>Repository</label><input value="${esc(c.repo)}" readonly></div></div>
@@ -1099,14 +1134,16 @@ function syncSheet() {
     : `<div class="form">
         <div class="frow"><label>Repository</label><input id="syRepo" placeholder="utente/nome" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
         <div class="frow"><label>Token</label><input id="syTok" type="password" placeholder="github_pat_…" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
-      </div><button class="btn" data-on>Attiva e invia i dati</button>`;
+      </div><p class="hint" style="margin:10px 4px">Se su GitHub ci sono già i tuoi dati, l’app li scarica; altrimenti invia quelli di questo telefono.</p><button class="btn" data-on>Collega e sincronizza</button>`;
   openSheet('Sincronizzazione GitHub', body, {
     onMount: (w, close) => {
       const on = $('[data-on]', w);
       if (on) on.onclick = async () => {
         on.textContent = 'Connessione…'; on.disabled = true;
-        try { await Sync.enable($('#syRepo', w).value, $('#syTok', w).value); close(); render(); toast('Sincronizzazione attiva ✓'); }
-        catch (e) { on.textContent = 'Attiva e invia i dati'; on.disabled = false; alert(e.message); }
+        try {
+          const ok = await connectSync($('#syRepo', w).value, $('#syTok', w).value);
+          if (ok) { close(); render(); toast('Sincronizzazione attiva ✓'); } else { on.textContent = 'Collega e sincronizza'; on.disabled = false; }
+        } catch (e) { on.textContent = 'Collega e sincronizza'; on.disabled = false; alert(e.message); }
       };
       const now = $('[data-now]', w); if (now) now.onclick = async () => { await Sync.push(); close(); render(); };
       const off = $('[data-off]', w); if (off) off.onclick = async () => { if (confirm('Disattivare la sincronizzazione? Il token viene rimosso da questo telefono.')) { await Sync.disable(); close(); render(); } };
@@ -1200,6 +1237,10 @@ const actions = {
   searchCat: el => { ui.q = ''; ui.catf = el.dataset.id === 'Senza categoria' ? '__none' : el.dataset.id; ui.allMonths = true; ui.tab = 'mese'; render(); window.scrollTo(0, 0); },
   allMonths: () => { ui.allMonths = !ui.allMonths; render(); },
   export: doExport, csv: doCsv, syncSheet, catSheet, themeSheet,
+  restoreSync: async () => {
+    try { const d = await Sync.download(); await S.importData(d, 'replace'); await S.setMeta('catV', 3); await S.setMeta('groupsV', 1); await applyMeta(d); ui.periodId = null; C.ensurePeriodFor(C.today()); render(); toast('Dati ripristinati'); }
+    catch (e) { alert(e.message); }
+  },
   startEmpty: async () => { C.ensurePeriodFor(C.today()); render(); },
   update: async () => { const regs = await navigator.serviceWorker?.getRegistrations?.() || []; for (const r of regs) await r.unregister(); for (const k of await caches.keys()) await caches.delete(k); location.reload(); },
   wipe: async () => { if (confirm('Cancellare TUTTI i dati dall’app? Operazione irreversibile (fai prima un backup).') && confirm('Sei sicuro?')) { await S.wipe(); ui.periodId = null; render(); toast('Dati cancellati'); } },
