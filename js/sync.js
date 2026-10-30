@@ -2,7 +2,7 @@
 import * as S from './store.js';
 
 const API = 'https://api.github.com';
-let timer = null, running = false, again = false;
+let timer = null, retry = null, running = false, again = false;
 export const status = { msg: '', busy: false };
 let onStatus = () => {};
 
@@ -58,17 +58,22 @@ export async function push() {
   } catch (e) {
     await S.setMeta('syncSha', null);
     say('Errore: ' + e.message);
+    clearTimeout(retry);
+    if (e.status !== 401 && e.status !== 404) retry = setTimeout(push, 30000);   // rete instabile o GitHub occupato: riprovo da solo
   } finally {
     running = false; onStatus();
     if (again) { again = false; schedule(500); }
   }
 }
 
-export function schedule(ms = 4000) {
+export function schedule(ms = 1500) {
   if (!config()) return;
   S.setMeta('syncDirty', true);
   clearTimeout(timer); timer = setTimeout(push, ms);
 }
+
+// chiamata quando l'app va in secondo piano: invia subito quello che e' rimasto in coda
+export function flush() { if (config() && S.state.meta.syncDirty) { clearTimeout(timer); push(); } }
 
 export function resumeIfDirty() { if (config() && S.state.meta.syncDirty) schedule(500); }
 

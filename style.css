@@ -419,3 +419,16 @@ button.mv:active{transform:scale(.985);background:var(--chip)}
 .ssec .sbody{margin-top:10px}
 .ssec .sbody>.card:last-child,.ssec .sbody>.grid2:last-child{margin-bottom:0}
 .ssec .gch.rt svg{transform:rotate(-90deg)}
+
+/* editor delle categorie: colore e icona */
+.cprev{display:flex;align-items:center;gap:12px;margin:2px 4px 14px;font-size:17px}
+.mini.lg{width:54px;height:54px;flex:0 0 54px}
+.mini.lg svg{fill:#fff}
+.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:0 4px}
+.sw{aspect-ratio:1;border-radius:50%;background:var(--c)}
+.sw.on{box-shadow:0 0 0 3px var(--bg),0 0 0 5.5px var(--c)}
+.igt{font-size:12.5px;font-weight:700;color:var(--muted);margin:14px 4px 8px}
+.igrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.ig{aspect-ratio:1;border-radius:14px;background:var(--chip);display:flex;align-items:center;justify-content:center;color:var(--text)}
+.ig svg{fill:currentColor}
+.ig.on{background:var(--c);color:#fff}

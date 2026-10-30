@@ -1,7 +1,7 @@
 import * as S from './store.js';
 import * as C from './calc.js';
 import * as Sync from './sync.js';
-import { ICONS } from './icons.js';
+import { ICONS, ICON_GROUPS } from './icons.js';
 import { money, signed, moneyRaw, signedRaw, display, periodLabel, fmtDay, fmtShort, DEBT_TYPES } from './calc.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -54,7 +54,7 @@ function renderTabs() {
   const t = (id, label, ic, dot) => `<button data-act="tab" data-id="${id}" class="${ui.tab === id ? 'on' : ''} ${dot ? 'dot' : ''}">${ic}<span>${label}</span></button>`;
   const d = backupDays();
   $('#tabs').innerHTML = '<div class="tabpill">' + t('mese', 'Mese', IC.mese) + t('stat', 'Statistiche', IC.stat) +
-    t('altro', 'Altro', IC.altro, !Sync.config() && S.state.transactions.length > 0 && (d === null || d > 30)) + '</div>' +
+    t('altro', 'Altro', IC.altro, Sync.config() ? /^(Errore|Offline)/.test(Sync.status.msg) : S.state.transactions.length > 0 && (d === null || d > 30)) + '</div>' +
     `<button class="plus" data-act="add" aria-label="Aggiungi">${IC.plus}</button>`;
 }
 
@@ -252,7 +252,8 @@ function renderList() {
   }
   items.sort(byDateDesc);
   if (!items.length) { box.innerHTML = `<div class="empty">${global || ui.catf ? 'Nessun movimento con questi filtri' : 'Nessun movimento.<br>Tocca + per aggiungerne uno.'}</div>`; return; }
-  const entries = groupsOn() ? groupItems(items.map(([t]) => t)) : items.map(([t]) => ({ t }));
+  // nelle sezioni Carta e Contanti i movimenti si vedono per intero, senza i riquadri dei gruppi
+  const entries = groupsOn() && ui.acct === 'tutti' ? groupItems(items.map(([t]) => t)) : items.map(([t]) => ({ t }));
   let html = '', day = null, shown = entries.slice(0, global ? 300 : 2000), buf = [], dsum = 0;
   const flush = () => { if (day) html += `<div class="dayh"><span>${esc(relDay(day))}</span><span class="num">${signed(dsum)}</span></div><div class="mvs">${buf.join('')}</div>`; buf = []; dsum = 0; };
   for (const en of shown) {
@@ -1012,27 +1013,66 @@ function catSheet() {
           await S.bulkSave('transactions', upd);
           await S.setMeta('subs', n.trim() ? C.subs().map(x => x === old ? n.trim() : x) : C.subs().filter(x => x !== old)); redraw();
         });
-        $('[data-new]', body).onclick = async () => {
-          const name = (prompt('Nome della categoria:') || '').trim(); if (!name) return;
-          if (C.categories().some(c => c.name.toLowerCase() === name.toLowerCase())) return toast('Esiste già');
-          const list = C.categories(); list.splice(list.length - 1, 0, { name, color: C.PALETTE[list.length % C.PALETTE.length] }); await saveCats(list); redraw();
-        };
-        body.querySelectorAll('[data-cat]').forEach(b => b.onclick = async () => {
-          const old = b.dataset.cat, cur = C.categories().find(c => c.name === old);
-          const n = prompt(`Nuovo nome per “${old}” (vuoto = elimina la categoria):`, old); if (n === null) return;
-          if (!n.trim()) {
-            if (!confirm(`Eliminare “${old}”? I suoi movimenti restano senza categoria.`)) return;
-            await bulkCat(old, null); await saveCats(C.categories().filter(c => c.name !== old));
-          } else if (n.trim() !== old) {
-            await bulkCat(old, n.trim()); await saveCats(C.categories().map(c => c.name === old ? { ...c, name: n.trim() } : c));
-          }
-          redraw();
-        });
+        $('[data-new]', body).onclick = () => categoryEditor(null, redraw);
+        body.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => categoryEditor(C.categories().find(c => c.name === b.dataset.cat), redraw));
       };
       wire();
     }
   });
 }
+// categorie usate dalle statistiche: il nome non si cambia e non si eliminano
+const FIXED_CATS = new Set(['Riconversione', 'Prestiti e debiti', 'Rimborsi e rientri']);
+const glyphSvg = (key, size) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><path d="${ICONS[key] || ICONS.tag}"/></svg>`;
+
+// foglio per creare o modificare una categoria: nome, colore e icona
+function categoryEditor(cur, done) {
+  const st = { color: cur?.color || C.PALETTE[C.categories().length % C.PALETTE.length], glyph: cur ? C.glyphKey(cur.name) : 'tag' };
+  const fixed = !!cur && FIXED_CATS.has(cur.name);
+  const body = `<div class="cprev"><i class="mini lg" id="cpv"></i><b id="cpn"></b></div>
+    <div class="form"><div class="frow"><label>Nome</label><input id="cnm" value="${esc(cur?.name || '')}" placeholder="Es. Palestra" autocomplete="off" autocapitalize="sentences" ${fixed ? 'disabled' : ''}></div></div>
+    ${fixed ? '<p class="hint" style="margin:8px 4px 0">Il nome di questa categoria è fisso perché serve alle statistiche.</p>' : ''}
+    <div class="sechead"><span>Colore</span></div>
+    <div class="swatches">${C.PALETTE.map(c => `<button class="sw" data-c="${c}" style="--c:${c}" aria-label="Colore ${c}"></button>`).join('')}</div>
+    <div class="sechead"><span>Icona</span></div>
+    ${ICON_GROUPS.map(([t, keys]) => `<div class="igt">${esc(t)}</div><div class="igrid">${keys.map(k => `<button class="ig" data-g="${k}" aria-label="${k}">${glyphSvg(k, 24)}</button>`).join('')}</div>`).join('')}`;
+  openSheet(cur ? 'Modifica categoria' : 'Nuova categoria', body, {
+    saveLabel: cur ? 'Salva' : 'Crea', deleteLabel: cur && !fixed ? 'Elimina' : null,
+    onMount: (w, close) => {
+      const paint = () => {
+        const name = $('#cnm', w).value.trim();
+        $('#cpv', w).style.setProperty('--cc', st.color); $('#cpv', w).innerHTML = glyphSvg(st.glyph, 28);
+        $('#cpn', w).textContent = name || 'Nome della categoria';
+        w.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.c === st.color));
+        w.querySelectorAll('.ig').forEach(b => { b.classList.toggle('on', b.dataset.g === st.glyph); b.style.setProperty('--c', st.color); });
+      };
+      w.querySelectorAll('.sw').forEach(b => b.onclick = () => { st.color = b.dataset.c; paint(); });
+      w.querySelectorAll('.ig').forEach(b => b.onclick = () => { st.glyph = b.dataset.g; paint(); });
+      $('#cnm', w).addEventListener('input', paint);
+      paint();
+      if (!cur) setTimeout(() => $('#cnm', w).focus(), 300);
+      else setTimeout(() => w.querySelector('.ig.on')?.scrollIntoView({ block: 'center' }), 350);
+      const del = $('[data-del]', w);
+      if (del) del.onclick = async () => {
+        if (!confirm(`Eliminare “${cur.name}”? I suoi movimenti restano senza categoria.`)) return;
+        await bulkCat(cur.name, null); await S.setMeta('categories', C.categories().filter(c => c.name !== cur.name));
+        close(); done(); toast('Categoria eliminata');
+      };
+    },
+    onSave: async w => {
+      const name = $('#cnm', w).value.trim(); if (!name) return toast('Scrivi il nome della categoria'), false;
+      const list = C.categories();
+      if (list.some(c => c.name.toLowerCase() === name.toLowerCase() && c.name !== cur?.name)) return toast('Esiste già una categoria con questo nome'), false;
+      if (!cur) { list.splice(Math.max(0, list.length - 1), 0, { name, color: st.color, glyph: st.glyph }); }
+      else {
+        if (name !== cur.name) await bulkCat(cur.name, name);
+        for (let i = 0; i < list.length; i++) if (list[i].name === cur.name) list[i] = { ...list[i], name, color: st.color, glyph: st.glyph };
+      }
+      await S.setMeta('categories', list);
+      done(); render(); toast(cur ? 'Categoria salvata' : 'Categoria creata ✓');
+    }
+  });
+}
+
 // rinomina/elimina una categoria su tutti i movimenti (il testo Excel dei movimenti nuovi segue il nome)
 async function bulkCat(oldName, newName) {
   const upd = S.state.transactions.filter(t => t.cat === oldName).map(t => {
@@ -1045,6 +1085,7 @@ async function bulkCat(oldName, newName) {
 function syncLine() {
   const c = Sync.config(); if (!c) return 'Non attiva';
   if (Sync.status.msg) return Sync.status.msg;
+  if (S.state.meta.syncDirty) return 'Attiva · invio delle modifiche in corso';
   const t = S.state.meta.lastSync;
   return t ? 'Attiva · ultimo invio ' + new Date(t).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Attiva';
 }
@@ -1180,7 +1221,9 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id
     if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   } catch (err) { $('#view').innerHTML = `<div class="card"><b>Impossibile aprire l’archivio dati.</b><p class="muted">${esc(err.message)}<br>Se usi la navigazione privata, apri l’app normalmente.</p></div>`; return; }
   S.onChange(() => Sync.schedule());
-  Sync.setStatusListener(() => { if (ui.tab === 'altro' && !document.querySelector('#sheetRoot .sheet')) render(); });
+  Sync.setStatusListener(() => { renderTabs(); if (ui.tab === 'altro' && !document.querySelector('#sheetRoot .sheet')) render(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) Sync.flush(); });
+  window.addEventListener('pagehide', Sync.flush);
   Sync.resumeIfDirty();
   window.addEventListener('online', Sync.resumeIfDirty);
   render();

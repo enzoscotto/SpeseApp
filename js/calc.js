@@ -152,4 +152,5 @@ const GLYPHS = {
   'Abbonamenti': 'sync', 'Svago': 'gamepad-variant', 'Regali': 'gift', 'Vestiti': 'tshirt-crew', 'Prestiti e debiti': 'handshake',
   'Rimborsi e rientri': 'cash-refund', 'Guadagni': 'briefcase', 'Riconversione': 'swap-horizontal', 'Altro': 'tag',
 };
-export const glyphKey = name => (name ? GLYPHS[name] || 'tag' : 'help');
+// l'icona scelta dall'utente (glyph) vince su quella predefinita
+export const glyphKey = name => (name ? categories().find(c => c.name === name)?.glyph || GLYPHS[name] || 'tag' : 'help');
