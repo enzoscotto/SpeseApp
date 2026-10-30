@@ -74,7 +74,7 @@ function render() {
 // i saldi restano su una riga anche con 5 cifre: stessa grandezza per Carta e Contanti
 function fitBx() {
   const vs = [...document.querySelectorAll('.bx-v')]; if (!vs.length) return;
-  let size = 26; vs.forEach(v => v.style.fontSize = size + 'px');
+  let size = 22; vs.forEach(v => v.style.fontSize = size + 'px');
   while (size > 11 && vs.some(v => v.scrollWidth > v.clientWidth + 0.5)) { size -= 0.5; vs.forEach(v => v.style.fontSize = size + 'px'); }
 }
 window.addEventListener('resize', fitBx);
@@ -735,13 +735,31 @@ function lineChart(vals) {
 const STAT_DEF = { trend: true, cat: true };
 const statOpen = () => { try { return JSON.parse(localStorage.getItem('statopen') || '{}'); } catch { return {}; } };
 
+// sezioni: chiave, titolo, se si puo' mostrare a torta
+const STAT_ITEMS = [['now', 'Mese in corso'], ['hero', 'Risparmiato e medie'], ['trend', 'Mese per mese'], ['stip', 'Crescita dello stipendio'], ['saldo', 'Saldo nel tempo'],
+  ['record', 'Record'], ['cat', 'Spese per categoria', true], ['quando', 'Quando spendi'], ['conto', 'Carta o contanti', true], ['abb', 'Abbonamenti'], ['top', 'Le spese più alte'],
+  ['shop', 'Shopping online per sito', true], ['debiti', 'Debiti'], ['mesi', 'Per mese']];
+const statCfg = () => ({ order: [], hide: [], pie: {}, ...(S.state.meta.statCfg || {}) });
+const statOrder = () => { const o = statCfg().order, keys = STAT_ITEMS.map(x => x[0]); return [...o.filter(k => keys.includes(k)), ...keys.filter(k => !o.includes(k))]; };
+
+// torta (ciambella) con legenda; items: [{ label, v, color, cat? }]
+function donut(items, total, center) {
+  let off = 0;
+  const segs = items.map(it => {
+    const pct = it.v / total * 100, len = Math.max(0, pct - 0.5), seg = `<circle r="15.9155" cx="21" cy="21" fill="none" stroke="${it.color}" stroke-width="6.5" stroke-dasharray="${len.toFixed(2)} ${(100 - len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 21 21)"/>`;
+    off += pct; return seg;
+  }).join('');
+  return `<div class="card"><svg class="donut" viewBox="0 0 42 42" role="img" aria-label="Grafico a torta"><circle r="15.9155" cx="21" cy="21" fill="none" stroke="var(--chip)" stroke-width="6.5"/>${segs}<text x="21" y="22.3" text-anchor="middle">${center}</text></svg>
+    <div class="plist">${items.map(it => `<${it.cat ? `button data-act="searchCat" data-id="${esc(it.cat)}"` : 'div'} class="prow"><span class="dotc" style="--c:${it.color}">${esc(it.label)}</span><span class="num">${money(it.v)} <span class="muted">· ${Math.round(it.v / total * 100)}%</span></span></${it.cat ? 'button' : 'div'}>`).join('')}</div></div>`;
+}
+
 function viewStat() {
-  const head = `<div class="bar"><h1>Statistiche</h1><div class="nav">${eyeBtn()}</div></div>`;
+  const head = `<div class="bar"><h1>Statistiche</h1><div class="nav"><button class="iconbtn" data-act="statSettings" aria-label="Personalizza le statistiche">${IC.filter}</button>${eyeBtn()}</div></div>`;
   const ps = S.state.periods;
   if (!ps.length) return head + '<div class="empty">Nessun dato</div>';
   const years = [...new Set(ps.map(C.periodYear))].sort();
   if (!ui.statYear || (ui.statYear !== 'tutto' && !years.includes(ui.statYear))) ui.statYear = years[years.length - 1];
-  const today = C.today();
+  const today = C.today(), cfg = statCfg();
   const rows = ps.filter(p => ui.statYear === 'tutto' || C.periodYear(p) === ui.statYear).map(p => ({ p, s: C.stats(p) }));
   const tot = rows.reduce((a, { p, s }) => ({ sal: a.sal + (p.salary || 0), real: a.real + s.real, sav: a.sav + (s.saved || 0) }), { sal: 0, real: 0, sav: 0 });
   const rate = tot.sal > 0 ? tot.sav / tot.sal * 100 : null;
@@ -765,10 +783,11 @@ function viewStat() {
       e.n++; e.tot += v; if (t.date >= e.last.date) e.last = t; subsc.set(key, e);
     }
   }
-  const top = [...cats.entries()].sort((a, b) => b[1] - a[1]).slice(0, 14);
+  const catAll = [...cats.entries()].sort((a, b) => b[1] - a[1]), top = catAll.slice(0, 14);
   const subList = [...subs.entries()].sort((a, b) => b[1] - a[1]);
   const subscList = [...subsc.values()].sort((a, b) => b.last.amount - a.last.amount).slice(0, 8);
   const big = rtx.filter(t => net.get(t.id) > 0).sort((a, b) => net.get(b.id) - net.get(a.id)).slice(0, 5);
+  const catColor = k => k === 'Senza categoria' ? '#9CA3AF' : C.catColor(k);
 
   // mese in corso
   const cp = C.currentPeriod(); let now = '';
@@ -797,41 +816,86 @@ function viewStat() {
   const accTot = accs.carta + accs.contanti, pc = accTot ? accs.carta / accTot * 100 : 0;
   const ppl = C.people(), owed = ppl.filter(x => x.bal > 0).reduce((a, x) => a + x.bal, 0), owe = -ppl.filter(x => x.bal < 0).reduce((a, x) => a + x.bal, 0);
 
+  // crescita dello stipendio: sempre su tutta la storia, non solo sull'anno scelto
+  const sp = ps.filter(p => p.salary > 0), salYears = [...new Set(sp.map(C.periodYear))].sort();
+  const yAvg = y => { const l = sp.filter(p => C.periodYear(p) === y); return { n: l.length, avg: l.reduce((a, p) => a + p.salary, 0) / l.length }; };
+  const dSal = sp.length >= 2 ? sp[sp.length - 1].salary - sp[0].salary : 0, pSal = sp.length >= 2 ? dSal / sp[0].salary * 100 : 0;
+
   const so = statOpen();
   const sec = (key, title, right, body) => {
     const open = so[key] ?? !!STAT_DEF[key];
     return `<div class="ssec"><button class="sechead sh" data-act="statToggle" data-id="${key}" aria-expanded="${open}"><span>${title}</span><span class="sr">${right || ''}<i class="gch ${open ? 'up' : ''}">${IC.chev}</i></span></button><div class="sbody" ${open ? '' : 'hidden'}>${body}</div></div>`;
   };
-  return `${head}
-  <div class="seg" style="overflow-x:auto">${[...years, 'tutto'].map(y => `<button data-act="statYear" data-id="${y}" class="${ui.statYear === y ? 'on' : ''}">${y === 'tutto' ? 'Tutto' : y}</button>`).join('')}</div>
-  <div style="height:12px"></div>
-  ${now}
-  <div class="card hero"><div class="t">Risparmiato</div><div class="v num ${tot.sav >= 0 ? 'pos' : 'neg'}">${signed(tot.sav).replace('+', '')}</div><div class="sm">${rate !== null ? `${Math.round(rate)}% degli stipendi` : 'in attesa degli stipendi'}</div></div>
+  const blocks = {
+    now,
+    hero: `<div class="card hero"><div class="t">Risparmiato</div><div class="v num ${tot.sav >= 0 ? 'pos' : 'neg'}">${signed(tot.sav).replace('+', '')}</div><div class="sm">${rate !== null ? `${Math.round(rate)}% degli stipendi` : 'in attesa degli stipendi'}</div></div>
   <div class="grid2">
     <div class="card acc"><div class="t">Stipendi</div><div class="v num">${money(tot.sal)}</div></div>
     <div class="card acc"><div class="t">Spesa reale</div><div class="v num">${money(tot.real)}</div></div>
     <div class="card acc"><div class="t">Media al mese</div><div class="v num">${money(rows.length ? tot.real / rows.length : 0)}</div></div>
     <div class="card acc"><div class="t">Media al giorno</div><div class="v num">${money(days ? tot.real / days : 0)}</div></div>
-  </div>
-  ${sec('trend', 'Mese per mese', '<span style="color:var(--carta)">■</span> spesa <span style="color:var(--cash)">■</span> risparmio',
-    `<div class="card"><div class="bars ${rows.length > 9 ? 'sc' : ''}">${rows.map(({ p, s }) => `<button class="b" data-act="gotoPeriod" data-id="${esc(p.id)}"><div style="display:flex;gap:2px;align-items:flex-end;width:100%;height:100%"><div class="col" style="height:${Math.max(1, s.real / max * 100)}%"></div><div class="col sv" style="height:${Math.max(1, Math.max(0, s.saved || 0) / max * 100)}%"></div></div><div class="m">${lbl(p)}</div></button>`).join('')}</div></div>`)}
-  ${rows.length >= 2 ? sec('saldo', 'Saldo nel tempo', 'carta + contanti',
-    `<div class="card"><div class="lv"><b class="num">${money(bal[bal.length - 1])}</b><span class="num ${dBal >= 0 ? 'pos' : 'neg'}">${signed(dBal)}</span></div>${lineChart(bal)}<div class="lax"><span>${esc(periodLabel(rows[0].p))}</span><span>${esc(periodLabel(rows[rows.length - 1].p))}</span></div></div>`) : ''}
-  ${records.length ? sec('record', 'Record', '', `<div class="grid2">${records.join('')}</div>`) : ''}
-  ${sec('cat', 'Spese per categoria', `<span class="num">${money(outTot)}</span>`,
-    `<div class="card">${top.map(([k, v]) => `<button class="hbar" style="display:block;width:100%;text-align:left" data-act="searchCat" data-id="${esc(k)}"><div class="top"><span class="lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</span><span class="num">${money(v)} <span class="muted" style="font-weight:600">· ${Math.round(v / outTot * 100)}%</span></span></div><div class="track"><div class="fill" style="width:${v / top[0][1] * 100}%;background:${C.catColor(k)}"></div></div></button>`).join('') || '<div class="empty">—</div>'}</div>
-    <p class="hint" style="margin:-4px 4px 0">Prestiti e ricariche tra i tuoi conti non contano come spesa. Un rimborso nello stesso gruppo o sulla stessa riga riduce la spesa.</p>`)}
-  ${outTot > 0 ? sec('quando', 'Quando spendi', 'media per giorno',
-    `<div class="card"><div class="wd">${avgWd.map((v, i) => `<div class="${i === hotWd ? 'hot' : ''}"><i style="height:${Math.max(3, maxWd ? v / maxWd * 100 : 0)}%"></i><span>${WEEKDAYS[i][0].toUpperCase()}</span></div>`).join('')}</div><div class="sm" style="margin-top:10px;color:var(--muted);font-weight:600">Spendi di più di ${WEEKDAYS[hotWd]}: in media <b class="num" style="color:var(--text)">${money(maxWd)}</b>.</div></div>`)
-  + sec('conto', 'Carta o contanti', 'dove paghi',
-    `<div class="card"><div class="split"><i style="width:${pc}%;background:var(--carta)"></i><i style="flex:1;background:var(--cash)"></i></div><div class="legend"><span><span class="dotc" style="--c:var(--carta)">Carta ${Math.round(pc)}%</span><br><b class="num">${money(accs.carta)}</b></span><span style="text-align:right"><span class="dotc" style="--c:var(--cash)">Contanti ${Math.round(100 - pc)}%</span><br><b class="num">${money(accs.contanti)}</b></span></div></div>`) : ''}
-  ${subscList.length ? sec('abb', 'Abbonamenti', `<span class="num">≈ ${money([...subsc.values()].reduce((a, e) => a + e.tot, 0) / Math.max(1, rows.length))} al mese</span>`,
-    `<div class="card">${subscList.map(e => `<div class="kv"><span>${esc(e.name)}<br><small class="muted">${e.n} ${e.n === 1 ? 'addebito' : 'addebiti'}</small></span><b class="num">${money(e.last.amount)}</b></div>`).join('')}</div>`) : ''}
-  ${big.length ? sec('top', 'Le spese più alte', '', `<div class="mvs">${big.map(t => rowHtml(t, true, true)).join('')}</div>`) : ''}
-  ${subList.length ? sec('shop', 'Shopping online per sito', '', `<div class="card">${subList.map(([k, v]) => `<div class="hbar"><div class="top"><span>${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / subList[0][1] * 100}%"></div></div></div>`).join('')}</div>`) : ''}
-  ${sec('debiti', 'Debiti', `Ti devono ${money(owed)}`,
-    `<div class="list"><button class="row" data-act="debtsSheet"><div class="main"><div class="ttl">Vedi le persone</div><div class="sm">Ti devono ${money(owed)} · Devi ${money(owe)}</div></div><span class="gch rt">${IC.chev}</span></button></div>`)}
-  ${sec('mesi', 'Per mese', '', `<div class="list">${[...rows].reverse().map(({ p, s }) => `<button class="row" data-act="gotoPeriod" data-id="${esc(p.id)}"><div class="main"><div class="ttl">${esc(periodLabel(p))}</div><div class="sm num">Spesa ${money(s.real)}</div></div><div class="amt num ${s.saved == null ? 'muted' : s.saved >= 0 ? 'pos' : 'neg'}">${s.saved == null ? '—' : signed(s.saved)}</div></button>`).join('')}</div>`)}`;
+  </div>`,
+    trend: sec('trend', 'Mese per mese', '<span style="color:var(--carta)">■</span> spesa <span style="color:var(--cash)">■</span> risparmio',
+      `<div class="card"><div class="bars ${rows.length > 9 ? 'sc' : ''}">${rows.map(({ p, s }) => `<button class="b" data-act="gotoPeriod" data-id="${esc(p.id)}"><div style="display:flex;gap:2px;align-items:flex-end;width:100%;height:100%"><div class="col" style="height:${Math.max(1, s.real / max * 100)}%"></div><div class="col sv" style="height:${Math.max(1, Math.max(0, s.saved || 0) / max * 100)}%"></div></div><div class="m">${lbl(p)}</div></button>`).join('')}</div></div>`),
+    stip: sec('stip', 'Crescita dello stipendio', sp.length ? `<span class="num">ultimo ${money(sp[sp.length - 1].salary)}</span>` : '', sp.length >= 2
+      ? `<div class="card"><div class="lv"><b class="num">${money(sp[sp.length - 1].salary)}</b><span class="num ${dSal >= 0 ? 'pos' : 'neg'}">${signed(dSal)} · ${pSal >= 0 ? '+' : '−'}${Math.abs(Math.round(pSal))}%</span></div>${lineChart(sp.map(p => p.salary))}<div class="lax"><span>${esc(periodLabel(sp[0]))} · ${money(sp[0].salary)}</span><span>${esc(periodLabel(sp[sp.length - 1]))}</span></div></div>
+         <div class="list">${salYears.map((y, i) => { const a = yAvg(y), prev = i ? yAvg(salYears[i - 1]) : null, d = prev ? (a.avg - prev.avg) / prev.avg * 100 : null;
+           return `<div class="row"><div class="main"><div class="ttl">${y}</div><div class="sm">${a.n} ${a.n === 1 ? 'stipendio' : 'stipendi'}</div></div><div style="text-align:right"><div class="amt num">${money(a.avg)} <span class="muted" style="font-weight:500">al mese</span></div>${d === null ? '' : `<div class="sm num ${d >= 0 ? 'pos' : 'neg'}">${d >= 0 ? '+' : '−'}${Math.abs(d).toFixed(1).replace('.', ',')}% sull’anno prima</div>`}</div></div>`; }).join('')}</div>`
+      : '<div class="card"><div class="sm" style="color:var(--muted)">Servono almeno due mesi con lo stipendio registrato.</div></div>'),
+    saldo: rows.length >= 2 ? sec('saldo', 'Saldo nel tempo', 'carta + contanti',
+      `<div class="card"><div class="lv"><b class="num">${money(bal[bal.length - 1])}</b><span class="num ${dBal >= 0 ? 'pos' : 'neg'}">${signed(dBal)}</span></div>${lineChart(bal)}<div class="lax"><span>${esc(periodLabel(rows[0].p))}</span><span>${esc(periodLabel(rows[rows.length - 1].p))}</span></div></div>`) : '',
+    record: records.length ? sec('record', 'Record', '', `<div class="grid2">${records.join('')}</div>`) : '',
+    cat: sec('cat', 'Spese per categoria', `<span class="num">${money(outTot)}</span>`,
+      (cfg.pie.cat && outTot > 0
+        ? donut([...catAll.slice(0, 7).map(([k, v]) => ({ label: k, v, color: catColor(k), cat: k })), ...(catAll.length > 7 ? [{ label: 'Altre', v: catAll.slice(7).reduce((a, [, v]) => a + v, 0), color: '#6B7280' }] : [])], outTot, money(outTot))
+        : `<div class="card">${top.map(([k, v]) => `<button class="hbar" style="display:block;width:100%;text-align:left" data-act="searchCat" data-id="${esc(k)}"><div class="top"><span class="lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</span><span class="num">${money(v)} <span class="muted" style="font-weight:600">· ${Math.round(v / outTot * 100)}%</span></span></div><div class="track"><div class="fill" style="width:${v / top[0][1] * 100}%;background:${C.catColor(k)}"></div></div></button>`).join('') || '<div class="empty">—</div>'}</div>`)
+      + `<p class="hint" style="margin:-4px 4px 0">Prestiti e ricariche tra i tuoi conti non contano come spesa. Un rimborso nello stesso gruppo o sulla stessa riga riduce la spesa.</p>`),
+    quando: outTot > 0 ? sec('quando', 'Quando spendi', 'media per giorno',
+      `<div class="card"><div class="wd">${avgWd.map((v, i) => `<div class="${i === hotWd ? 'hot' : ''}"><i style="height:${Math.max(3, maxWd ? v / maxWd * 100 : 0)}%"></i><span>${WEEKDAYS[i][0].toUpperCase()}</span></div>`).join('')}</div><div class="sm" style="margin-top:10px;color:var(--muted);font-weight:600">Spendi di più di ${WEEKDAYS[hotWd]}: in media <b class="num" style="color:var(--text)">${money(maxWd)}</b>.</div></div>`) : '',
+    conto: outTot > 0 ? sec('conto', 'Carta o contanti', 'dove paghi', cfg.pie.conto
+      ? donut([{ label: 'Carta', v: accs.carta, color: '#2f6af2' }, { label: 'Contanti', v: accs.contanti, color: '#10b981' }].filter(x => x.v > 0), outTot, money(outTot))
+      : `<div class="card"><div class="split"><i style="width:${pc}%;background:var(--carta)"></i><i style="flex:1;background:var(--cash)"></i></div><div class="legend"><span><span class="dotc" style="--c:var(--carta)">Carta ${Math.round(pc)}%</span><br><b class="num">${money(accs.carta)}</b></span><span style="text-align:right"><span class="dotc" style="--c:var(--cash)">Contanti ${Math.round(100 - pc)}%</span><br><b class="num">${money(accs.contanti)}</b></span></div></div>`) : '',
+    abb: subscList.length ? sec('abb', 'Abbonamenti', `<span class="num">≈ ${money([...subsc.values()].reduce((a, e) => a + e.tot, 0) / Math.max(1, rows.length))} al mese</span>`,
+      `<div class="card">${subscList.map(e => `<div class="kv"><span>${esc(e.name)}<br><small class="muted">${e.n} ${e.n === 1 ? 'addebito' : 'addebiti'}</small></span><b class="num">${money(e.last.amount)}</b></div>`).join('')}</div>`) : '',
+    top: big.length ? sec('top', 'Le spese più alte', '', `<div class="mvs">${big.map(t => rowHtml(t, true, true)).join('')}</div>`) : '',
+    shop: subList.length ? sec('shop', 'Shopping online per sito', '', cfg.pie.shop
+      ? donut(subList.map(([k, v], i) => ({ label: k, v, color: C.PALETTE[i % C.PALETTE.length] })), subList.reduce((a, [, v]) => a + v, 0), money(subList.reduce((a, [, v]) => a + v, 0)))
+      : `<div class="card">${subList.map(([k, v]) => `<div class="hbar"><div class="top"><span>${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / subList[0][1] * 100}%"></div></div></div>`).join('')}</div>`) : '',
+    debiti: sec('debiti', 'Debiti', `Ti devono ${money(owed)}`,
+      `<div class="list"><button class="row" data-act="debtsSheet"><div class="main"><div class="ttl">Vedi le persone</div><div class="sm">Ti devono ${money(owed)} · Devi ${money(owe)}</div></div><span class="gch rt">${IC.chev}</span></button></div>`),
+    mesi: sec('mesi', 'Per mese', '', `<div class="list">${[...rows].reverse().map(({ p, s }) => `<button class="row" data-act="gotoPeriod" data-id="${esc(p.id)}"><div class="main"><div class="ttl">${esc(periodLabel(p))}</div><div class="sm num">Spesa ${money(s.real)}</div></div><div class="amt num ${s.saved == null ? 'muted' : s.saved >= 0 ? 'pos' : 'neg'}">${s.saved == null ? '—' : signed(s.saved)}</div></button>`).join('')}</div>`),
+  };
+  const shown = statOrder().filter(k => !cfg.hide.includes(k)).map(k => blocks[k]).join('');
+  return `${head}
+  <div class="seg" style="overflow-x:auto">${[...years, 'tutto'].map(y => `<button data-act="statYear" data-id="${y}" class="${ui.statYear === y ? 'on' : ''}">${y === 'tutto' ? 'Tutto' : y}</button>`).join('')}</div>
+  <div style="height:10px"></div>
+  ${shown || '<div class="empty">Nessuna sezione visibile.<br>Usa il pulsante in alto per sceglierle.</div>'}`;
+}
+
+// scegli quali sezioni vedere, in che ordine e se mostrarle a torta
+function statSettings() {
+  const draw = () => {
+    const cfg = statCfg(), order = statOrder();
+    return `<p class="hint" style="margin:0 4px 12px">Accendi le sezioni che vuoi vedere e riordinale con le frecce. Dove si può, scegli anche la torta.</p>
+    <div class="list">${order.map((k, i) => { const it = STAT_ITEMS.find(x => x[0] === k);
+      return `<div class="row srow"><div class="main"><div class="ttl">${it[1]}</div>${it[2] ? `<div class="seg mini" data-pie="${k}"><button data-v="0" class="${cfg.pie[k] ? '' : 'on'}">Barre</button><button data-v="1" class="${cfg.pie[k] ? 'on' : ''}">Torta</button></div>` : ''}</div>
+        <button class="arw up" data-mv="${k}" data-d="-1" aria-label="Sposta su" ${i === 0 ? 'disabled' : ''}>${IC.chev}</button><button class="arw" data-mv="${k}" data-d="1" aria-label="Sposta giù" ${i === order.length - 1 ? 'disabled' : ''}>${IC.chev}</button>
+        <label class="switch"><input type="checkbox" data-vis="${k}" ${cfg.hide.includes(k) ? '' : 'checked'}><i></i></label></div>`; }).join('')}</div>
+    <button class="btn sec" data-reset style="margin-top:12px">Ripristina ordine e scelte</button>`;
+  };
+  openSheet('Personalizza statistiche', draw(), {
+    onMount: w => {
+      const body = $('.body', w);
+      const save = async c => { await S.setMeta('statCfg', c); render(); body.innerHTML = draw(); wire(); };
+      const wire = () => {
+        body.querySelectorAll('[data-vis]').forEach(b => b.onchange = () => { const c = statCfg(); c.hide = b.checked ? c.hide.filter(x => x !== b.dataset.vis) : [...c.hide, b.dataset.vis]; save({ ...c, order: statOrder() }); });
+        body.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => { const o = statOrder(), i = o.indexOf(b.dataset.mv), j = i + +b.dataset.d; if (j < 0 || j >= o.length) return; [o[i], o[j]] = [o[j], o[i]]; save({ ...statCfg(), order: o }); });
+        body.querySelectorAll('[data-pie] button').forEach(b => b.onclick = () => { const c = statCfg(); save({ ...c, order: statOrder(), pie: { ...c.pie, [b.parentNode.dataset.pie]: b.dataset.v === '1' } }); });
+        $('[data-reset]', body).onclick = () => save({});
+      };
+      wire();
+    }
+  });
 }
 
 // ---------- ALTRO ----------
@@ -1183,6 +1247,7 @@ async function applyMeta(d) {
   if (d.categories) await S.setMeta('categories', d.categories);
   if (d.subs) await S.setMeta('subs', d.subs);
   if (d.groups) await S.setMeta('groups', { ...groups(), ...d.groups });
+  if (d.statCfg) await S.setMeta('statCfg', d.statCfg);
 }
 
 async function doImport(file, mode) {
@@ -1222,6 +1287,7 @@ const actions = {
   editTx: el => ui.sel ? toggleSel(el.dataset.id) : openTxSheet(S.state.transactions.find(t => t.id === el.dataset.id)),
   selMode: () => { ui.sel = ui.sel ? null : new Set(); render(); },
   createGroup,
+  statSettings,
   statToggle: el => {
     const k = el.dataset.id, so = statOpen(), open = !(so[k] ?? !!STAT_DEF[k]);
     so[k] = open; try { localStorage.setItem('statopen', JSON.stringify(so)); } catch { /* ignore */ }
