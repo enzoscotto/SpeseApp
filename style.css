@@ -503,10 +503,7 @@ button.mv:active{transform:scale(.985);background:var(--chip)}
 :root[data-mvs="solid"] .mv.gh .amt.pos{color:var(--in-strong)}
 :root[data-mvs="solid"] .mv.gh .amt.neg{color:var(--red)}
 
-/* cambio mese: il titolo e le righe entrano con un piccolo scorrimento, una dopo l'altra */
-#view.anim-next,#view.anim-prev{animation:vFade .2s ease-out}
-@keyframes vFade{from{opacity:.4}}
-#view.anim-next .periodbtn span,#view.anim-next .dayh,#view.anim-next .mvs>*{animation:inFromRight .3s cubic-bezier(.2,.7,.2,1) both}
-#view.anim-prev .periodbtn span,#view.anim-prev .dayh,#view.anim-prev .mvs>*{animation:inFromLeft .3s cubic-bezier(.2,.7,.2,1) both}
-#view.anim-next .dayh,#view.anim-next .mvs>*,#view.anim-prev .dayh,#view.anim-prev .mvs>*{animation-delay:calc(var(--i,0) * 18ms)}
-@media (prefers-reduced-motion:reduce){#view.anim-next,#view.anim-prev,#view.anim-next *,#view.anim-prev *{animation:none!important}}
+/* scorrimento tra i mesi: la pagina vicina entra di lato */
+#app{position:relative;overflow-x:clip}
+.ghost{position:absolute;margin:0;pointer-events:none;will-change:transform}
+#view{will-change:auto}

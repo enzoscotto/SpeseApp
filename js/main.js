@@ -6,7 +6,7 @@ import { money, signed, moneyRaw, signedRaw, display, periodLabel, fmtDay, fmtSh
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const ui = { open: new Set(), sel: null, searchOpen: false, anim: '', tab: 'mese', periodId: null, acct: 'tutti', q: '', statYear: null, catf: '', allMonths: false };
+const ui = { open: new Set(), sel: null, searchOpen: false, tab: 'mese', periodId: null, acct: 'tutti', q: '', statYear: null, catf: '', allMonths: false };
 
 const IC = {
   mese: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
@@ -62,13 +62,8 @@ function render() {
   if (ui.tab !== 'mese') ui.sel = null;
   renderTabs();
   const v = $('#view');
-  const anim = ui.anim; ui.anim = '';
   v.innerHTML = ({ mese: viewMese, stat: viewStat, altro: viewAltro })[ui.tab]();
   if (ui.tab === 'mese') { renderList(); fitBx(); }
-  if (anim) {
-    v.querySelectorAll('.dayh, .mvs>*').forEach((el, i) => el.style.setProperty('--i', Math.min(i, 9)));   // le righe entrano una dopo l'altra
-    v.classList.remove('anim-next', 'anim-prev'); void v.offsetWidth; v.classList.add('anim-' + anim); setTimeout(() => v.classList.remove('anim-' + anim), 700);
-  }
   if (ui.tab === 'stat') { const b = $('.bars.sc'); if (b) b.scrollLeft = b.scrollWidth; }
   renderSelBar();
   renderFab();
@@ -102,19 +97,83 @@ const eyeBtn = () => `<button class="iconbtn ${privacyOn() ? 'on' : ''}" data-ac
 function privacyOn() { try { return localStorage.getItem('privacy') === '1'; } catch { return false; } }
 function setPrivacyOn(v) { try { localStorage.setItem('privacy', v ? '1' : '0'); } catch { /* ignore */ } C.setPrivacy(v); }
 
-let swipe = null, noClickUntil = 0;
+// Il mese segue il dito e quello vicino entra di lato, come le pagine della schermata Home.
+let drag = null, noClickUntil = 0, pageBusy = false;
+const PAGE_MS = 300, PAGE_EASE = 'cubic-bezier(.22,.8,.3,1)';
+const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const neighborId = dir => { const ps = S.state.periods, i = ps.findIndex(p => p.id === ui.periodId) + dir; return ps[i]?.id || null; };
+
+function pageHtml(periodId) {       // il contenuto della pagina Mese per un altro mese, senza toccare quella attuale
+  const keep = ui.periodId; ui.periodId = periodId;
+  const host = document.createElement('div'); host.innerHTML = viewMese();
+  renderList($('#listBox', host));
+  ui.periodId = keep;
+  host.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+  return host.innerHTML;
+}
+function makeGhost(periodId) {
+  const v = $('#view'), g = document.createElement('div');
+  g.className = 'ghost'; g.innerHTML = pageHtml(periodId);
+  Object.assign(g.style, { top: window.scrollY + 'px', left: v.offsetLeft + 'px', width: v.offsetWidth + 'px', padding: getComputedStyle(v).padding });
+  $('#app').appendChild(g); fitBx();
+  return g;
+}
+function commitPage(target, ghost) {
+  const v = $('#view');
+  v.style.transition = 'none'; v.style.transform = '';
+  ui.periodId = target; render(); window.scrollTo(0, 0);
+  ghost?.remove(); v.style.transition = '';
+}
+function slideTo(id) {              // cambio mese da elenco o pulsanti: la pagina scorre da sola
+  const ps = S.state.periods, i0 = ps.findIndex(p => p.id === ui.periodId), i1 = ps.findIndex(p => p.id === id);
+  if (i1 < 0 || i0 === i1 || ui.tab !== 'mese' || reduceMotion() || pageBusy) { ui.periodId = id; ui.tab = 'mese'; render(); window.scrollTo(0, 0); return; }
+  const dir = i1 > i0 ? 1 : -1, W = window.innerWidth, v = $('#view'), g = makeGhost(id), ease = `transform ${PAGE_MS}ms ${PAGE_EASE}`;
+  pageBusy = true; g.style.transform = `translate3d(${dir * W}px,0,0)`; void g.offsetWidth;
+  v.style.transition = g.style.transition = ease;
+  v.style.transform = `translate3d(${-dir * W}px,0,0)`; g.style.transform = 'translate3d(0,0,0)';
+  setTimeout(() => { commitPage(id, g); pageBusy = false; }, PAGE_MS);
+}
+function dragTo(dx) {
+  const v = $('#view'), W = window.innerWidth, dir = dx < 0 ? 1 : -1;
+  if (drag.dir !== dir) {            // cambio di verso: rifaccio la pagina vicina dall'altra parte
+    drag.ghost?.remove(); drag.ghost = null; drag.dir = dir; drag.target = neighborId(dir);
+    if (drag.target) drag.ghost = makeGhost(drag.target);
+  }
+  drag.dx = dx;
+  v.style.transform = `translate3d(${drag.ghost ? dx : dx * 0.3}px,0,0)`;      // senza mese vicino: effetto elastico
+  if (drag.ghost) drag.ghost.style.transform = `translate3d(${dx + dir * W}px,0,0)`;
+}
+function endDrag(cancelled) {
+  const d = drag; drag = null;
+  if (!d || d.mode !== 'h') return;
+  noClickUntil = Date.now() + 350;    // lo scorrimento non deve aprire il riquadro su cui e' finito il dito
+  const v = $('#view'), W = window.innerWidth, dx = d.dx || 0, fast = Math.abs(dx) / Math.max(1, Date.now() - d.t0) > 0.45;
+  const go = !cancelled && d.ghost && (Math.abs(dx) > W * 0.3 || (fast && Math.abs(dx) > 40)), ease = `transform ${PAGE_MS}ms ${PAGE_EASE}`;
+  v.style.transition = ease; if (d.ghost) d.ghost.style.transition = ease;
+  if (go) {
+    pageBusy = true;
+    v.style.transform = `translate3d(${-d.dir * W}px,0,0)`; d.ghost.style.transform = 'translate3d(0,0,0)';
+    setTimeout(() => { commitPage(d.target, d.ghost); pageBusy = false; }, PAGE_MS);
+  } else {
+    v.style.transform = 'translate3d(0,0,0)'; if (d.ghost) d.ghost.style.transform = `translate3d(${d.dir * W}px,0,0)`;
+    setTimeout(() => { v.style.transition = ''; v.style.transform = ''; d.ghost?.remove(); }, PAGE_MS);
+  }
+}
 document.addEventListener('pointerdown', e => {
-  swipe = ui.tab === 'mese' && e.isPrimary && e.target.closest('#view') && !e.target.closest('input,select,textarea')
-    ? { x: e.clientX, y: e.clientY } : null;
+  drag = !pageBusy && ui.tab === 'mese' && e.isPrimary && e.target.closest('#view') && !e.target.closest('input,select,textarea') && !document.querySelector('#sheetRoot .sheet, .addmenu') && S.state.periods.length
+    ? { x: e.clientX, y: e.clientY, id: e.pointerId, mode: null, dx: 0, t0: Date.now(), dir: 0, ghost: null, target: null } : null;
 });
-document.addEventListener('pointerup', e => {
-  if (!swipe) return;
-  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
-  if (Math.abs(dx) < 55 || Math.abs(dx) < 1.6 * Math.abs(dy)) return;
-  noClickUntil = Date.now() + 350;                 // lo scorrimento non deve aprire il riquadro su cui e' finito il dito
-  actions[dx < 0 ? 'next' : 'prev']();
+document.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (drag.mode === null) {
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+    drag.mode = Math.abs(dx) > 1.4 * Math.abs(dy) ? 'h' : 'v';
+  }
+  if (drag.mode === 'h') dragTo(dx);
 });
-document.addEventListener('pointercancel', () => { swipe = null; });
+document.addEventListener('pointerup', e => { if (drag && e.pointerId === drag.id) endDrag(false); });
+document.addEventListener('pointercancel', () => endDrag(true));
 document.addEventListener('click', e => { if (Date.now() < noClickUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
 
 // ---------- MESE ----------
@@ -238,8 +297,8 @@ const relDay = d => {
 };
 const byDateDesc = (a, b) => b[0].date.localeCompare(a[0].date) || b[1] - a[1];
 
-function renderList() {
-  const box = $('#listBox'); if (!box) return;
+function renderList(box = $('#listBox')) {
+  if (!box) return;
   box.classList.toggle('selmode', !!ui.sel);
   lockedIds = ui.sel ? groupedIds() : new Set();
   const q = ui.q.trim().toLowerCase();
@@ -1278,17 +1337,14 @@ async function doImport(file, mode) {
 const actions = {
   tab: el => { ui.sel = null; ui.tab = el.dataset.id; window.scrollTo(0, 0); render(); },
   add: () => openAddMenu(),
-  prev: () => { const i = S.state.periods.findIndex(p => p.id === ui.periodId); if (i > 0) { ui.periodId = S.state.periods[i - 1].id; ui.anim = 'prev'; render(); } },
+  prev: () => { const id = neighborId(-1); if (id) slideTo(id); },
   privacy: () => { setPrivacyOn(!privacyOn()); render(); },
   filterSheet,
   clearFilters: () => { ui.catf = ''; ui.allMonths = false; render(); },
   searchToggle: () => { ui.searchOpen = !(ui.searchOpen || ui.q); if (!ui.searchOpen) ui.q = ''; render(); if (ui.searchOpen) $('#q')?.focus(); },
-  next: () => { const i = S.state.periods.findIndex(p => p.id === ui.periodId); if (i < S.state.periods.length - 1) { ui.periodId = S.state.periods[i + 1].id; ui.anim = 'next'; render(); } },
+  next: () => { const id = neighborId(1); if (id) slideTo(id); },
   pickPeriod, editPeriod, summary: summarySheet,
-  gotoPeriod: el => {
-    const ps = S.state.periods, i0 = ps.findIndex(p => p.id === ui.periodId), i1 = ps.findIndex(p => p.id === el.dataset.id);
-    if (ui.tab === 'mese' && i0 !== i1) ui.anim = i1 > i0 ? 'next' : 'prev';   // anche scegliendo il mese dall'elenco
-    ui.periodId = el.dataset.id; ui.tab = 'mese'; ui.q = ''; $('#sheetRoot').innerHTML = ''; render(); window.scrollTo(0, 0); },
+  gotoPeriod: el => { ui.q = ''; $('#sheetRoot').innerHTML = ''; slideTo(el.dataset.id); },
   acct: el => { ui.acct = el.dataset.id; render(); },
   editTx: el => ui.sel ? toggleSel(el.dataset.id) : openTxSheet(S.state.transactions.find(t => t.id === el.dataset.id)),
   selMode: () => { ui.sel = ui.sel ? null : new Set(); render(); },
