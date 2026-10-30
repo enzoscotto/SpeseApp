@@ -64,8 +64,11 @@ function render() {
   const v = $('#view');
   const anim = ui.anim; ui.anim = '';
   v.innerHTML = ({ mese: viewMese, stat: viewStat, altro: viewAltro })[ui.tab]();
-  if (anim) { v.classList.remove('anim-next', 'anim-prev'); void v.offsetWidth; v.classList.add('anim-' + anim); setTimeout(() => v.classList.remove('anim-' + anim), 260); }
   if (ui.tab === 'mese') { renderList(); fitBx(); }
+  if (anim) {
+    v.querySelectorAll('.dayh, .mvs>*').forEach((el, i) => el.style.setProperty('--i', Math.min(i, 9)));   // le righe entrano una dopo l'altra
+    v.classList.remove('anim-next', 'anim-prev'); void v.offsetWidth; v.classList.add('anim-' + anim); setTimeout(() => v.classList.remove('anim-' + anim), 700);
+  }
   if (ui.tab === 'stat') { const b = $('.bars.sc'); if (b) b.scrollLeft = b.scrollWidth; }
   renderSelBar();
   renderFab();
@@ -1282,7 +1285,10 @@ const actions = {
   searchToggle: () => { ui.searchOpen = !(ui.searchOpen || ui.q); if (!ui.searchOpen) ui.q = ''; render(); if (ui.searchOpen) $('#q')?.focus(); },
   next: () => { const i = S.state.periods.findIndex(p => p.id === ui.periodId); if (i < S.state.periods.length - 1) { ui.periodId = S.state.periods[i + 1].id; ui.anim = 'next'; render(); } },
   pickPeriod, editPeriod, summary: summarySheet,
-  gotoPeriod: el => { ui.periodId = el.dataset.id; ui.tab = 'mese'; ui.q = ''; $('#sheetRoot').innerHTML = ''; render(); window.scrollTo(0, 0); },
+  gotoPeriod: el => {
+    const ps = S.state.periods, i0 = ps.findIndex(p => p.id === ui.periodId), i1 = ps.findIndex(p => p.id === el.dataset.id);
+    if (ui.tab === 'mese' && i0 !== i1) ui.anim = i1 > i0 ? 'next' : 'prev';   // anche scegliendo il mese dall'elenco
+    ui.periodId = el.dataset.id; ui.tab = 'mese'; ui.q = ''; $('#sheetRoot').innerHTML = ''; render(); window.scrollTo(0, 0); },
   acct: el => { ui.acct = el.dataset.id; render(); },
   editTx: el => ui.sel ? toggleSel(el.dataset.id) : openTxSheet(S.state.transactions.find(t => t.id === el.dataset.id)),
   selMode: () => { ui.sel = ui.sel ? null : new Set(); render(); },
