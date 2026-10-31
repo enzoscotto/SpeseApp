@@ -587,3 +587,8 @@ html:has(#sheetRoot .sheet),html:has(#sheetRoot .sheet) body{overflow:hidden}
 .cpsw button.on,.cpcustom.on{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--text)}
 .cpcustom{position:relative;overflow:hidden;background:conic-gradient(#ef4444,#f59e0b,#84cc16,#10b981,#0ea5e9,#8b5cf6,#ec4899,#ef4444);display:block}
 .cpcustom input{position:absolute;inset:-8px;width:60px;height:60px;opacity:0;cursor:pointer}
+
+/* il segno + e la x del menu hanno la stessa dimensione */
+.amx{width:64px;height:64px}
+/* lo scorrimento tra i mesi e' gestito dall'app: il browser non deve interferire con i gesti orizzontali */
+#view{touch-action:pan-y}

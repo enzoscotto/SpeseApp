@@ -149,7 +149,7 @@ const neighborId = dir => { const ps = S.state.periods, i = ps.findIndex(p => p.
 function pageHtml(periodId) {       // il contenuto della pagina Mese per un altro mese, senza toccare quella attuale
   const keep = ui.periodId; ui.periodId = periodId;
   const host = document.createElement('div'); host.innerHTML = viewMese();
-  renderList($('#listBox', host));
+  renderList($('#listBox', host), 30);      // all'anteprima basta la prima schermata
   ui.periodId = keep;
   host.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
   return host.innerHTML;
@@ -348,7 +348,7 @@ const relDay = d => {
 };
 const byDateDesc = (a, b) => b[0].date.localeCompare(a[0].date) || b[1] - a[1];
 
-function renderList(box = $('#listBox')) {
+function renderList(box = $('#listBox'), limit = 2000) {
   if (!box) return;
   box.classList.toggle('selmode', !!ui.sel);
   lockedIds = ui.sel ? groupedIds() : new Set();
@@ -368,7 +368,7 @@ function renderList(box = $('#listBox')) {
   if (!items.length) { box.innerHTML = `<div class="empty">${global || ui.catf ? 'Nessun movimento con questi filtri' : 'Nessun movimento.<br>Tocca + per aggiungerne uno.'}</div>`; return; }
   // nelle sezioni Carta e Contanti i movimenti si vedono per intero, senza i riquadri dei gruppi
   const entries = groupsOn() && ui.acct === 'tutti' ? groupItems(items.map(([t]) => t)) : items.map(([t]) => ({ t }));
-  let html = '', day = null, shown = entries.slice(0, global ? 300 : 2000), buf = [], dsum = 0;
+  let html = '', day = null, shown = entries.slice(0, global ? 300 : limit), buf = [], dsum = 0;
   const flush = () => { if (day) html += `<div class="dayh"><span>${esc(relDay(day))}</span><span class="num">${signed(dsum)}</span></div><div class="mvs">${buf.join('')}</div>`; buf = []; dsum = 0; };
   for (const en of shown) {
     const date = en.gid ? en.kids[0].date : en.t.date;
@@ -473,7 +473,7 @@ function openAddMenu() {
   root.innerHTML = '<div class="amback"></div>' + items.map(([k, label, ic, col], n) => {
     const x = cx - D / 2, y = cy - D / 2 - (n + 1) * STEP;
     return `<button class="am" data-k="${k}" style="left:${x}px;top:${y}px;--dx:${cx - D / 2 - x}px;--dy:${cy - D / 2 - y}px;--d:${n * 35}ms"><span class="amdot" style="--cc:${col}"><svg class="gl" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="${ICONS[ic]}"/></svg></span><span class="amlbl">${label}</span></button>`;
-  }).join('') + `<button class="amx" style="left:${cx - 23}px;top:${cy - 23}px" aria-label="Chiudi">${IC.plus.replace('width="26" height="26"', 'width="26" height="26" style="transform:rotate(45deg)"')}</button>`;
+  }).join('') + `<button class="amx" style="left:${cx - 32}px;top:${cy - 32}px" aria-label="Chiudi">${IC.plus.replace('width="26" height="26"', 'width="26" height="26" style="transform:rotate(45deg)"')}</button>`;
   document.body.appendChild(root);
   setTimeout(() => root.classList.add('on'), 20);
   const close = () => { root.classList.remove('on'); setTimeout(() => root.remove(), 200); };
