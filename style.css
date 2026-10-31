@@ -507,3 +507,37 @@ button.mv:active{transform:scale(.985);background:var(--chip)}
 #app{position:relative;overflow-x:clip}
 .ghost{position:absolute;margin:0;pointer-events:none;will-change:transform}
 #view{will-change:auto}
+
+/* movimenti di un gruppo che appartengono a un altro mese */
+.mv.out{opacity:.6}
+
+/* menu del +: icone come le categorie */
+.amdot{flex:0 0 58px;background:var(--cc);color:#fff;font-size:0}
+.amdot .gl{fill:#fff}
+
+/* categoria a tendina */
+.catsel{background:none;box-shadow:none;border:0;flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:8px;text-align:right;font:600 16px var(--f);color:var(--text);padding:2px 0}
+.catsel .ph{color:var(--muted);font-weight:500}
+.catsel>svg{width:16px;height:16px;flex:0 0 16px;color:var(--muted)}
+.catmenu{position:fixed;inset:0;z-index:80}
+.cmback{position:absolute;inset:0}
+.cmlist{position:absolute;overflow-y:auto;background:var(--card);border-radius:18px;padding:6px;box-shadow:0 18px 44px -8px rgba(0,0,0,.55),0 0 0 1px var(--sep);animation:fade .15s;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.cmrow{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:12px;font:600 15px var(--f);text-align:left;color:var(--text)}
+.cmrow span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmrow.on{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.cmrow b{color:var(--accent)}
+.cmrow:active{background:color-mix(in srgb,var(--text) 8%,transparent)}
+
+/* sezione rientro e debito: chiusa finche' non la apri */
+#fMore{margin:0 0 12px}
+.morehd{width:100%;display:flex;align-items:center;gap:8px;padding:12px 14px;background:var(--card);border-radius:16px;box-shadow:var(--sh);font:700 15px var(--f);color:var(--text);text-align:left}
+.morehd span{flex:0 0 auto}
+.morehd em{flex:1;min-width:0;font-style:normal;font-weight:600;font-size:13px;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.morehd>svg{width:16px;height:16px;flex:0 0 16px;margin-left:auto;color:var(--muted);transition:transform .2s}
+#fMore.open .morehd>svg{transform:rotate(180deg)}
+#fMoreBody{margin-top:10px}
+#fMoreBody>.form{margin-bottom:10px}
+
+/* linguetta del foglio: indica che si chiude trascinando */
+#sheetRoot .sheet::before{content:"";position:absolute;top:7px;left:50%;width:38px;height:5px;margin-left:-19px;border-radius:3px;background:color-mix(in srgb,var(--muted) 45%,transparent)}
+#sheetRoot .sheet .head{padding-top:22px}

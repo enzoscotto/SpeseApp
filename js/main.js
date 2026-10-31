@@ -35,6 +35,41 @@ const num = v => { const n = Number(String(v ?? '').replace(/[€\s]/g, '').repl
 const backupDays = () => S.state.meta.lastBackup ? Math.floor((Date.now() - new Date(S.state.meta.lastBackup)) / 864e5) : null;
 
 // ---------- sheets ----------
+// trascinando il foglio verso il basso (dall'intestazione o dal contenuto, se e' in cima) si chiude come su iPhone
+function swipeToClose(wrap) {
+  const sheet = $('.sheet', wrap), back = $('.back', wrap);
+  let g = null;
+  const settle = ms => { sheet.style.transition = `transform ${ms}ms cubic-bezier(.2,.8,.2,1)`; back.style.transition = `opacity ${ms}ms`; };
+  const reset = () => { settle(250); sheet.style.transform = ''; back.style.opacity = ''; setTimeout(() => { sheet.style.transition = ''; back.style.transition = ''; }, 260); };
+  sheet.addEventListener('touchstart', e => {
+    g = null; if (e.touches.length !== 1) return;
+    for (let el = e.target; el && el !== sheet; el = el.parentElement) if (el.scrollTop > 0) return;   // contenuto non in cima: e' uno scorrimento
+    g = { x: e.touches[0].clientX, y: e.touches[0].clientY, dy: 0, t: Date.now(), on: false };
+  }, { passive: true });
+  sheet.addEventListener('touchmove', e => {
+    if (!g) return;
+    const dx = e.touches[0].clientX - g.x, dy = e.touches[0].clientY - g.y;
+    if (!g.on) {
+      if (Math.abs(dx) > 10 || dy < -6) { g = null; return; }
+      if (dy <= 10) return;
+      g.on = true; sheet.style.transition = 'none'; back.style.transition = 'none';
+    }
+    e.preventDefault();
+    g.dy = Math.max(0, dy - 10);
+    sheet.style.transform = `translate3d(0,${g.dy}px,0)`;
+    back.style.opacity = String(Math.max(0, 1 - g.dy / (sheet.offsetHeight * 1.1)));
+  }, { passive: false });
+  const end = cancel => {
+    const d = g; g = null; if (!d || !d.on) return;
+    const fast = d.dy / Math.max(1, Date.now() - d.t) > 0.5;
+    if (!cancel && (d.dy > Math.min(140, sheet.offsetHeight * 0.3) || (fast && d.dy > 40))) {
+      settle(220); sheet.style.transform = `translate3d(0,${sheet.offsetHeight}px,0)`; back.style.opacity = '0';
+      setTimeout(() => wrap.remove(), 220);
+    } else reset();
+  };
+  sheet.addEventListener('touchend', () => end(false));
+  sheet.addEventListener('touchcancel', () => end(true));
+}
 function openSheet(title, body, { onSave, saveLabel = 'Salva', deleteLabel, onMount } = {}) {
   const root = $('#sheetRoot');
   const wrap = document.createElement('div');
@@ -44,6 +79,7 @@ function openSheet(title, body, { onSave, saveLabel = 'Salva', deleteLabel, onMo
   root.appendChild(wrap);
   const close = () => wrap.remove();
   $('.back', wrap).onclick = close; $('[data-x]', wrap).onclick = close;
+  swipeToClose(wrap);
   if (onSave) $('[data-save]', wrap).onclick = async () => { if ((await onSave(wrap)) !== false) close(); };
   onMount && onMount(wrap, close);
   return { el: wrap, close };
@@ -286,7 +322,15 @@ function groupHtml(g, showAcct, showPeriod) {
   const all = gMembers(g.gid), tot = gTotal(all), n = all.length;
   const closed = groupsClosed(), col = closed && !ui.sel && !ui.open.has(g.gid), first = g.kids[0].date;
   const head = `<button class="mv gh" data-act="openGroup" data-id="${g.gid}"><div class="ico">${IC.folder}</div><div class="main"><div class="mvt">${esc(gName(g.gid))}</div><div class="chips2"><span class="muted">${n} ${n === 1 ? 'movimento' : 'movimenti'}</span></div></div><div class="amt num ${sgnCls(tot)}">${signedRaw(tot)}</div>${closed ? `<span class="gtgl ${col ? '' : 'up'}" data-act="toggleGroup" data-id="${g.gid}">${IC.chev}</span>` : ''}</button>`;
-  return `<div class="mvg ${col ? 'col' : ''}">${head}${col ? '' : g.kids.map(k => rowHtml(k, showAcct, showPeriod || k.date !== first, true)).join('')}</div>`;
+  // aperto, il gruppo mostra anche i movimenti degli altri mesi (sfumati): nei conti del mese contano solo quelli del mese
+  const mine = new Set(g.kids.map(k => k.id));
+  const rows = showPeriod || ui.catf ? g.kids.map(k => ({ t: k })) : all.map(t => ({ t, out: !mine.has(t.id) }));
+  rows.sort((a, b) => b.t.date.localeCompare(a.t.date));
+  const kids = rows.map(({ t, out }) => {
+    const h = rowHtml(t, showAcct, showPeriod || out || t.date !== first, true, out ? '<span class="tag">Altro mese</span>' : '');
+    return out ? h.replace('class="mv ', 'class="mv out ') : h;
+  }).join('');
+  return `<div class="mvg ${col ? 'col' : ''}">${head}${col ? '' : kids}</div>`;
 }
 
 const relDay = d => {
@@ -416,12 +460,12 @@ function summarySheet() {
 function openAddMenu() {
   const plus = $('#tabs .plus'); if (!plus) return;
   const r = plus.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-  const items = [['out', 'Uscita', '💸'], ['in', 'Entrata', '💰'], ['stipendio', 'Stipendio', '💼'], ['prelievo', 'Prelievo', '🏧'], ['versamento', 'Versamento', '🏦']];
+  const items = [['out', 'Uscita', 'cash-minus', '#e0605c'], ['in', 'Entrata', 'cash-plus', '#2fae76'], ['stipendio', 'Stipendio', 'briefcase', '#8a6be0'], ['prelievo', 'Prelievo', 'bank-transfer-out', '#4a86f0'], ['versamento', 'Versamento', 'bank-transfer-in', '#1fa6a0']];
   const ang = [180, 158, 136, 114, 92], R = Math.min(172, cx - 50), D = 56;
   const root = document.createElement('div'); root.className = 'addmenu';
-  root.innerHTML = '<div class="amback"></div>' + items.map(([k, label, ic], n) => {
+  root.innerHTML = '<div class="amback"></div>' + items.map(([k, label, ic, col], n) => {
     const a = ang[n] * Math.PI / 180, x = cx + R * Math.cos(a) - D / 2, y = cy - R * Math.sin(a) - D / 2;
-    return `<button class="am" data-k="${k}" style="left:${x}px;top:${y}px;--dx:${cx - D / 2 - x}px;--dy:${cy - D / 2 - y}px;--d:${n * 35}ms"><span class="amdot">${ic}</span><span class="amlbl">${label}</span></button>`;
+    return `<button class="am" data-k="${k}" style="left:${x}px;top:${y}px;--dx:${cx - D / 2 - x}px;--dy:${cy - D / 2 - y}px;--d:${n * 35}ms"><span class="amdot" style="--cc:${col}"><svg class="gl" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="${ICONS[ic]}"/></svg></span><span class="amlbl">${label}</span></button>`;
   }).join('') + `<button class="amx" style="left:${cx - 23}px;top:${cy - 23}px" aria-label="Chiudi">${IC.plus.replace('width="26" height="26"', 'width="26" height="26" style="transform:rotate(45deg)"')}</button>`;
   document.body.appendChild(root);
   setTimeout(() => root.classList.add('on'), 20);
@@ -487,12 +531,27 @@ function pickGroup(cb) {
   });
 }
 
+// elenco a tendina delle categorie, con le loro icone
+function openCatMenu(anchor, cur, pick) {
+  const r = anchor.getBoundingClientRect(), vw = window.innerWidth, vh = window.innerHeight;
+  const root = document.createElement('div'); root.className = 'catmenu';
+  const row = (name, label, ico) => `<button type="button" class="cmrow ${name === (cur || '') ? 'on' : ''}" data-c="${esc(name)}">${ico}<span>${esc(label)}</span>${name === (cur || '') ? '<b>✓</b>' : ''}</button>`;
+  root.innerHTML = `<div class="cmback"></div><div class="cmlist" role="listbox">${row('', 'Nessuna categoria', '<i class="mini" style="--cc:var(--muted)">' + glyph('', 15) + '</i>')}${C.categories().map(c => row(c.name, c.name, mini(c.name, c.color, 15))).join('')}</div>`;
+  document.body.appendChild(root);
+  const list = $('.cmlist', root), width = Math.min(280, vw - 24), below = vh - r.bottom - 14, above = r.top - 14, up = below < 260 && above > below;
+  Object.assign(list.style, { width: width + 'px', left: Math.max(12, Math.min(vw - width - 12, r.right - width)) + 'px', maxHeight: Math.min(360, up ? above : below) + 'px', [up ? 'bottom' : 'top']: (up ? vh - r.top + 6 : r.bottom + 6) + 'px' });
+  list.querySelector('.on')?.scrollIntoView({ block: 'center' });
+  const close = () => root.remove();
+  $('.cmback', root).onclick = close;
+  list.querySelectorAll('.cmrow').forEach(b => b.onclick = () => { close(); pick(b.dataset.c); });
+}
+
 function openTxSheet(existing, preset = {}) {
   const e = existing, debt0 = e && S.state.debts.find(d => d.txId === e.id), ret0 = e && findBack(e);
   const f = {
     kind: e ? e.kind : (preset.kind || 'out'), acct: e ? e.account : (preset.acct || S.state.meta.lastAcct || 'carta'), giro: false, giroDir: 'prelievo',
     cat: e ? (e.cat || null) : null, catManual: !!(e && e.cat), catClicked: false, sub: e?.sub || null, subManual: !!e?.sub,
-    gid: e?.gid || null, newName: null,
+    more: !!(e && (ret0 || debt0 || e.unpaid)),
   };
   const body = `
     <div class="seg big" id="fKind" style="margin-bottom:12px" ${e ? '' : 'hidden'}><button data-v="out">Uscita</button><button data-v="in">Entrata</button></div>
@@ -502,8 +561,9 @@ function openTxSheet(existing, preset = {}) {
       <div class="frow"><label>Data</label><input id="fDate" type="date" value="${e ? e.date : C.today()}"></div>
       <div id="fTextRows"><div class="frow"><label>Motivo</label><input id="fDesc" placeholder="Descrizione" value="${esc(e?.desc || '')}" autocomplete="off" autocapitalize="sentences"></div></div>
     </div>
-    <div class="catgrid" id="fChips">${C.categories().map(c => `<button data-c="${esc(c.name)}" style="--cc:${c.color}">${mini(c.name, c.color, 15)}${esc(c.name)}</button>`).join('')}</div>
+    <div class="form" id="fChips"><div class="frow"><label>Categoria</label><button type="button" class="catsel" id="fCatBtn"></button></div></div>
     <div class="catgrid" id="fSubs" hidden></div>
+    <div id="fMore"><button type="button" class="morehd" id="fMoreBtn"><span>Rientro e debito</span><em id="fMoreTag"></em>${IC.chev}</button><div id="fMoreBody" hidden>
     <div class="form" id="fRetBox">
       <div class="frow"><label id="fRetLbl" style="width:auto;flex:1;color:var(--text)"></label><label class="switch"><input type="checkbox" id="fRet"><i></i></label></div>
       <div id="fRetRows" hidden>
@@ -520,7 +580,7 @@ function openTxSheet(existing, preset = {}) {
       <div class="frow"><label>Debito con</label><select id="fPerson"><option value="">— nessuno —</option>${peopleNames().map(n => `<option ${debt0?.person === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="__new">+ Nuova persona…</option></select></div>
       <div class="frow" id="fDtRow" hidden><label>Tipo</label><select id="fDt"></select></div>
     </div></div>
-    <div id="fLinkBox" hidden></div>
+    </div></div>
     ${e?.unpaid ? `<button class="btn" data-paid style="margin-top:6px">Segna come incassato</button>` : ''}`;
 
   openSheet(e ? 'Modifica movimento' : ({ out: 'Nuova uscita', in: 'Nuova entrata', prelievo: 'Prelievo', versamento: 'Versamento' }[f.kind] || 'Nuovo movimento'), body, { deleteLabel: e ? 'Elimina' : null,
@@ -530,7 +590,7 @@ function openTxSheet(existing, preset = {}) {
       const sync = () => {
         f.giro = f.kind === 'prelievo' || f.kind === 'versamento'; if (f.giro) f.giroDir = f.kind;
         setSeg('fKind', f.kind); setSeg('fAcct', f.acct);
-        $('#fAcct', w).hidden = f.giro; $('#fTextRows', w).hidden = f.giro; $('#fChips', w).hidden = f.giro; $('#fDebtBox', w).hidden = f.giro;
+        $('#fAcct', w).hidden = f.giro; $('#fTextRows', w).hidden = f.giro; $('#fChips', w).hidden = f.giro; $('#fDebtBox', w).hidden = f.giro; $('#fMore', w).hidden = f.giro;
         // tipi di debito coerenti con entrata/uscita
         const sel = $('#fDt', w), keep = sel.value || debt0?.type;
         const types = Object.entries(DEBT_TYPES).filter(([, t]) => t.kind === (f.kind === 'in' ? 'in' : 'out'));
@@ -542,18 +602,21 @@ function openTxSheet(existing, preset = {}) {
         $('#fUnBox', w).hidden = f.kind !== 'in';
         $('#fExpRow', w).hidden = !$('#fUn', w).checked;
         drawCat();
-        drawLink();
+        const on = [!$('#fRetBox', w).hidden && $('#fRet', w).checked && 'rientro', !$('#fUnBox', w).hidden && $('#fUn', w).checked && 'da incassare', $('#fPerson', w).value && $('#fPerson', w).value !== '__new' && $('#fPerson', w).value].filter(Boolean);
+        $('#fMoreTag', w).textContent = on.join(' · ');
+        $('#fMoreBody', w).hidden = !f.more; $('#fMore', w).classList.toggle('open', f.more);
       };
+      $('#fMoreBtn', w).onclick = () => { f.more = !f.more; sync(); };
       $$('#fKind button', w).forEach(b => b.onclick = () => { f.kind = b.dataset.v; sync(); });
       $$('#fAcct button', w).forEach(b => b.onclick = () => { f.acct = b.dataset.v; sync(); });
       const drawCat = () => {
-        $$('#fChips button', w).forEach(b => b.classList.toggle('on', b.dataset.c === f.cat));
+        $('#fCatBtn', w).innerHTML = (f.cat ? `${mini(f.cat, null, 15)}<span>${esc(f.cat)}</span>` : '<span class="ph">Scegli…</span>') + IC.chev;
         const shop = f.cat === 'Shopping online' && !f.giro;
         $('#fSubs', w).hidden = !shop;
         $$('#fSubs button', w).forEach(b => b.classList.toggle('on', b.dataset.s === f.sub));
       };
       const guessSubNow = () => { if (f.cat === 'Shopping online' && !f.subManual) f.sub = C.guessSub($('#fDesc', w).value || e?.raw || ''); };
-      $$('#fChips button', w).forEach(b => b.onclick = () => { f.cat = f.cat === b.dataset.c && f.catManual ? null : b.dataset.c; f.catManual = !!f.cat; f.catClicked = true; guessSubNow(); drawCat(); });
+      $('#fCatBtn', w).onclick = ev => openCatMenu(ev.currentTarget, f.cat, name => { f.cat = name || null; f.catManual = !!f.cat; f.catClicked = true; guessSubNow(); drawCat(); });
       const buildSubs = () => {
         $('#fSubs', w).innerHTML = C.subs().map(x => `<button data-s="${esc(x)}">${esc(x)}</button>`).join('') + '<button data-newsub>+ Nuovo sito</button>';
         $$('#fSubs button[data-s]', w).forEach(b => b.onclick = () => { f.sub = b.dataset.s; f.subManual = true; drawCat(); });
@@ -586,17 +649,6 @@ function openTxSheet(existing, preset = {}) {
       ret.onchange = () => {
         if (ret.checked) { if (!retAmtTouched) $('#fRetAmt', w).value = $('#fAmt', w).value; if (!retDateTouched) $('#fRetDate', w).value = $('#fDate', w).value; }
         sync();
-      };
-      const drawLink = () => {
-        const box = $('#fLinkBox', w);
-        box.hidden = !groupsOn() || f.giro; if (box.hidden) return;
-        const name = f.gid ? (f.newName || gName(f.gid)) : null;
-        box.innerHTML = `<div class="sechead"><span>Gruppo</span></div>` + (name
-          ? `<div class="form linked"><div class="lrow"><div class="lt"><b>${esc(name)}</b><span>Questo movimento fa parte del gruppo</span></div><button data-lk="leave" aria-label="Rimuovi dal gruppo">${IC.x}</button></div></div>`
-          : `<div class="linkbtns"><button class="btn sec" data-lk="join">Aggiungi a un gruppo</button></div>`);
-        const leave = $('[data-lk=leave]', box), join = $('[data-lk=join]', box);
-        if (leave) leave.onclick = () => { f.gid = null; f.newName = null; drawLink(); };
-        if (join) join.onclick = () => pickGroup((gid, nn) => { f.gid = gid; f.newName = nn; drawLink(); });
       };
       const del = $('[data-del]', w);
       if (del) del.onclick = async () => {
@@ -643,10 +695,6 @@ function openTxSheet(existing, preset = {}) {
         const t = { ...(e || {}), id: tid, grp: wantRet ? (e?.grp || tid) : (e?.grp === tid && !S.state.transactions.some(m => m.grp === tid && m.id !== tid && m.rientroOf !== tid) ? undefined : e?.grp), unpaid: unIn || undefined, expected: unIn ? exp : undefined, periodId, date, account: f.acct, kind: f.kind, amount: amt, category: sub ? cat + ' - ' + sub : cat, desc, cat: cat || undefined, sub: sub || undefined, catSet: (f.catClicked || e?.catSet) || undefined };
         // movimenti importati dagli Excel: se il motivo non cambia, nel foglio resta il testo originale
         if (e && e.raw && e.desc === desc) { t.category = e.category; t.desc = e.desc; t.raw = e.raw; } else delete t.raw;
-        if (groupsOn() && !f.giro) {
-          t.gid = f.gid || undefined;
-          if (f.gid && f.newName) await S.setMeta('groups', { ...groups(), [f.gid]: { name: f.newName } });
-        }
         if (cat && desc) await S.setMeta('learned', { ...(S.state.meta.learned || {}), [learnKey(desc)]: cat });
         await S.save('transactions', t);
         await pruneGroups();
