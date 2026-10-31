@@ -2,12 +2,13 @@
 import * as S from './store.js';
 
 const API = 'https://api.github.com';
-let timer = null, retry = null, running = false, again = false;
+let timer = null, retry = null, running = false, again = false, quiet = false, lastCheck = 0;
 export const status = { msg: '', busy: false };
-let onStatus = () => {};
+let onStatus = () => {}, onConflict = () => {};
 
 export const config = () => S.state.meta.sync || null;
 export const setStatusListener = f => { onStatus = f; };
+export const setConflictListener = f => { onConflict = f; };
 const say = (msg, busy = false) => { status.msg = msg; status.busy = busy; onStatus(); };
 
 const hdr = (token, accept = 'application/vnd.github+json') => ({ Authorization: `Bearer ${token}`, Accept: accept, 'X-GitHub-Api-Version': '2022-11-28' });
@@ -50,13 +51,17 @@ export async function push() {
     const body = toBase64(JSON.stringify(S.exportData()));
     let sha = S.state.meta.syncSha ?? await remoteSha(c);
     let r = await put(c, sha, body);
-    if (r.status === 409 || r.status === 422) { sha = await remoteSha(c); r = await put(c, sha, body); }
+    if (r.status === 409 || r.status === 422) {
+      if (S.state.meta.syncSha) { const e = new Error('Su GitHub ci sono dati più recenti'); e.conflict = true; throw e; }   // qualcun altro ha cambiato il file: non lo sovrascrivo senza chiedere
+      sha = await remoteSha(c); r = await put(c, sha, body);
+    }
     if (!r.ok) throw await apiError(r);
     const j = await r.json();
     await S.setMeta('syncSha', j.content.sha); await S.setMeta('syncDirty', false);
     await S.setMeta('lastSync', new Date().toISOString());
     say('');
   } catch (e) {
+    if (e.conflict) { say(''); setTimeout(() => onConflict(), 60); return; }
     await S.setMeta('syncSha', null);
     say('Errore: ' + e.message);
     clearTimeout(retry);
@@ -68,7 +73,7 @@ export async function push() {
 }
 
 export function schedule(ms = 1500) {
-  if (!config()) return;
+  if (!config() || quiet) return;
   S.setMeta('syncDirty', true);
   clearTimeout(timer); timer = setTimeout(push, ms);
 }
@@ -77,6 +82,27 @@ export function schedule(ms = 1500) {
 export function flush() { if (config() && S.state.meta.syncDirty) { clearTimeout(timer); push(); } }
 
 export function resumeIfDirty() { if (config() && S.state.meta.syncDirty) schedule(500); }
+
+// confronta il file su GitHub con l'ultimo che questo telefono ha inviato o scaricato
+// -> { changed, sha } oppure null (nessuna rete, sincronizzazione spenta, controllo gia' fatto da poco)
+export async function check(force = false) {
+  const c = config(); if (!c || running || !navigator.onLine) return null;
+  if (!force && Date.now() - lastCheck < 15000) return null;
+  lastCheck = Date.now();
+  const sha = await remoteSha(c);
+  if (!sha) return null;
+  return { changed: sha !== S.state.meta.syncSha, sha };
+}
+
+// sostituisce i dati locali con quelli scaricati senza rimandarli subito su GitHub
+export async function applyRemote(sha, importFn) {
+  quiet = true; clearTimeout(timer);
+  try {
+    await importFn();
+    await S.setMeta('syncSha', sha); await S.setMeta('syncDirty', false);
+    await S.setMeta('lastSync', new Date().toISOString());
+  } finally { quiet = false; onStatus(); }
+}
 
 export async function download() {
   const c = config(); if (!c) throw new Error('Sincronizzazione non attiva');

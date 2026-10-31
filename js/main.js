@@ -38,23 +38,29 @@ const backupDays = () => S.state.meta.lastBackup ? Math.floor((Date.now() - new 
 // trascinando il foglio verso il basso (dall'intestazione o dal contenuto, se e' in cima) si chiude come su iPhone
 function swipeToClose(wrap) {
   const sheet = $('.sheet', wrap), back = $('.back', wrap);
-  let g = null;
+  let g = null, block = false;
   const settle = ms => { sheet.style.transition = `transform ${ms}ms cubic-bezier(.2,.8,.2,1)`; back.style.transition = `opacity ${ms}ms`; };
   const reset = () => { settle(250); sheet.style.transform = ''; back.style.opacity = ''; setTimeout(() => { sheet.style.transition = ''; back.style.transition = ''; }, 260); };
-  sheet.addEventListener('touchstart', e => {
+  const scroller = el => {      // il primo contenitore che scorre davvero (elenchi lunghi), se c'e'
+    for (; el && el !== wrap; el = el.parentElement) if (el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY)) return el;
+    return null;
+  };
+  wrap.addEventListener('touchstart', e => {
     g = null; if (e.touches.length !== 1) return;
-    for (let el = e.target; el && el !== sheet; el = el.parentElement) if (el.scrollTop > 0) return;   // contenuto non in cima: e' uno scorrimento
-    g = { x: e.touches[0].clientX, y: e.touches[0].clientY, dy: 0, t: Date.now(), on: false };
+    const sc = scroller(e.target); block = !sc;       // senza niente da scorrere, la pagina sotto non deve muoversi
+    g = { x: e.touches[0].clientX, y: e.touches[0].clientY, dy: 0, t: Date.now(), on: false, sc };
   }, { passive: true });
-  sheet.addEventListener('touchmove', e => {
+  wrap.addEventListener('touchmove', e => {
+    if (block && e.cancelable) e.preventDefault();
     if (!g) return;
     const dx = e.touches[0].clientX - g.x, dy = e.touches[0].clientY - g.y;
     if (!g.on) {
-      if (Math.abs(dx) > 10 || dy < -6) { g = null; return; }
+      if (g.sc && (g.sc.scrollTop > 0 || dy < -6)) { g = null; return; }      // e' lo scorrimento del contenuto
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { g = null; return; }
       if (dy <= 10) return;
       g.on = true; sheet.style.transition = 'none'; back.style.transition = 'none';
     }
-    e.preventDefault();
+    if (e.cancelable) e.preventDefault();
     g.dy = Math.max(0, dy - 10);
     sheet.style.transform = `translate3d(0,${g.dy}px,0)`;
     back.style.opacity = String(Math.max(0, 1 - g.dy / (sheet.offsetHeight * 1.1)));
@@ -67,9 +73,10 @@ function swipeToClose(wrap) {
       setTimeout(() => wrap.remove(), 220);
     } else reset();
   };
-  sheet.addEventListener('touchend', () => end(false));
-  sheet.addEventListener('touchcancel', () => end(true));
+  wrap.addEventListener('touchend', () => end(false));
+  wrap.addEventListener('touchcancel', () => end(true));
 }
+
 function openSheet(title, body, { onSave, saveLabel = 'Salva', deleteLabel, onMount } = {}) {
   const root = $('#sheetRoot');
   const wrap = document.createElement('div');
@@ -461,10 +468,10 @@ function openAddMenu() {
   const plus = $('#tabs .plus'); if (!plus) return;
   const r = plus.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
   const items = [['out', 'Uscita', 'cash-minus', '#e0605c'], ['in', 'Entrata', 'cash-plus', '#2fae76'], ['stipendio', 'Stipendio', 'briefcase', '#8a6be0'], ['prelievo', 'Prelievo', 'bank-transfer-out', '#4a86f0'], ['versamento', 'Versamento', 'bank-transfer-in', '#1fa6a0']];
-  const ang = [180, 158, 136, 114, 92], R = Math.min(172, cx - 50), D = 56;
+  const D = 58, STEP = 68;
   const root = document.createElement('div'); root.className = 'addmenu';
   root.innerHTML = '<div class="amback"></div>' + items.map(([k, label, ic, col], n) => {
-    const a = ang[n] * Math.PI / 180, x = cx + R * Math.cos(a) - D / 2, y = cy - R * Math.sin(a) - D / 2;
+    const x = cx - D / 2, y = cy - D / 2 - (n + 1) * STEP;
     return `<button class="am" data-k="${k}" style="left:${x}px;top:${y}px;--dx:${cx - D / 2 - x}px;--dy:${cy - D / 2 - y}px;--d:${n * 35}ms"><span class="amdot" style="--cc:${col}"><svg class="gl" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="${ICONS[ic]}"/></svg></span><span class="amlbl">${label}</span></button>`;
   }).join('') + `<button class="amx" style="left:${cx - 23}px;top:${cy - 23}px" aria-label="Chiudi">${IC.plus.replace('width="26" height="26"', 'width="26" height="26" style="transform:rotate(45deg)"')}</button>`;
   document.body.appendChild(root);
@@ -590,6 +597,7 @@ function openTxSheet(existing, preset = {}) {
       const sync = () => {
         f.giro = f.kind === 'prelievo' || f.kind === 'versamento'; if (f.giro) f.giroDir = f.kind;
         setSeg('fKind', f.kind); setSeg('fAcct', f.acct);
+        const sh = w.querySelector('.sheet'); if (f.giro) delete sh.dataset.acct; else sh.dataset.acct = f.acct;
         $('#fAcct', w).hidden = f.giro; $('#fTextRows', w).hidden = f.giro; $('#fChips', w).hidden = f.giro; $('#fDebtBox', w).hidden = f.giro; $('#fMore', w).hidden = f.giro;
         // tipi di debito coerenti con entrata/uscita
         const sel = $('#fDt', w), keep = sel.value || debt0?.type;
@@ -963,7 +971,7 @@ function viewStat() {
     quando: outTot > 0 ? sec('quando', 'Quando spendi', 'media per giorno',
       `<div class="card"><div class="wd">${avgWd.map((v, i) => `<div class="${i === hotWd ? 'hot' : ''}"><i style="height:${Math.max(3, maxWd ? v / maxWd * 100 : 0)}%"></i><span>${WEEKDAYS[i][0].toUpperCase()}</span></div>`).join('')}</div><div class="sm" style="margin-top:10px;color:var(--muted);font-weight:600">Spendi di più di ${WEEKDAYS[hotWd]}: in media <b class="num" style="color:var(--text)">${money(maxWd)}</b>.</div></div>`) : '',
     conto: outTot > 0 ? sec('conto', 'Carta o contanti', 'dove paghi', cfg.pie.conto
-      ? donut([{ label: 'Carta', v: accs.carta, color: '#2f6af2' }, { label: 'Contanti', v: accs.contanti, color: '#10b981' }].filter(x => x.v > 0), outTot, money(outTot))
+      ? donut([{ label: 'Carta', v: accs.carta, color: cssColor('--carta') || '#2f6af2' }, { label: 'Contanti', v: accs.contanti, color: cssColor('--cash') || '#10b981' }].filter(x => x.v > 0), outTot, money(outTot))
       : `<div class="card"><div class="split"><i style="width:${pc}%;background:var(--carta)"></i><i style="flex:1;background:var(--cash)"></i></div><div class="legend"><span><span class="dotc" style="--c:var(--carta)">Carta ${Math.round(pc)}%</span><br><b class="num">${money(accs.carta)}</b></span><span style="text-align:right"><span class="dotc" style="--c:var(--cash)">Contanti ${Math.round(100 - pc)}%</span><br><b class="num">${money(accs.contanti)}</b></span></div></div>`) : '',
     abb: subscList.length ? sec('abb', 'Abbonamenti', `<span class="num">≈ ${money([...subsc.values()].reduce((a, e) => a + e.tot, 0) / Math.max(1, rows.length))} al mese</span>`,
       `<div class="card">${subscList.map(e => `<div class="kv"><span>${esc(e.name)}<br><small class="muted">${e.n} ${e.n === 1 ? 'addebito' : 'addebiti'}</small></span><b class="num">${money(e.last.amount)}</b></div>`).join('')}</div>`) : '',
@@ -1014,7 +1022,7 @@ function viewAltro() {
   const warn = !Sync.config() && n > 0 && (d === null || d > 30) ? `<div class="warn">⚠️ ${d === null ? 'Non hai ancora fatto nessun backup.' : `Ultimo backup ${d} giorni fa.`} I dati sono salvati solo su questo iPhone: esporta un backup e salvalo su iCloud Drive.</div>` : '';
   return `<div class="bar"><h1>Altro</h1><div class="nav">${eyeBtn()}</div></div>${warn}
   <div class="sechead"><span>Aspetto</span></div>
-  <div class="list"><button class="row" data-act="themeSheet"><div class="main"><div class="ttl">Tema</div><div class="sm">${{ auto: 'Automatico (come l’iPhone)', light: 'Chiaro', dark: 'Scuro' }[themePref()]}</div></div></button><button class="row" data-act="mvStyleSheet"><div class="main"><div class="ttl">Colori dei movimenti</div><div class="sm">${MVS[mvStyle()]}</div></div></button></div>
+  <div class="list"><button class="row" data-act="themeSheet"><div class="main"><div class="ttl">Tema</div><div class="sm">${{ auto: 'Automatico (come l’iPhone)', light: 'Chiaro', dark: 'Scuro' }[themePref()]}</div></div></button><button class="row" data-act="colorSheet"><div class="main"><div class="ttl">Personalizzazione</div><div class="sm">Colori di Carta, Contanti, entrate, uscite</div></div></button><button class="row" data-act="mvStyleSheet"><div class="main"><div class="ttl">Colori dei movimenti</div><div class="sm">${MVS[mvStyle()]}</div></div></button></div>
   <div class="sechead"><span>Movimenti</span></div>
   <div class="list"><label class="row"><div class="main"><div class="ttl">Raggruppa movimenti</div><div class="sm">Crea gruppi con un nome e il totale dei loro movimenti, ad esempio un acquisto per qualcuno e i soldi che ti ridà</div></div><span class="switch"><input type="checkbox" data-groups ${groupsOn() ? 'checked' : ''}><i></i></span></label>
     <label class="row"><div class="main"><div class="ttl">Chiudi i gruppi</div><div class="sm">Mostra solo il riquadro del gruppo con nome e totale; i movimenti si aprono con la freccia</div></div><span class="switch"><input type="checkbox" data-gclosed ${groupsClosed() ? 'checked' : ''}><i></i></span></label></div>
@@ -1119,6 +1127,54 @@ function mvStyleSheet() {
   const cur = mvStyle(), d = { rail: 'Movimento neutro con una striscia blu (carta) o verde (contanti) a sinistra', soft: 'Tutta la barra con una tinta leggera del colore del conto', solid: 'Barra blu o verde come i riquadri in alto, con l’importo in una chip bianca' };
   openSheet('Colori dei movimenti', `<div class="list">${Object.keys(MVS).map(k => `<button class="row" data-s="${k}"><div class="main"><div class="ttl">${MVS[k]}${cur === k ? ' ✓' : ''}</div><div class="sm">${d[k]}</div></div></button>`).join('')}</div>`, {
     onMount: (w, close) => w.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { applyMvStyle(b.dataset.s); close(); render(); })
+  });
+}
+
+// ---------- colori personalizzati ----------
+const COLOR_ITEMS = [
+  ['carta', 'Carta', 'Riquadro, tag e barre della carta'],
+  ['cash', 'Contanti', 'Riquadro, tag e barre dei contanti'],
+  ['accent', 'Colore principale', 'Pulsante +, schede attive, link e gruppi'],
+  ['in', 'Entrate', 'Importi in entrata'],
+  ['red', 'Uscite', 'Importi in uscita e avvisi'],
+];
+const COLOR_PRESETS = ['#2b62f0', '#0ea5e9', '#14b8a6', '#10b981', '#84cc16', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#8b5cf6'];
+const isHex = c => /^#[0-9a-f]{6}$/i.test(c || '');
+function mixHex(a, b, t) {
+  const n = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  return '#' + n(a).map((v, k) => Math.round(v + (n(b)[k] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+function applyColors() {
+  const st = document.documentElement.style, c = S.state.meta.colors || {};
+  const put = (k, v) => v ? st.setProperty(k, v) : st.removeProperty(k);
+  const ok = k => isHex(c[k]) ? c[k] : null;
+  for (const [k, pre] of [['carta', '--carta'], ['cash', '--cash'], ['accent', '--pl']]) {
+    const v = ok(k);
+    put(pre, v); put(pre + '-l', v && mixHex(v, '#ffffff', .2)); put(pre + '-d', v && mixHex(v, '#000000', .32));
+  }
+  put('--accent', ok('accent'));
+  put('--in', ok('in')); put('--green', ok('in')); put('--in-strong', ok('in'));
+  put('--red', ok('red'));
+}
+const cssColor = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+function colorSheet() {
+  openSheet('Colori dell’app', '', {
+    onMount: w => {
+      const body = $('.body', w);
+      const draw = () => {
+        const cur = S.state.meta.colors || {};
+        body.innerHTML = `<p class="hint" style="margin:0 4px 12px">Scegli i colori che preferisci: l’app cambia subito.</p>` + COLOR_ITEMS.map(([k, name, desc]) => {
+          const v = isHex(cur[k]) ? cur[k] : null, shown = v || cssColor({ carta: '--carta', cash: '--cash', accent: '--accent', in: '--in', red: '--red' }[k]);
+          return `<div class="cpick"><div class="cphead"><i class="cpdot" style="background:${esc(shown)}"></i><div><b>${name}</b><small>${desc}</small></div></div>
+            <div class="cpsw">${COLOR_PRESETS.map(c => `<button type="button" data-k="${k}" data-c="${c}" class="${v && v.toLowerCase() === c ? 'on' : ''}" style="background:${c}" aria-label="${c}"></button>`).join('')}<label class="cpcustom ${v && !COLOR_PRESETS.includes(v.toLowerCase()) ? 'on' : ''}"><input type="color" data-k="${k}" value="${/^#[0-9a-f]{6}$/i.test(shown) ? shown : '#2b62f0'}"></label></div></div>`;
+        }).join('') + `<button class="btn red" data-reset style="margin-top:6px">Ripristina i colori originali</button>`;
+        body.querySelectorAll('button[data-c]').forEach(b => b.onclick = () => set(b.dataset.k, b.dataset.c));
+        body.querySelectorAll('input[type=color]').forEach(i => i.onchange = () => set(i.dataset.k, i.value));
+        $('[data-reset]', body).onclick = async () => { await S.setMeta('colors', {}); applyColors(); render(); draw(); };
+      };
+      const set = async (k, v) => { await S.setMeta('colors', { ...(S.state.meta.colors || {}), [k]: v }); applyColors(); render(); draw(); };
+      draw();
+    }
   });
 }
 
@@ -1257,12 +1313,33 @@ async function bulkCat(oldName, newName) {
   });
   await S.bulkSave('transactions', upd);
 }
+// controlla se su GitHub ci sono dati piu' recenti (altro dispositivo, o Excel/PC) e li scarica
+let pulling = false;
+async function pullRemote(manual = false) {
+  if (!Sync.config() || pulling) return;
+  if (!manual && document.querySelector('#sheetRoot .sheet')) return;       // non cambio i dati mentre stai scrivendo
+  pulling = true;
+  try {
+    const r = await Sync.check(manual);
+    if (!r) { if (manual) toast('Nessuna rete o GitHub non raggiungibile'); return; }
+    if (!r.changed) { if (manual) toast('Hai già i dati più recenti ✓'); return; }
+    if (S.state.meta.syncDirty && !confirm('Su GitHub ci sono dati più recenti, ma su questo telefono ci sono modifiche non ancora inviate.\n\nOK = scarica quelli di GitHub (le modifiche non inviate si perdono)\nAnnulla = tieni quelli del telefono e inviali')) {
+      await S.setMeta('syncSha', r.sha); Sync.schedule(300); return;
+    }
+    const d = await Sync.download(); S.validate(d);
+    await Sync.applyRemote(r.sha, async () => { await S.importData(d, 'replace'); await S.setMeta('catV', 3); await S.setMeta('groupsV', 1); await applyMeta(d, true); });
+    await pruneGroups(); ui.sel = null; if (!S.period(ui.periodId)) ui.periodId = null;
+    C.ensurePeriodFor(C.today()); render(); toast('Dati aggiornati da GitHub ✓');
+  } catch (e) { if (manual) alert(e.message); }
+  finally { pulling = false; }
+}
+
 function syncLine() {
   const c = Sync.config(); if (!c) return 'Non attiva';
   if (Sync.status.msg) return Sync.status.msg;
   if (S.state.meta.syncDirty) return 'Attiva · invio delle modifiche in corso';
   const t = S.state.meta.lastSync;
-  return t ? 'Attiva · ultimo invio ' + new Date(t).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Attiva';
+  return t ? 'Attiva · aggiornata il ' + new Date(t).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Attiva';
 }
 
 // collega GitHub: se nel repository ci sono gia' dati li scarica (telefono nuovo), senza mai sovrascriverli con un archivio vuoto
@@ -1319,7 +1396,7 @@ function syncSheet() {
           if (ok) { close(); render(); toast('Sincronizzazione attiva ✓'); } else { on.textContent = 'Collega e sincronizza'; on.disabled = false; }
         } catch (e) { on.textContent = 'Collega e sincronizza'; on.disabled = false; alert(e.message); }
       };
-      const now = $('[data-now]', w); if (now) now.onclick = async () => { await Sync.push(); close(); render(); };
+      const now = $('[data-now]', w); if (now) now.onclick = async () => { now.textContent = 'Sincronizzazione…'; await pullRemote(true); if (S.state.meta.syncDirty) await Sync.push(); close(); render(); };
       const off = $('[data-off]', w); if (off) off.onclick = async () => { if (confirm('Disattivare la sincronizzazione? Il token viene rimosso da questo telefono.')) { await Sync.disable(); close(); render(); } };
       const rs = $('[data-restore]', w); if (rs) rs.onclick = async () => {
         if (!confirm('Sostituire TUTTI i dati dell’app con quelli su GitHub?')) return;
@@ -1352,12 +1429,13 @@ async function doCsv() {
   catch (e) { if (e && e.name === 'AbortError') return; const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); }
 }
 // elenco categorie e siti personalizzati inclusi nel backup
-async function applyMeta(d) {
+async function applyMeta(d, replace = false) {     // replace: i dati arrivano da GitHub e sostituiscono quelli del telefono
   if (d.people) await S.setMeta('people', d.people);
   if (d.categories) await S.setMeta('categories', d.categories);
   if (d.subs) await S.setMeta('subs', d.subs);
-  if (d.groups) await S.setMeta('groups', { ...groups(), ...d.groups });
+  if (d.groups || replace) await S.setMeta('groups', replace ? (d.groups || {}) : { ...groups(), ...d.groups });
   if (d.statCfg) await S.setMeta('statCfg', d.statCfg);
+  if (d.colors) { await S.setMeta('colors', d.colors); applyColors(); }
 }
 
 async function doImport(file, mode) {
@@ -1412,7 +1490,7 @@ const actions = {
   statYear: el => { ui.statYear = el.dataset.id; render(); },
   searchCat: el => { ui.q = ''; ui.catf = el.dataset.id === 'Senza categoria' ? '__none' : el.dataset.id; ui.allMonths = true; ui.tab = 'mese'; render(); window.scrollTo(0, 0); },
   allMonths: () => { ui.allMonths = !ui.allMonths; render(); },
-  export: doExport, csv: doCsv, syncSheet, catSheet, themeSheet,
+  export: doExport, csv: doCsv, syncSheet, catSheet, themeSheet, colorSheet,
   restoreSync: async () => {
     try { const d = await Sync.download(); await S.importData(d, 'replace'); await S.setMeta('catV', 3); await S.setMeta('groupsV', 1); await applyMeta(d); ui.periodId = null; C.ensurePeriodFor(C.today()); render(); toast('Dati ripristinati'); }
     catch (e) { alert(e.message); }
@@ -1437,13 +1515,16 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id
     if (S.state.periods.length) { C.ensurePeriodFor(C.today()); await migrateCats(); await migrateGroups(); await pruneGroups(); }
     if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   } catch (err) { $('#view').innerHTML = `<div class="card"><b>Impossibile aprire l’archivio dati.</b><p class="muted">${esc(err.message)}<br>Se usi la navigazione privata, apri l’app normalmente.</p></div>`; return; }
+  applyColors();
   S.onChange(() => Sync.schedule());
+  Sync.setConflictListener(() => pullRemote(true));
   Sync.setStatusListener(() => { renderTabs(); if (ui.tab === 'altro' && !document.querySelector('#sheetRoot .sheet')) render(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) Sync.flush(); });
   window.addEventListener('pagehide', Sync.flush);
   Sync.resumeIfDirty();
-  window.addEventListener('online', Sync.resumeIfDirty);
+  window.addEventListener('online', () => { pullRemote(); Sync.resumeIfDirty(); });
   render();
+  pullRemote();
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) Sync.resumeIfDirty(); if (!document.hidden && S.state.periods.length) { C.ensurePeriodFor(C.today()); if (ui.tab !== 'mese' || !$('#q') || document.activeElement !== $('#q')) renderTabs(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { pullRemote(); Sync.resumeIfDirty(); } if (!document.hidden && S.state.periods.length) { C.ensurePeriodFor(C.today()); if (ui.tab !== 'mese' || !$('#q') || document.activeElement !== $('#q')) renderTabs(); } });
 })();

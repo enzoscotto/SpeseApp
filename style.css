@@ -541,3 +541,49 @@ button.mv:active{transform:scale(.985);background:var(--chip)}
 /* linguetta del foglio: indica che si chiude trascinando */
 #sheetRoot .sheet::before{content:"";position:absolute;top:7px;left:50%;width:38px;height:5px;margin-left:-19px;border-radius:3px;background:color-mix(in srgb,var(--muted) 45%,transparent)}
 #sheetRoot .sheet .head{padding-top:22px}
+
+/* menu del +: colonna, con le scritte di lato */
+.am{overflow:visible}
+.amlbl{position:absolute;right:calc(100% + 10px);top:50%;margin:0;transform:translateY(-50%);padding:6px 12px;border-radius:99px;background:rgba(10,14,30,.72);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:13px;text-shadow:none}
+
+/* colori personalizzabili: sfumature derivate dai colori scelti */
+:root{--carta-l:#4d83ff;--carta-d:#1b3fb8;--cash-l:#2fd6a0;--cash-d:#0a8a5f;--pl:#2b62f0;--pl-l:#4d83ff;--pl-d:#1f47c4}
+.bx.carta{background:linear-gradient(145deg,var(--carta-l) 0%,var(--carta) 52%,var(--carta-d) 100%);box-shadow:0 14px 26px -14px color-mix(in srgb,var(--carta) 80%,transparent)}
+.bx.contanti{background:linear-gradient(145deg,var(--cash-l) 0%,var(--cash) 52%,var(--cash-d) 100%);box-shadow:0 14px 26px -14px color-mix(in srgb,var(--cash) 80%,transparent)}
+#tabs .plus,.amx,.btn,.sumhero{background:linear-gradient(145deg,var(--pl-l),var(--pl) 55%,var(--pl-d))}
+#tabs .plus{box-shadow:0 12px 22px -6px color-mix(in srgb,var(--pl) 65%,transparent)}
+.chk.on{background:var(--pl);border-color:var(--pl)}
+.mv.selected{outline-color:var(--pl)}
+.sbtn.go,.mv.gh .ico{background:var(--pl)}
+#selFab{background:var(--pl);box-shadow:0 10px 22px -6px color-mix(in srgb,var(--pl) 70%,transparent),0 0 0 3px var(--bg)}
+:root[data-mvs="solid"] .mv.ac-carta{background:linear-gradient(100deg,var(--carta-l) 0%,var(--carta) 55%,color-mix(in srgb,var(--carta) 88%,#000) 100%)}
+:root[data-mvs="solid"] .mv.ac-cash{background:linear-gradient(100deg,var(--cash) 0%,color-mix(in srgb,var(--cash) 88%,#000) 55%,var(--cash-d) 100%)}
+:root[data-mvs="solid"] .chk.on::after{border-color:var(--pl)}
+
+/* scheda di inserimento: azzurra con la carta, verde con i contanti */
+#sheetRoot .sheet[data-acct]{--ac:var(--carta);--ac-l:var(--carta-l);--ac-d:var(--carta-d)}
+#sheetRoot .sheet[data-acct="contanti"]{--ac:var(--cash);--ac-l:var(--cash-l);--ac-d:var(--cash-d)}
+#sheetRoot .sheet[data-acct]{background:linear-gradient(180deg,color-mix(in srgb,var(--ac) 24%,var(--bg)) 0,var(--bg) 380px) no-repeat,var(--bg)}
+#sheetRoot .sheet[data-acct] .head button{color:color-mix(in srgb,var(--ac) 75%,var(--text))}
+#sheetRoot .sheet[data-acct] .seg button.on{background:var(--ac);color:#fff}
+#sheetRoot .sheet[data-acct] .form{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ac) 30%,transparent)}
+#sheetRoot .sheet[data-acct] .frow.amount input{color:color-mix(in srgb,var(--ac) 72%,var(--text))}
+#sheetRoot .sheet[data-acct] .fbtn.save{background:linear-gradient(145deg,var(--ac-l),var(--ac) 55%,var(--ac-d));box-shadow:0 8px 18px -8px color-mix(in srgb,var(--ac) 80%,transparent)}
+#sheetRoot .sheet[data-acct] .morehd{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ac) 30%,transparent)}
+
+/* con un foglio aperto la pagina sotto resta ferma */
+html:has(#sheetRoot .sheet),html:has(#sheetRoot .sheet) body{overflow:hidden}
+#sheetRoot .back,#sheetRoot .sheet .head,.cmback{touch-action:none}
+#sheetRoot .sheet .body{overscroll-behavior:contain}
+
+/* personalizzazione colori */
+.cpick{background:var(--card);border-radius:18px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--sh)}
+.cphead{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.cphead b{display:block;font-size:15px}
+.cphead small{display:block;color:var(--muted);font-size:12.5px;line-height:1.3}
+.cpdot{flex:0 0 30px;height:30px;border-radius:50%;box-shadow:0 0 0 2px var(--card),0 0 0 3.5px var(--sep)}
+.cpsw{display:flex;flex-wrap:wrap;gap:9px}
+.cpsw button,.cpcustom{width:30px;height:30px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.cpsw button.on,.cpcustom.on{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--text)}
+.cpcustom{position:relative;overflow:hidden;background:conic-gradient(#ef4444,#f59e0b,#84cc16,#10b981,#0ea5e9,#8b5cf6,#ec4899,#ef4444);display:block}
+.cpcustom input{position:absolute;inset:-8px;width:60px;height:60px;opacity:0;cursor:pointer}

@@ -57,13 +57,13 @@ export async function remove(store, id) {
 export async function setMeta(key, value) {
   state.meta[key] = value;
   await req(tx('meta').objectStore('meta').put({ id: key, value }));
-  if (['people', 'groups', 'categories', 'subs', 'statCfg'].includes(key)) changed();
+  if (['people', 'groups', 'categories', 'subs', 'statCfg', 'colors'].includes(key)) changed();
 }
 
 export const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9));
 
 export function exportData() {
-  return { version: 1, exportedAt: new Date().toISOString(), periods: state.periods, transactions: state.transactions, debts: state.debts, people: state.meta.people || [], categories: state.meta.categories, subs: state.meta.subs, groups: state.meta.groups || {}, statCfg: state.meta.statCfg };
+  return { version: 1, exportedAt: new Date().toISOString(), periods: state.periods, transactions: state.transactions, debts: state.debts, people: state.meta.people || [], categories: state.meta.categories, subs: state.meta.subs, groups: state.meta.groups || {}, statCfg: state.meta.statCfg, colors: state.meta.colors || {} };
 }
 
 export function validate(d) {
