@@ -597,3 +597,6 @@ html:has(#sheetRoot .sheet),html:has(#sheetRoot .sheet) body{overflow:hidden}
 .ttlgrp{display:flex;align-items:center;gap:8px;min-width:0}
 .infobtn{flex:0 0 22px;width:22px;height:22px;border-radius:50%;border:1.6px solid var(--muted);color:var(--muted);font:800 13px/1 var(--f);font-style:italic;display:inline-flex;align-items:center;justify-content:center}
 .infobtn:active{background:var(--chip)}
+
+.infobtn{flex:0 0 28px;width:28px;height:28px;border:0;border-radius:50%;color:var(--muted);font-style:normal;padding:0}
+.infobtn svg{width:26px;height:26px}
