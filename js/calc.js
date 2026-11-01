@@ -1,5 +1,5 @@
 // Calcoli: replicano le formule dei fogli Excel.
-import { state, txOf, period, save, uid } from './store.js';
+import { state, txOf, period, save, bulkSave, uid } from './store.js';
 
 const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', useGrouping: 'always' });
 // Modalita' privacy: money/signed nascondono le cifre; moneyRaw/signedRaw (usate dai movimenti) restano sempre visibili.
@@ -52,6 +52,32 @@ export function restBefore(startIso) {
   return { card: s.card.rest, cash: s.cash.rest };
 }
 
+// Il saldo di inizio mese = saldo di chiusura del mese prima + una differenza (di solito 0, resta quella
+// dei tuoi fogli Excel se avevi corretto a mano). Cosi' un movimento aggiunto a un mese passato
+// aggiorna a cascata i mesi dopo. startCard/startCash restano salvati (servono all'Excel).
+let chaining = false, chainAgain = false;
+export async function chainStarts() {
+  if (chaining) { chainAgain = true; return; }
+  chaining = true;
+  try {
+    do {
+      chainAgain = false;
+      const cur = state.periods.slice(), upd = [];
+      for (let i = 1; i < cur.length; i++) {
+        const p = cur[i], r = stats(cur[i - 1]);
+        let n = p;
+        if (!p.chain) n = { ...p, chain: { card: r2((p.startCard || 0) - r.card.rest), cash: r2((p.startCash || 0) - r.cash.rest) } };   // mesi esistenti: i valori attuali restano com'erano
+        else {
+          const sc = r2(r.card.rest + p.chain.card), sk = r2(r.cash.rest + p.chain.cash);
+          if (sc !== r2(p.startCard || 0) || sk !== r2(p.startCash || 0)) n = { ...p, startCard: sc, startCash: sk };
+        }
+        if (n !== p) { cur[i] = n; upd.push(n); }
+      }
+      if (upd.length) await bulkSave('periods', upd);
+    } while (chainAgain);
+  } finally { chaining = false; }
+}
+
 export function ensurePeriodFor(dateIso) {
   const cand = state.periods.filter(p => p.start <= dateIso && dateIso <= p.end).pop();
   if (cand) return cand;
@@ -59,7 +85,7 @@ export function ensurePeriodFor(dateIso) {
   const start = isoDate(new Date(d.getFullYear(), d.getMonth(), 1));
   const end = isoDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
   const r = restBefore(start);
-  const p = { id: start, start, end, startCard: r.card, startCash: r.cash, salary: null, adjust: 0 };
+  const p = { id: start, start, end, startCard: r.card, startCash: r.cash, salary: null, adjust: 0, chain: { card: 0, cash: 0 } };
   if (state.periods.some(x => x.id === p.id)) p.id = start + '-b' + uid().slice(0, 4);
   save('periods', p);
   return p;

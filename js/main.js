@@ -248,7 +248,7 @@ function viewMese() {
   return `
   <div id="topArea">
   <div class="bar">
-    <button class="periodbtn" data-act="pickPeriod"><span>${esc(periodLabel(p))}</span>${IC.chev}</button>
+    <div class="ttlgrp"><button class="periodbtn" data-act="pickPeriod"><span>${esc(periodLabel(p))}</span>${IC.chev}</button><button class="infobtn" data-act="periodInfo" aria-label="Dati del mese">i</button></div>
     <div class="nav">
       <button class="iconbtn ${ui.q ? 'on' : ''}" data-act="searchToggle" aria-label="Cerca">${IC.searchBtn}</button>
       <button class="iconbtn ${ui.catf || ui.allMonths ? 'on' : ''}" data-act="filterSheet" aria-label="Filtra per categoria">${IC.filter}</button>
@@ -390,6 +390,21 @@ function pickPeriod() {
   openSheet('Scegli il mese', body);
 }
 
+// i tre dati di partenza del mese, gli stessi dei fogli Excel
+function periodInfo() {
+  const p = curPeriod(), st = C.stats(p), i = S.state.periods.findIndex(x => x.id === p.id), prev = S.state.periods[i - 1];
+  const row = (l, v, sub) => `<div class="frow"><label style="width:auto;flex:1;color:var(--text)">${l}${sub ? `<small class="muted" style="display:block;font-weight:400">${sub}</small>` : ''}</label><b class="num">${v}</b></div>`;
+  openSheet(periodLabel(p), `<div class="form">
+      ${row('Inizio mese · carta', money(st.card.start), prev ? 'chiusura di ' + esc(periodLabel(prev)) : '')}
+      ${row('Inizio mese · contanti', money(st.cash.start))}
+      ${row('Stipendio del mese', p.salary == null ? '<span class="muted">in attesa</span>' : money(p.salary))}
+    </div>
+    <p class="hint" style="margin:10px 4px 0">I saldi di inizio mese seguono la chiusura del mese prima: se aggiungi o cambi un movimento in un mese passato, si aggiornano da soli.</p>
+    <button class="btn sec" data-edit style="margin-top:14px">Modifica</button>`, {
+    onMount: (w, close) => { $('[data-edit]', w).onclick = () => { close(); editPeriod(); }; }
+  });
+}
+
 function editPeriod() {
   const p = curPeriod(), v = x => x == null ? '' : x;
   openSheet('Dati del mese', `
@@ -406,6 +421,8 @@ function editPeriod() {
         if (C.currentPeriod()?.id === p.id) return toast('Il mese corrente non si può eliminare');
         const txs = S.txOf(p.id), ids = txs.map(t => t.id), idset = new Set(ids);
         if (!confirm(txs.length ? `Eliminare ${periodLabel(p)} con i suoi ${txs.length} movimenti? Non si può annullare.` : `Eliminare ${periodLabel(p)}?`)) return;
+        { const k = S.state.periods.findIndex(x => x.id === p.id), nx = S.state.periods[k + 1], pv = S.state.periods[k - 1];   // il mese dopo tiene il suo saldo di inizio
+          if (nx) { const r = pv ? C.stats(pv) : null; await S.save('periods', { ...nx, chain: r ? { card: C.r2((nx.startCard || 0) - r.card.rest), cash: C.r2((nx.startCash || 0) - r.cash.rest) } : undefined }); } }
         await S.bulkRemove('debts', S.state.debts.filter(d => idset.has(d.txId)).map(d => d.id));
         await S.bulkRemove('transactions', ids);
         await S.remove('periods', p.id);
@@ -416,7 +433,8 @@ function editPeriod() {
       const g = id => $(id, w).value.trim(), n = id => g(id) === '' ? null : num(g(id));
       const sal = n('#pSal'), sc = n('#pCard') ?? 0, sk = n('#pCash') ?? 0, adj = n('#pAdj') ?? 0;
       if ([sal, sc, sk, adj].some(x => x !== null && Number.isNaN(x))) return toast('Controlla i numeri'), false;
-      await S.save('periods', { ...p, salary: sal, startCard: sc, startCash: sk, adjust: adj, start: p.start, end: p.end });
+      const k = S.state.periods.findIndex(x => x.id === p.id), r = k > 0 ? C.stats(S.state.periods[k - 1]) : null;
+      await S.save('periods', { ...p, salary: sal, startCard: sc, startCash: sk, adjust: adj, start: p.start, end: p.end, chain: r ? { card: C.r2(sc - r.card.rest), cash: C.r2(sk - r.cash.rest) } : undefined });
       render();
     }
   });
@@ -1469,7 +1487,7 @@ const actions = {
   clearFilters: () => { ui.catf = ''; ui.allMonths = false; render(); },
   searchToggle: () => { ui.searchOpen = !(ui.searchOpen || ui.q); if (!ui.searchOpen) ui.q = ''; render(); if (ui.searchOpen) $('#q')?.focus(); },
   next: () => { const id = neighborId(1); if (id) slideTo(id); },
-  pickPeriod, editPeriod, summary: summarySheet,
+  pickPeriod, editPeriod, summary: summarySheet, periodInfo,
   gotoPeriod: el => { ui.q = ''; $('#sheetRoot').innerHTML = ''; slideTo(el.dataset.id); },
   acct: el => { ui.acct = el.dataset.id; render(); },
   editTx: el => ui.sel ? toggleSel(el.dataset.id) : openTxSheet(S.state.transactions.find(t => t.id === el.dataset.id)),
@@ -1516,7 +1534,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id
     if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   } catch (err) { $('#view').innerHTML = `<div class="card"><b>Impossibile aprire l’archivio dati.</b><p class="muted">${esc(err.message)}<br>Se usi la navigazione privata, apri l’app normalmente.</p></div>`; return; }
   applyColors();
-  S.onChange(() => Sync.schedule());
+  S.onChange(() => { Sync.schedule(); C.chainStarts(); });
+  C.chainStarts();
   Sync.setConflictListener(() => pullRemote(true));
   Sync.setStatusListener(() => { renderTabs(); if (ui.tab === 'altro' && !document.querySelector('#sheetRoot .sheet')) render(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) Sync.flush(); });

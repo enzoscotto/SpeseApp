@@ -592,3 +592,8 @@ html:has(#sheetRoot .sheet),html:has(#sheetRoot .sheet) body{overflow:hidden}
 .amx{width:64px;height:64px}
 /* lo scorrimento tra i mesi e' gestito dall'app: il browser non deve interferire con i gesti orizzontali */
 #view{touch-action:pan-y}
+
+/* info del mese */
+.ttlgrp{display:flex;align-items:center;gap:8px;min-width:0}
+.infobtn{flex:0 0 22px;width:22px;height:22px;border-radius:50%;border:1.6px solid var(--muted);color:var(--muted);font:800 13px/1 var(--f);font-style:italic;display:inline-flex;align-items:center;justify-content:center}
+.infobtn:active{background:var(--chip)}
