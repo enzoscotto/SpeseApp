@@ -23,7 +23,7 @@ const IC = {
   chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>',
   folder: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
-  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="12" cy="12" r="9.3"/><path d="M12 11v5.6"/><circle cx="12" cy="7.5" r=".4" fill="currentColor"/></svg>',
+  info: '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="12" cy="12" r="9.3"/><path d="M12 11v5.6"/><circle cx="12" cy="7.5" r=".4" fill="currentColor"/></svg>',
   x: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
 };
 
@@ -115,11 +115,14 @@ function render() {
 
 // i saldi restano su una riga anche con 5 cifre: stessa grandezza per Carta e Contanti
 function fitBx() {
+  const ttl = $('#view .periodbtn'), grp = $('#view .ttlgrp');      // il nome del mese resta su una riga anche con i tasti ai lati
+  if (ttl && grp) { let fs = 26; ttl.style.fontSize = fs + 'px'; while (fs > 15 && grp.scrollWidth > grp.clientWidth + 0.5) { fs -= 0.5; ttl.style.fontSize = fs + 'px'; } }
   const vs = [...document.querySelectorAll('.bx-v')]; if (!vs.length) return;
   let size = 22; vs.forEach(v => v.style.fontSize = size + 'px');
   while (size > 11 && vs.some(v => v.scrollWidth > v.clientWidth + 0.5)) { size -= 0.5; vs.forEach(v => v.style.fontSize = size + 'px'); }
 }
 window.addEventListener('resize', fitBx);
+document.fonts?.ready.then(() => fitBx());     // dopo il caricamento del font le misure cambiano
 
 // ---------- filtri della lista ----------
 function filterSheet() {
@@ -249,7 +252,7 @@ function viewMese() {
   return `
   <div id="topArea">
   <div class="bar">
-    <div class="ttlgrp"><button class="infobtn" data-act="periodInfo" aria-label="Dati del mese">${IC.info}</button><button class="periodbtn" data-act="pickPeriod"><span>${esc(periodLabel(p))}</span>${IC.chev}</button></div>
+    <div class="ttlgrp"><button class="iconbtn" data-act="periodInfo" aria-label="Dati del mese">${IC.info}</button><button class="periodbtn" data-act="pickPeriod"><span>${esc(periodLabel(p))}</span>${IC.chev}</button></div>
     <div class="nav">
       <button class="iconbtn ${ui.q ? 'on' : ''}" data-act="searchToggle" aria-label="Cerca">${IC.searchBtn}</button>
       <button class="iconbtn ${ui.catf || ui.allMonths ? 'on' : ''}" data-act="filterSheet" aria-label="Filtra per categoria">${IC.filter}</button>
@@ -1015,7 +1018,7 @@ function statSettings() {
     const cfg = statCfg(), order = statOrder();
     return `<p class="hint" style="margin:0 4px 12px">Accendi le sezioni che vuoi vedere e riordinale con le frecce. Dove si può, scegli anche la torta.</p>
     <div class="list">${order.map((k, i) => { const it = STAT_ITEMS.find(x => x[0] === k);
-      return `<div class="row srow"><div class="main"><div class="ttl">${it[1]}</div>${it[2] ? `<div class="seg mini" data-pie="${k}"><button data-v="0" class="${cfg.pie[k] ? '' : 'on'}">Barre</button><button data-v="1" class="${cfg.pie[k] ? 'on' : ''}">Torta</button></div>` : ''}</div>
+      return `<div class="row srow"><div class="main"><div class="ttl">${it[1]}</div>${it[2] ? `<div class="seg sm" data-pie="${k}"><button data-v="0" class="${cfg.pie[k] ? '' : 'on'}">Barre</button><button data-v="1" class="${cfg.pie[k] ? 'on' : ''}">Torta</button></div>` : ''}</div>
         <button class="arw up" data-mv="${k}" data-d="-1" aria-label="Sposta su" ${i === 0 ? 'disabled' : ''}>${IC.chev}</button><button class="arw" data-mv="${k}" data-d="1" aria-label="Sposta giù" ${i === order.length - 1 ? 'disabled' : ''}>${IC.chev}</button>
         <label class="switch"><input type="checkbox" data-vis="${k}" ${cfg.hide.includes(k) ? '' : 'checked'}><i></i></label></div>`; }).join('')}</div>
     <button class="btn sec" data-reset style="margin-top:12px">Ripristina ordine e scelte</button>`;
@@ -1035,6 +1038,135 @@ function statSettings() {
   });
 }
 
+
+// ---------- spese ricorrenti ----------
+// Una spesa ricorrente e' una regola in meta.recurring; i movimenti veri vengono creati nel giorno scelto
+// (anche a posteriori, se in quel giorno non hai aperto l'app) con un id fisso: mai doppioni.
+const DAYMODES = { d: 'Un giorno fisso', 'first-work': 'Primo giorno lavorativo', 'last-work': 'Ultimo giorno lavorativo', last: 'Ultimo giorno del mese' };
+const recWhen = r => r.dayMode === 'd' ? `Il ${r.dayN} di ogni mese` : DAYMODES[r.dayMode] + ' del mese';
+function easter(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  return new Date(y, Math.floor((h + l - 7 * m + 114) / 31) - 1, ((h + l - 7 * m + 114) % 31) + 1);
+}
+const HOLIDAYS = ['01-01', '01-06', '04-25', '05-01', '06-02', '08-15', '11-01', '12-08', '12-25', '12-26'];
+function isWorkday(d) {         // lunedi'-venerdi', esclusi festivi italiani e Pasquetta
+  if (d.getDay() === 0 || d.getDay() === 6) return false;
+  if (HOLIDAYS.includes(C.isoDate(d).slice(5))) return false;
+  const p = easter(d.getFullYear()); p.setDate(p.getDate() + 1);
+  return C.isoDate(p) !== C.isoDate(d);
+}
+function recDue(r, y, m) {      // la data in cui la regola cade nel mese m (0-11) dell'anno y
+  const last = new Date(y, m + 1, 0).getDate();
+  if (r.dayMode === 'last') return C.isoDate(new Date(y, m, last));
+  if (r.dayMode === 'first-work') { for (let d = 1; d <= last; d++) if (isWorkday(new Date(y, m, d))) return C.isoDate(new Date(y, m, d)); }
+  if (r.dayMode === 'last-work') { for (let d = last; d >= 1; d--) if (isWorkday(new Date(y, m, d))) return C.isoDate(new Date(y, m, d)); }
+  return C.isoDate(new Date(y, m, Math.min(Math.max(1, r.dayN || 1), last)));
+}
+function recDates(r, upTo) {    // tutte le date valide della regola fino a upTo, in ordine
+  const out = [], [sy, sm] = r.start.split('-').map(Number), [uy, um] = upTo.split('-').map(Number);
+  for (let y = sy, m = sm - 1; y < uy || (y === uy && m <= um - 1); m++) {
+    if (m > 11) { m = 0; y++; if (y > uy) break; }
+    const d = recDue(r, y, m);
+    if (d >= r.start && d <= upTo && (!r.end || d <= r.end)) out.push(d);
+  }
+  return out;
+}
+const recNext = r => {          // il prossimo inserimento a partire da oggi
+  const t = C.today(), from = r.start > t ? r.start : t, d0 = new Date(from + 'T00:00:00');
+  for (let i = 0; i < 26; i++) {
+    const d = recDue(r, d0.getFullYear() + Math.floor((d0.getMonth() + i) / 12), (d0.getMonth() + i) % 12);
+    if (d >= from && (!r.end || d <= r.end)) return d;
+  }
+  return null;
+};
+async function runRecurring() {
+  const rules = S.state.meta.recurring || []; if (!rules.length) return;
+  const today = C.today(), txs = [];
+  const next = rules.map(r => {
+    if (r.off) return r;
+    const fresh = recDates(r, today).filter(d => !r.last || d > r.last);
+    if (!fresh.length) return r;
+    for (const d of fresh) txs.push({ id: `rec-${r.id}-${d}`, periodId: C.ensurePeriodFor(d).id, date: d, account: r.account, kind: r.kind, amount: r.amount, category: r.cat || '', desc: r.desc || '', cat: r.cat || undefined, catSet: r.cat ? true : undefined, rec: r.id });
+    return { ...r, last: fresh[fresh.length - 1] };
+  });
+  if (!txs.length) return;
+  await S.bulkSave('transactions', txs); await S.setMeta('recurring', next);
+  render(); toast(txs.length === 1 ? 'Inserita 1 spesa ricorrente' : `Inserite ${txs.length} spese ricorrenti`);
+}
+
+function recurringSheet() {
+  const rules = S.state.meta.recurring || [];
+  const row = r => `<button class="row" data-r="${r.id}"><div class="main"><div class="ttl">${esc(r.desc || r.cat)}</div><div class="sm">${esc(recWhen(r))} · ${r.end ? 'fino al ' + esc(C.fmtShort(r.end)) : 'senza fine'}${r.off ? ' · in pausa' : ''}</div></div><div class="amt num ${r.kind === 'in' ? 'pos' : 'neg'}">${r.kind === 'in' ? '+' : '−'}${moneyRaw(r.amount)}</div></button>`;
+  openSheet('Spese ricorrenti', `<p class="hint" style="margin:0 4px 12px">Vengono inserite da sole nel giorno scelto. Se quel giorno non apri l’app, le trovi comunque inserite con la data giusta appena la riapri.</p>
+    ${rules.length ? `<div class="list">${rules.map(row).join('')}</div>` : '<div class="empty">Nessuna spesa ricorrente</div>'}
+    <button class="btn" data-new style="margin-top:14px">Nuova spesa ricorrente</button>`, {
+    onMount: (w, close) => {
+      $('[data-new]', w).onclick = () => { close(); recEditor(); };
+      w.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { close(); recEditor(rules.find(r => r.id === b.dataset.r)); });
+    }
+  });
+}
+
+function recEditor(rule) {
+  const f = rule ? { ...rule } : { id: S.uid(), kind: 'out', account: 'carta', amount: null, desc: '', cat: null, dayMode: 'd', dayN: new Date().getDate(), start: C.today(), end: null, off: false };
+  openSheet(rule ? 'Spesa ricorrente' : 'Nuova spesa ricorrente', `
+    <div class="seg big" id="rKind" style="margin-bottom:12px"><button data-v="out">Uscita</button><button data-v="in">Entrata</button></div>
+    <div class="seg" id="rAcct" style="margin-bottom:12px"><button data-v="carta">Carta</button><button data-v="contanti">Contanti</button></div>
+    <div class="form">
+      <div class="frow amount"><input id="rAmt" inputmode="decimal" placeholder="0,00" value="${f.amount ? C.inAmt(f.amount) : ''}" autocomplete="off"></div>
+      <div class="frow"><label>Motivo</label><input id="rDesc" placeholder="Descrizione" value="${esc(f.desc)}" autocomplete="off" autocapitalize="sentences"></div>
+    </div>
+    <div class="form"><div class="frow"><label>Categoria</label><button type="button" class="catsel" id="rCat"></button></div></div>
+    <div class="sechead"><span>Quando</span></div>
+    <div class="form">
+      <div class="frow"><label>Giorno</label><select id="rMode">${Object.entries(DAYMODES).map(([k, n]) => `<option value="${k}" ${k === f.dayMode ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      <div class="frow" id="rNRow"><label>Del mese</label><input id="rN" type="number" inputmode="numeric" min="1" max="31" value="${f.dayN || 1}"></div>
+      <div class="frow"><label>Dal</label><input id="rStart" type="date" value="${f.start}"></div>
+      <div class="frow"><label style="width:auto;flex:1;color:var(--text)">Senza fine</label><label class="switch"><input type="checkbox" id="rOpen" ${f.end ? '' : 'checked'}><i></i></label></div>
+      <div class="frow" id="rEndRow"><label>Fino al</label><input id="rEnd" type="date" value="${f.end || ''}"></div>
+    </div>
+    <div class="form"><div class="frow"><label style="width:auto;flex:1;color:var(--text)">Attiva</label><label class="switch"><input type="checkbox" id="rOn" ${f.off ? '' : 'checked'}><i></i></label></div></div>
+    <p class="hint" id="rHint" style="margin:4px 4px 0"></p>`, {
+    deleteLabel: rule ? 'Elimina' : null,
+    onMount: (w, close) => {
+      const sh = w.querySelector('.sheet'), q = s => $(s, w), all = s => [...w.querySelectorAll(s)];
+      const read = () => ({ ...f, dayMode: q('#rMode').value, dayN: parseInt(q('#rN').value, 10) || 1, start: q('#rStart').value || f.start, end: q('#rOpen').checked ? null : (q('#rEnd').value || null) });
+      const draw = () => {
+        all('#rKind button').forEach(b => b.classList.toggle('on', b.dataset.v === f.kind)); all('#rAcct button').forEach(b => b.classList.toggle('on', b.dataset.v === f.account));
+        sh.dataset.acct = f.account;
+        q('#rCat').innerHTML = (f.cat ? `${mini(f.cat, null, 15)}<span>${esc(f.cat)}</span>` : '<span class="ph">Scegli…</span>') + IC.chev;
+        q('#rNRow').hidden = q('#rMode').value !== 'd'; q('#rEndRow').hidden = q('#rOpen').checked;
+        const nx = recNext(read());
+        q('#rHint').textContent = nx ? 'Prossimo inserimento: ' + C.fmtShort(nx) : 'Nessun altro inserimento previsto.';
+      };
+      all('#rKind button').forEach(b => b.onclick = () => { f.kind = b.dataset.v; draw(); });
+      all('#rAcct button').forEach(b => b.onclick = () => { f.account = b.dataset.v; draw(); });
+      q('#rCat').onclick = ev => openCatMenu(ev.currentTarget, f.cat, name => { f.cat = name || null; draw(); });
+      ['#rMode', '#rN', '#rStart', '#rOpen', '#rEnd'].forEach(s => q(s).addEventListener('input', draw));
+      q('#rOpen').addEventListener('change', draw); q('#rMode').addEventListener('change', draw);
+      const del = $('[data-del]', w);
+      if (del) del.onclick = async () => {
+        if (!confirm('Eliminare questa spesa ricorrente? I movimenti già inseriti restano.')) return;
+        await S.setMeta('recurring', (S.state.meta.recurring || []).filter(r => r.id !== f.id)); close(); setTimeout(recurringSheet, 60);
+      };
+      sh._read = read; draw();
+    },
+    onSave: async w => {
+      const r = w.querySelector('.sheet')._read(), amt = num($('#rAmt', w).value), desc = $('#rDesc', w).value.trim();
+      if (!(amt > 0)) return toast('Inserisci un importo'), false;
+      if (!desc && !r.cat) return toast('Scegli una categoria o scrivi il motivo'), false;
+      if (r.dayMode === 'd' && !(r.dayN >= 1 && r.dayN <= 31)) return toast('Il giorno va da 1 a 31'), false;
+      if (!q2(w, '#rOpen').checked && !r.end) return toast('Scegli la data di fine o attiva “Senza fine”'), false;
+      if (r.end && r.end < r.start) return toast('La fine è prima dell’inizio'), false;
+      const rule2 = { ...r, amount: C.r2(amt), desc, off: !q2(w, '#rOn').checked };
+      const list = [...(S.state.meta.recurring || [])], i = list.findIndex(x => x.id === rule2.id);
+      if (i >= 0) list[i] = rule2; else list.push(rule2);
+      await S.setMeta('recurring', list); await runRecurring(); render(); setTimeout(recurringSheet, 60);
+    }
+  });
+}
+const q2 = (w, s) => w.querySelector(s);
+
 // ---------- ALTRO ----------
 function viewAltro() {
   const d = backupDays(), n = S.state.transactions.length;
@@ -1047,6 +1179,8 @@ function viewAltro() {
     <label class="row"><div class="main"><div class="ttl">Chiudi i gruppi</div><div class="sm">Mostra solo il riquadro del gruppo con nome e totale; i movimenti si aprono con la freccia</div></div><span class="switch"><input type="checkbox" data-gclosed ${groupsClosed() ? 'checked' : ''}><i></i></span></label></div>
   <div class="sechead"><span>Categorie</span></div>
   <div class="list"><button class="row" data-act="catSheet"><div class="main"><div class="ttl">Gestisci categorie</div><div class="sm">${S.state.transactions.filter(t => !t.cat).length} movimenti da categorizzare</div></div></button></div>
+  <div class="sechead"><span>Spese ricorrenti</span></div>
+  <div class="list"><button class="row" data-act="recurringSheet"><div class="main"><div class="ttl">Spese ricorrenti</div><div class="sm">${(S.state.meta.recurring || []).length ? (S.state.meta.recurring || []).filter(r => !r.off).length + ' attive · inserite in automatico' : 'Abbonamenti, rate, affitto: inseriti in automatico'}</div></div></button></div>
   <div class="sechead"><span>Excel e sincronizzazione</span></div>
   <div class="list"><button class="row" data-act="syncSheet"><div class="main"><div class="ttl">Sincronizzazione GitHub</div><div class="sm">${esc(syncLine())}</div></div></button></div>
   <div class="sechead"><span>Backup e dati</span></div>
@@ -1455,6 +1589,7 @@ async function applyMeta(d, replace = false) {     // replace: i dati arrivano d
   if (d.groups || replace) await S.setMeta('groups', replace ? (d.groups || {}) : { ...groups(), ...d.groups });
   if (d.statCfg) await S.setMeta('statCfg', d.statCfg);
   if (d.colors) { await S.setMeta('colors', d.colors); applyColors(); }
+  if (d.recurring || replace) await S.setMeta('recurring', d.recurring || []);
 }
 
 async function doImport(file, mode) {
@@ -1509,7 +1644,7 @@ const actions = {
   statYear: el => { ui.statYear = el.dataset.id; render(); },
   searchCat: el => { ui.q = ''; ui.catf = el.dataset.id === 'Senza categoria' ? '__none' : el.dataset.id; ui.allMonths = true; ui.tab = 'mese'; render(); window.scrollTo(0, 0); },
   allMonths: () => { ui.allMonths = !ui.allMonths; render(); },
-  export: doExport, csv: doCsv, syncSheet, catSheet, themeSheet, colorSheet,
+  export: doExport, csv: doCsv, syncSheet, catSheet, themeSheet, colorSheet, recurringSheet,
   restoreSync: async () => {
     try { const d = await Sync.download(); await S.importData(d, 'replace'); await S.setMeta('catV', 3); await S.setMeta('groupsV', 1); await applyMeta(d); ui.periodId = null; C.ensurePeriodFor(C.today()); render(); toast('Dati ripristinati'); }
     catch (e) { alert(e.message); }
@@ -1542,9 +1677,9 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id
   document.addEventListener('visibilitychange', () => { if (document.hidden) Sync.flush(); });
   window.addEventListener('pagehide', Sync.flush);
   Sync.resumeIfDirty();
-  window.addEventListener('online', () => { pullRemote(); Sync.resumeIfDirty(); });
+  window.addEventListener('online', () => { pullRemote().then(runRecurring); Sync.resumeIfDirty(); });
   render();
-  pullRemote();
+  pullRemote().then(runRecurring);
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { pullRemote(); Sync.resumeIfDirty(); } if (!document.hidden && S.state.periods.length) { C.ensurePeriodFor(C.today()); if (ui.tab !== 'mese' || !$('#q') || document.activeElement !== $('#q')) renderTabs(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { pullRemote().then(runRecurring); Sync.resumeIfDirty(); } if (!document.hidden && S.state.periods.length) { C.ensurePeriodFor(C.today()); if (ui.tab !== 'mese' || !$('#q') || document.activeElement !== $('#q')) renderTabs(); } });
 })();
