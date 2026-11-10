@@ -288,6 +288,8 @@ function rowHtml(t, showAcct, showPeriod, sub, plain, extra) {
 const groupsOn = () => { try { return localStorage.getItem('groups') !== '0'; } catch { return true; } };
 const setGroupsOn = v => { try { localStorage.setItem('groups', v ? '1' : '0'); } catch { /* ignore */ } };
 const groupsClosed = () => { try { return localStorage.getItem('gclosed') === '1'; } catch { return false; } };
+const acctChipOn = () => { try { return localStorage.getItem('acctchip') !== '0'; } catch { return true; } };      // chip "Carta" / "Contanti" nei movimenti
+const applyAcctChip = () => { if (acctChipOn()) delete document.documentElement.dataset.noacct; else document.documentElement.dataset.noacct = '1'; };
 const setGroupsClosed = v => { try { localStorage.setItem('gclosed', v ? '1' : '0'); } catch { /* ignore */ } };
 const groups = () => S.state.meta.groups || {};
 const gName = gid => groups()[gid]?.name || 'Gruppo';
@@ -1177,7 +1179,8 @@ function viewAltro() {
   <div class="list"><button class="row" data-act="uiSheet">${ri('palette', '#B07BFF')}<div class="main"><div class="ttl">Stile grafico</div><div class="sm">${UIS[uiPref()][0]}</div></div></button><button class="row" data-act="themeSheet">${ri('theme-light-dark', '#7C7BFF')}<div class="main"><div class="ttl">Tema</div><div class="sm">${{ auto: 'Automatico (come l’iPhone)', light: 'Chiaro', dark: 'Scuro' }[themePref()]}</div></div></button><button class="row" data-act="colorSheet">${ri('palette-swatch', '#FF9F4A')}<div class="main"><div class="ttl">Personalizzazione</div><div class="sm">Colori di Carta, Contanti, entrate, uscite</div></div></button><button class="row" data-act="mvStyleSheet">${ri('view-list', '#4DB8E8')}<div class="main"><div class="ttl">Colori dei movimenti</div><div class="sm">${MVS[mvStyle()]}</div></div></button></div>
   <div class="sechead"><span>Movimenti</span></div>
   <div class="list"><label class="row">${ri('folder-multiple', '#F5B84B')}<div class="main"><div class="ttl">Raggruppa movimenti</div><div class="sm">Crea gruppi con un nome e il totale dei loro movimenti, ad esempio un acquisto per qualcuno e i soldi che ti ridà</div></div><span class="switch"><input type="checkbox" data-groups ${groupsOn() ? 'checked' : ''}><i></i></span></label>
-    <label class="row">${ri('unfold-less-horizontal', '#F5B84B')}<div class="main"><div class="ttl">Chiudi i gruppi</div><div class="sm">Mostra solo il riquadro del gruppo con nome e totale; i movimenti si aprono con la freccia</div></div><span class="switch"><input type="checkbox" data-gclosed ${groupsClosed() ? 'checked' : ''}><i></i></span></label></div>
+    <label class="row">${ri('unfold-less-horizontal', '#F5B84B')}<div class="main"><div class="ttl">Chiudi i gruppi</div><div class="sm">Mostra solo il riquadro del gruppo con nome e totale; i movimenti si aprono con la freccia</div></div><span class="switch"><input type="checkbox" data-gclosed ${groupsClosed() ? 'checked' : ''}><i></i></span></label>
+    <label class="row">${ri('tag-multiple', '#4DB8E8')}<div class="main"><div class="ttl">Chip Carta e Contanti</div><div class="sm">Mostra in ogni movimento se è stato pagato con la carta o in contanti; vale per tutti i colori della barra</div></div><span class="switch"><input type="checkbox" data-acctchip ${acctChipOn() ? 'checked' : ''}><i></i></span></label></div>
   <div class="sechead"><span>Categorie</span></div>
   <div class="list"><button class="row" data-act="catSheet">${ri('tag-multiple', '#34C79A')}<div class="main"><div class="ttl">Gestisci categorie</div><div class="sm">${S.state.transactions.filter(t => !t.cat).length} movimenti da categorizzare</div></div></button></div>
   <div class="sechead"><span>Spese ricorrenti</span></div>
@@ -1274,7 +1277,7 @@ function openGroupSheet(gid) {
 }
 
 // ---------- stile grafico ----------
-const UIS = { classic: ['Classico', 'L’aspetto di sempre: schede piene e pulite'], nitido: ['Nitido', 'Superfici piene e piatte, icone a riquadro e colore solo dove serve: le uscite non sono rosse'], glass: ['Liquid Glass', 'Nitido con il vetro: sfondo di colore sfocato, barra in basso, fogli e riquadri dei saldi traslucidi, bordi luminosi'] };
+const UIS = { classic: ['Classico', 'L’aspetto di sempre: schede piene e pulite'], nitido: ['Nitido', 'Superfici piene e piatte, icone a riquadro tinto e carattere Geist: pulito e leggibile'], glass: ['Liquid Glass', 'Nitido con il vetro: sfondo di colore sfocato, barra in basso, fogli e riquadri dei saldi traslucidi, bordi luminosi'] };
 function uiPref() { try { const v = localStorage.getItem('ui'); return v === 'glass' ? 'glass' : v === 'nitido' || v === 'gold' ? 'nitido' : 'classic'; } catch { return 'classic'; } }      // 'gold' (Nero e oro) non c'e' piu': chi lo usava passa a Nitido
 function setUiAttrs(v) { const r = document.documentElement; if (v === 'classic') delete r.dataset.ui; else r.dataset.ui = 'nitido'; if (v === 'glass') r.dataset.glass = '1'; else delete r.dataset.glass; }      // Liquid Glass = Nitido + data-glass
 function applyUi(v) {
@@ -1674,7 +1677,7 @@ const actions = {
 };
 document.addEventListener('click', e => { const el = e.target.closest('[data-act]'); if (el && actions[el.dataset.act]) { e.preventDefault(); actions[el.dataset.act](el); } });
 document.addEventListener('change', e => { const el = e.target; if (el.matches && el.matches('[data-import]') && el.files[0]) { doImport(el.files[0], el.dataset.import); el.value = ''; } });
-document.addEventListener('change', e => { if (e.target.matches?.('[data-groups]')) setGroupsOn(e.target.checked); if (e.target.matches?.('[data-gclosed]')) { setGroupsClosed(e.target.checked); ui.open.clear(); } });
+document.addEventListener('change', e => { if (e.target.matches?.('[data-groups]')) setGroupsOn(e.target.checked); if (e.target.matches?.('[data-acctchip]')) { try { localStorage.setItem('acctchip', e.target.checked ? '1' : '0'); } catch { /* ignore */ } applyAcctChip(); } if (e.target.matches?.('[data-gclosed]')) { setGroupsClosed(e.target.checked); ui.open.clear(); } });
 document.addEventListener('change', e => { if (e.target.id === 'catf') { ui.catf = e.target.value; renderList(); } });
 document.addEventListener('input', e => { if (e.target.id === 'q') { ui.q = e.target.value; renderList(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'q') e.target.blur(); });
@@ -1683,6 +1686,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id
 (async function boot() {
   C.setPrivacy(privacyOn());
   setUiAttrs(uiPref());
+  applyAcctChip();
   applyMvStyle(mvStyle());
   try {
     await S.load();

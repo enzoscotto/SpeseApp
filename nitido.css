@@ -5,8 +5,7 @@
    E' una "pelle": la struttura e le misure sono quelle dell'app di sempre (riquadri Carta e Contanti,
    Speso e Risparmiato, un movimento per scheda, gruppi con le linee di collegamento). Cambiano:
    - superfici piene e piatte, contrasto alto: niente vetro sopra i numeri
-   - colore solo dove significa qualcosa: Carta blu, Contanti verde, entrate in verde;
-     le uscite restano del colore del testo (il rosso e' per gli avvisi)
+   - colore solo dove significa qualcosa: Carta blu, Contanti verde, entrate verdi, uscite rosse
    - una sola famiglia di caratteri (Geist), cifre allineate, pochi pesi
    - icone a riquadro tinto, come le Impostazioni di iOS
    In fondo al file c'e' Liquid Glass: Nitido con il vetro sopra (data-glass).
@@ -100,12 +99,12 @@
 :root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash{background:color-mix(in srgb,var(--cash) 64%,#0b0e15)}
 :root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .ico,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .ico{background:rgba(255,255,255,.2);color:#fff;box-shadow:none}
 :root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .tag.card,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .tag.cash{background:none;padding:0;color:#fff;font-weight:500}
-:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .tag.cat,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .tag.cat{font-weight:500}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .tag.cat,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .tag.cat{background:rgba(255,255,255,.22);color:#fff;font-weight:600}
 :root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .mvt,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .mvt{font-weight:600}
 :root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .amt,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .amt{font-weight:600}
-:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .amt.neg,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .amt.neg{color:#12161f}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .amt.neg,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .amt.neg{color:#b9323a}
 :root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .amt.pos,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .amt.pos{color:#0b6b3d}
-:root[data-ui="nitido"][data-mvs="solid"] .mv.gh .amt.neg{color:var(--text)}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.gh .amt.neg{color:var(--out,var(--red))}
 :root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .chk,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .chk{border-color:#fff}
 :root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .chk.on,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .chk.on{background:#fff}
 :root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .chk.on::after,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .chk.on::after{border-color:var(--pl)}
@@ -118,13 +117,13 @@
 :root[data-ui="nitido"] .tag{font-weight:500;color:var(--muted)}
 :root[data-ui="nitido"] .tag.card,:root[data-ui="nitido"] .tag.cash{background:none;padding:0;border-radius:0;font-size:12px;font-weight:500;color:var(--muted);gap:5px}
 :root[data-ui="nitido"] .tag.card::before,:root[data-ui="nitido"] .tag.cash::before{width:7px;height:7px;flex-basis:7px}
-:root[data-ui="nitido"] .tag.cat{color:var(--muted)}
+:root[data-ui="nitido"] .tag.cat{background:color-mix(in srgb,var(--cc,var(--faint)) 20%,transparent);color:color-mix(in srgb,var(--cc,var(--muted)) 82%,var(--text));padding:0 8px;border-radius:7px;font-weight:600}
 :root[data-ui="nitido"] .tag.nocat{color:var(--faint)}
 :root[data-ui="nitido"] .tag.dbt{background:color-mix(in srgb,#9B7BFF 20%,transparent);color:color-mix(in srgb,#9B7BFF 80%,var(--text));padding:0 8px;border-radius:7px;font-weight:600}
 :root[data-ui="nitido"] .tag.red{background:color-mix(in srgb,var(--red) 18%,transparent);color:var(--red);padding:0 8px;border-radius:7px;font-weight:600}
 :root[data-ui="nitido"] .tag.gtog{background:var(--s3);color:var(--text);border-radius:8px}
 :root[data-ui="nitido"] .mv .amt{font-weight:600;letter-spacing:-.015em}
-:root[data-ui="nitido"] .mv .amt.neg{color:var(--out,var(--text))}
+:root[data-ui="nitido"] .mv .amt.neg{color:var(--out,var(--red))}
 :root[data-ui="nitido"] .mv .amt.pos{color:var(--in)}
 
 /* gruppi: stesse linee di collegamento di sempre, piu' discrete */
@@ -241,7 +240,7 @@
 /* ---------- ritocchi ---------- */
 :root[data-ui="nitido"] #sheetRoot .card{background:var(--s2)}
 :root[data-ui="nitido"] #sheetRoot .kv+.kv{border-top-color:var(--sep)}
-:root[data-ui="nitido"] .gsum b.neg{color:var(--text)}
+:root[data-ui="nitido"] .gsum b.neg{color:var(--out,var(--red))}
 
 
 /* ===================================================================

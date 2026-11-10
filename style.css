@@ -611,3 +611,6 @@ html:has(#sheetRoot .sheet),html:has(#sheetRoot .sheet) body{overflow:hidden}
 .seg.sm{background:var(--bg);box-shadow:inset 0 0 0 1px var(--sep);padding:3px}
 .seg.sm button{padding:6px 16px;font-size:13px;font-weight:700;color:var(--muted)}
 .seg.sm button.on{background:var(--pl);color:#fff;box-shadow:none}
+
+/* chip Carta / Contanti nei movimenti: si possono nascondere da Altro (vale per ogni colore della barra) */
+:root[data-noacct] .mv .tag.card,:root[data-noacct] .mv .tag.cash{display:none}
