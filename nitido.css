@@ -1,0 +1,383 @@
+/* ===================================================================
+   Stile "Nitido" (Altro > Aspetto > Stile grafico). Tutto vive sotto :root[data-ui="nitido"]:
+   scegliendo un altro stile l'app torna come prima.
+
+   E' una "pelle": la struttura e le misure sono quelle dell'app di sempre (riquadri Carta e Contanti,
+   Speso e Risparmiato, un movimento per scheda, gruppi con le linee di collegamento). Cambiano:
+   - superfici piene e piatte, contrasto alto: niente vetro sopra i numeri
+   - colore solo dove significa qualcosa: Carta blu, Contanti verde, entrate in verde;
+     le uscite restano del colore del testo (il rosso e' per gli avvisi)
+   - una sola famiglia di caratteri (Geist), cifre allineate, pochi pesi
+   - icone a riquadro tinto, come le Impostazioni di iOS
+   In fondo al file c'e' Liquid Glass: Nitido con il vetro sopra (data-glass).
+   =================================================================== */
+@font-face{font-family:"Geist";src:url(fonts/geist.woff2) format("woff2");font-weight:100 900;font-display:swap}
+
+/* ---------- colori e caratteri ---------- */
+:root[data-ui="nitido"]{
+  color-scheme:light;
+  --f:"Geist",-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;
+  --bg:#F1F3F8;--s1:#FFFFFF;--s2:#F0F2F7;--s3:#E2E6F0;
+  --card:var(--s1);--chip:var(--s2);
+  --text:#0E121B;--muted:#586277;--faint:#8791A6;--sep:rgba(14,18,27,.09);
+  --carta:#2D62E0;--cash:#0E9C76;--in:#0C9A5C;--green:#0C9A5C;--in-strong:#0C9A5C;--red:#D4443A;--warn:#C98A0B;
+  --accent:#2D62E0;--pl:#2D62E0;--pl-l:#2D62E0;--pl-d:#2D62E0;
+  --sh:none;
+}
+@media (prefers-color-scheme:dark){
+  :root[data-ui="nitido"]:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0B0E15;--s1:#141923;--s2:#1B2130;--s3:#262D40;
+    --text:#EEF1F7;--muted:#98A2B8;--faint:#69738B;--sep:rgba(255,255,255,.075);
+    --carta:#5B8CFF;--cash:#2FC79A;--in:#6EDC9A;--green:#6EDC9A;--in-strong:#6EDC9A;--red:#FF7B6C;--warn:#F5B84B;
+    --accent:#7C9DFF;--pl:#3F6FEB;--pl-l:#3F6FEB;--pl-d:#3F6FEB;
+  }
+}
+:root[data-ui="nitido"][data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0B0E15;--s1:#141923;--s2:#1B2130;--s3:#262D40;
+  --text:#EEF1F7;--muted:#98A2B8;--faint:#69738B;--sep:rgba(255,255,255,.075);
+  --carta:#5B8CFF;--cash:#2FC79A;--in:#6EDC9A;--green:#6EDC9A;--in-strong:#6EDC9A;--red:#FF7B6C;--warn:#F5B84B;
+  --accent:#7C9DFF;--pl:#3F6FEB;--pl-l:#3F6FEB;--pl-d:#3F6FEB;
+}
+:root[data-ui="nitido"] body{font-size:15px;letter-spacing:-.003em}
+:root[data-ui="nitido"] .num{font-variant-numeric:tabular-nums}
+
+/* ---------- testata ---------- */
+:root[data-ui="nitido"] .bar h1{font-weight:700;letter-spacing:-.035em}
+:root[data-ui="nitido"] .periodbtn{font-weight:700;letter-spacing:-.035em}
+:root[data-ui="nitido"] .periodbtn svg{color:var(--faint)}
+:root[data-ui="nitido"] .iconbtn{background:var(--s1);color:var(--muted);box-shadow:none}
+:root[data-ui="nitido"] .iconbtn:active{background:var(--s3)}
+:root[data-ui="nitido"] .iconbtn.on{background:color-mix(in srgb,var(--accent) 20%,var(--s1));color:var(--accent)}
+:root[data-ui="nitido"] .search input{background:var(--s1);box-shadow:none;border-radius:14px;font-weight:500}
+:root[data-ui="nitido"] .search input:focus{box-shadow:0 0 0 2px var(--accent)}
+:root[data-ui="nitido"] .activef{background:color-mix(in srgb,var(--accent) 16%,var(--s1));color:var(--accent);font-weight:600}
+:root[data-ui="nitido"] .activef i{background:var(--accent);color:var(--bg)}
+
+/* ---------- saldi: Carta e Contanti, Speso e Risparmiato ---------- */
+:root[data-ui="nitido"] .bx{color:var(--text);border-radius:18px;box-shadow:none;padding:8px 13px 9px;gap:5px}
+:root[data-ui="nitido"] .bx::after{content:none}
+:root[data-ui="nitido"] .bx.carta{--ac:var(--carta);background:color-mix(in srgb,var(--carta) 15%,var(--s1));box-shadow:none}
+:root[data-ui="nitido"] .bx.contanti{--ac:var(--cash);background:color-mix(in srgb,var(--cash) 15%,var(--s1));box-shadow:none}
+:root[data-ui="nitido"] .bx-t{font-size:12.5px;font-weight:600;opacity:1;color:color-mix(in srgb,var(--ac) 78%,var(--text))}
+:root[data-ui="nitido"] .bx-t svg{box-sizing:content-box;width:14px;height:14px;padding:3px;border-radius:7px;background:color-mix(in srgb,var(--ac) 24%,transparent);color:var(--ac)}
+:root[data-ui="nitido"] .bx-v{font-weight:600;letter-spacing:-.035em}
+:root[data-ui="nitido"] .dbox{background:var(--s1);color:var(--text);border-radius:16px}
+:root[data-ui="nitido"] .dbox span{font-size:12px;font-weight:500;opacity:1;color:var(--muted)}
+:root[data-ui="nitido"] .dbox b{font-weight:600;letter-spacing:-.03em}
+:root[data-ui="nitido"] .dbox.saved.bad{background:color-mix(in srgb,var(--red) 12%,var(--s1))}
+:root[data-ui="nitido"] .dbox.saved.bad b{color:var(--red)}
+
+/* ---------- controlli ---------- */
+:root[data-ui="nitido"] .seg{background:var(--s1);border-radius:12px;padding:3px;gap:2px}
+:root[data-ui="nitido"] .seg button{border-radius:9px;font-weight:500;color:var(--muted)}
+:root[data-ui="nitido"] .seg button.on{background:var(--s3);color:var(--text);box-shadow:none;font-weight:600}
+:root[data-ui="nitido"] .btn{background:var(--pl);color:#fff;border-radius:14px;font-weight:600;box-shadow:none}
+:root[data-ui="nitido"] .btn:active{filter:brightness(.92)}
+:root[data-ui="nitido"] .btn.sec{background:var(--s2);color:var(--accent)}
+:root[data-ui="nitido"] .btn.red{background:color-mix(in srgb,var(--red) 15%,transparent);color:var(--red)}
+:root[data-ui="nitido"] .switch i{background:var(--s3)}
+:root[data-ui="nitido"] .switch input:checked+i{background:var(--in)}
+
+/* ---------- movimenti: una scheda per movimento (i tre stili di Altro > Colori dei movimenti) ---------- */
+:root[data-ui="nitido"] .dayh{font-size:13px;font-weight:600;letter-spacing:0;color:var(--muted)}
+:root[data-ui="nitido"] .dayh .num{font-weight:500;color:var(--faint)}
+:root[data-ui="nitido"] .mv{background:var(--s1);box-shadow:none}
+:root[data-ui="nitido"] button.mv:active{background:var(--s2)}
+:root[data-ui="nitido"] .mv.unp{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--red) 55%,transparent)}
+/* striscia a lato (predefinito di Nitido) */
+:root[data-ui="nitido"][data-mvs="rail"] .mv.ac-carta{box-shadow:inset 4px 0 0 var(--carta)}
+:root[data-ui="nitido"][data-mvs="rail"] .mv.ac-cash{box-shadow:inset 4px 0 0 var(--cash)}
+:root[data-ui="nitido"][data-mvs="rail"] .mv.unp{background:color-mix(in srgb,var(--red) 8%,var(--s1))}
+:root[data-ui="nitido"][data-mvs="rail"] .mv.unp.ac-carta{box-shadow:inset 4px 0 0 var(--carta),inset 0 0 0 1.5px color-mix(in srgb,var(--red) 55%,transparent)}
+:root[data-ui="nitido"][data-mvs="rail"] .mv.unp.ac-cash{box-shadow:inset 4px 0 0 var(--cash),inset 0 0 0 1.5px color-mix(in srgb,var(--red) 55%,transparent)}
+/* sfondo tenue */
+:root[data-ui="nitido"][data-mvs="soft"] .mv.ac-carta{background:color-mix(in srgb,var(--carta) 15%,var(--s1))}
+:root[data-ui="nitido"][data-mvs="soft"] .mv.ac-cash{background:color-mix(in srgb,var(--cash) 15%,var(--s1))}
+/* barra piena: colore pieno e piatto, testo bianco, importo in una chip chiara */
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta{background:color-mix(in srgb,var(--carta) 72%,#0b0e15)}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash{background:color-mix(in srgb,var(--cash) 64%,#0b0e15)}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .ico,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .ico{background:rgba(255,255,255,.2);color:#fff;box-shadow:none}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .tag.card,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .tag.cash{background:none;padding:0;color:#fff;font-weight:500}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .tag.cat,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .tag.cat{font-weight:500}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .mvt,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .mvt{font-weight:600}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .amt,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .amt{font-weight:600}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .amt.neg,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .amt.neg{color:#12161f}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .amt.pos,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .amt.pos{color:#0b6b3d}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.gh .amt.neg{color:var(--text)}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .chk,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .chk{border-color:#fff}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .chk.on,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .chk.on{background:#fff}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta .chk.on::after,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash .chk.on::after{border-color:var(--pl)}
+:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-carta.selected,:root[data-ui="nitido"][data-mvs="solid"] .mv.ac-cash.selected{outline-color:#fff}
+
+:root[data-ui="nitido"] .mv .ico{border-radius:11px;background:color-mix(in srgb,var(--cc,var(--faint)) 20%,transparent);color:color-mix(in srgb,var(--cc,var(--muted)) 86%,var(--text))}
+:root[data-ui="nitido"] .mv:not(.cc) .ico{color:var(--muted)}
+:root[data-ui="nitido"] .mv .mvt{font-weight:600;letter-spacing:-.01em}
+:root[data-ui="nitido"] .chips2,:root[data-ui="nitido"] .tag{font-size:12px}
+:root[data-ui="nitido"] .tag{font-weight:500;color:var(--muted)}
+:root[data-ui="nitido"] .tag.card,:root[data-ui="nitido"] .tag.cash{background:none;padding:0;border-radius:0;font-size:12px;font-weight:500;color:var(--muted);gap:5px}
+:root[data-ui="nitido"] .tag.card::before,:root[data-ui="nitido"] .tag.cash::before{width:7px;height:7px;flex-basis:7px}
+:root[data-ui="nitido"] .tag.cat{color:var(--muted)}
+:root[data-ui="nitido"] .tag.nocat{color:var(--faint)}
+:root[data-ui="nitido"] .tag.dbt{background:color-mix(in srgb,#9B7BFF 20%,transparent);color:color-mix(in srgb,#9B7BFF 80%,var(--text));padding:0 8px;border-radius:7px;font-weight:600}
+:root[data-ui="nitido"] .tag.red{background:color-mix(in srgb,var(--red) 18%,transparent);color:var(--red);padding:0 8px;border-radius:7px;font-weight:600}
+:root[data-ui="nitido"] .tag.gtog{background:var(--s3);color:var(--text);border-radius:8px}
+:root[data-ui="nitido"] .mv .amt{font-weight:600;letter-spacing:-.015em}
+:root[data-ui="nitido"] .mv .amt.neg{color:var(--out,var(--text))}
+:root[data-ui="nitido"] .mv .amt.pos{color:var(--in)}
+
+/* gruppi: stesse linee di collegamento di sempre, piu' discrete */
+:root[data-ui="nitido"] .mvg{--gl:color-mix(in srgb,var(--faint) 50%,transparent)}
+:root[data-ui="nitido"] .mv.gh .ico{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent)}
+:root[data-ui="nitido"] .mv.gh .mvt{font-weight:700}
+:root[data-ui="nitido"] .mv.sub .ico{border-radius:9px}
+:root[data-ui="nitido"] .gtgl{background:var(--s3);color:var(--muted);border-radius:10px}
+
+/* selezione */
+:root[data-ui="nitido"] .chk{border-color:var(--faint)}
+:root[data-ui="nitido"] .chk.on{background:var(--accent);border-color:var(--accent)}
+:root[data-ui="nitido"] .chk.on::after{border-color:var(--bg)}
+:root[data-ui="nitido"] .mv.selected{outline-color:var(--accent)}
+:root[data-ui="nitido"] #selBar{background:var(--s2);border-radius:18px;box-shadow:0 14px 34px -12px rgba(0,0,0,.55),0 0 0 1px var(--sep)}
+:root[data-ui="nitido"] #selBar span{font-weight:600}
+:root[data-ui="nitido"] .sbtn{background:var(--s3);border-radius:12px;font-weight:600}
+:root[data-ui="nitido"] .sbtn.go{background:var(--pl);color:#fff}
+:root[data-ui="nitido"] #selFab{background:var(--s3);color:var(--accent);box-shadow:0 10px 26px -10px rgba(0,0,0,.6),0 0 0 1px var(--sep);border-radius:18px}
+
+/* ---------- barra in basso ---------- */
+:root[data-ui="nitido"] body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--tabh) + env(safe-area-inset-bottom) + 34px);background:linear-gradient(to top,var(--bg) 35%,transparent);pointer-events:none;z-index:15}
+:root[data-ui="nitido"] .tabpill{background:color-mix(in srgb,var(--s1) 94%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid var(--sep);border-radius:24px;box-shadow:0 12px 30px -14px rgba(0,0,0,.55)}
+:root[data-ui="nitido"] .tabpill button{font-weight:500;color:var(--faint)}
+:root[data-ui="nitido"] .tabpill button.on{color:var(--accent);font-weight:600}
+:root[data-ui="nitido"] .tabpill .dot::after{background:var(--red)}
+:root[data-ui="nitido"] #tabs .plus{border-radius:22px;background:var(--pl);box-shadow:0 12px 26px -10px color-mix(in srgb,var(--pl) 85%,transparent)}
+:root[data-ui="nitido"] #toast{background:var(--s3);color:var(--text);border-radius:14px;font-weight:500;box-shadow:0 12px 30px -12px rgba(0,0,0,.6)}
+
+/* ---------- fogli ---------- */
+:root[data-ui="nitido"] #sheetRoot .back{background:rgba(5,7,12,.58)}
+:root[data-ui="nitido"] #sheetRoot .sheet{background:var(--s1);border-radius:26px 26px 0 0;box-shadow:0 -18px 50px -22px rgba(0,0,0,.65)}
+:root[data-ui="nitido"] #sheetRoot .sheet::before{background:var(--s3);width:36px}
+:root[data-ui="nitido"] .sheet .head h2{font-size:17px;font-weight:600;letter-spacing:-.015em}
+:root[data-ui="nitido"] .sheet .head button{font-weight:500;color:var(--accent)}
+:root[data-ui="nitido"] .sheet .foot{background:var(--s1);border-top:1px solid var(--sep)}
+:root[data-ui="nitido"] .fbtn{border-radius:14px;font-weight:600;font-size:16px}
+:root[data-ui="nitido"] .fbtn.save{background:var(--pl);box-shadow:none;color:#fff}
+:root[data-ui="nitido"] .fbtn.del{background:color-mix(in srgb,var(--red) 15%,transparent);color:var(--red)}
+:root[data-ui="nitido"] .form{background:var(--s2);border-radius:16px;box-shadow:none}
+:root[data-ui="nitido"] .list{background:var(--s1);border-radius:18px;box-shadow:none}
+:root[data-ui="nitido"] #sheetRoot .list{background:var(--s2)}
+:root[data-ui="nitido"] .frow label{font-weight:500;color:var(--muted)}
+:root[data-ui="nitido"] .frow input,:root[data-ui="nitido"] .frow select{font-weight:500}
+:root[data-ui="nitido"] .frow.amount input{font-size:42px;font-weight:600;letter-spacing:-.045em}
+:root[data-ui="nitido"] #sheetRoot .seg{background:var(--s2)}
+:root[data-ui="nitido"] #sheetRoot .seg button.on{background:var(--s3)}
+:root[data-ui="nitido"] #sheetRoot .sheet[data-acct]{--ac:var(--carta);background:var(--s1);box-shadow:inset 0 2.5px 0 var(--ac),0 -18px 50px -22px rgba(0,0,0,.65)}
+:root[data-ui="nitido"] #sheetRoot .sheet[data-acct="contanti"]{--ac:var(--cash)}
+:root[data-ui="nitido"] #sheetRoot .sheet[data-acct] .form,
+:root[data-ui="nitido"] #sheetRoot .sheet[data-acct] .morehd{box-shadow:none}
+:root[data-ui="nitido"] #sheetRoot .sheet[data-acct] .seg button.on{background:color-mix(in srgb,var(--ac) 88%,#000);color:#fff}
+:root[data-ui="nitido"] #sheetRoot .sheet[data-acct] .fbtn.save{background:color-mix(in srgb,var(--ac) 88%,#000);color:#fff}
+:root[data-ui="nitido"] #sheetRoot .sheet[data-acct] .frow.amount input{color:var(--text)}
+:root[data-ui="nitido"] #sheetRoot .sheet[data-acct] .head button{color:var(--accent)}
+:root[data-ui="nitido"] .morehd{background:var(--s2);box-shadow:none;border-radius:14px;font-weight:600}
+:root[data-ui="nitido"] .morehd em{color:var(--accent)}
+:root[data-ui="nitido"] .cmlist{background:var(--s2);border-radius:18px;box-shadow:0 22px 50px -14px rgba(0,0,0,.65),0 0 0 1px var(--sep)}
+:root[data-ui="nitido"] .cmrow{font-weight:500;border-radius:11px}
+:root[data-ui="nitido"] .cmrow.on{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+:root[data-ui="nitido"] .mini{border-radius:8px;background:color-mix(in srgb,var(--cc) 22%,transparent);color:color-mix(in srgb,var(--cc) 86%,var(--text))}
+:root[data-ui="nitido"] .mini.lg{border-radius:16px}
+:root[data-ui="nitido"] .mini.lg svg{fill:currentColor}
+:root[data-ui="nitido"] .catgrid button.on .mini{box-shadow:none}
+:root[data-ui="nitido"] .cpick{background:var(--s2);box-shadow:none}
+:root[data-ui="nitido"] .catgrid button{background:var(--s2);box-shadow:none}
+:root[data-ui="nitido"] .warn{background:color-mix(in srgb,var(--warn) 15%,var(--s1));color:color-mix(in srgb,var(--warn) 55%,var(--text));border-radius:16px}
+:root[data-ui="nitido"] .lrow button,:root[data-ui="nitido"] .arw{background:var(--s3);border-radius:9px}
+:root[data-ui="nitido"] .seg.sm button.on{background:var(--pl);color:#fff}
+
+/* ---------- menu del + ---------- */
+:root[data-ui="nitido"] .amback{background:rgba(5,7,12,.68);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+:root[data-ui="nitido"] .amdot{border-radius:20px;background:var(--s2);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cc) 45%,transparent),0 14px 28px -10px rgba(0,0,0,.6)}
+:root[data-ui="nitido"] .amdot .gl{fill:color-mix(in srgb,var(--cc) 80%,#fff)}
+:root[data-ui="nitido"] .amlbl{background:var(--s2);color:var(--text);border-radius:10px;font-weight:500;text-shadow:none;padding:6px 12px}
+:root[data-ui="nitido"] .amx{border-radius:22px;background:var(--pl);box-shadow:0 12px 26px -10px color-mix(in srgb,var(--pl) 85%,transparent)}
+
+/* ---------- statistiche ---------- */
+:root[data-ui="nitido"] .card{background:var(--s1);border-radius:18px;box-shadow:none}
+:root[data-ui="nitido"] .card.hero,:root[data-ui="nitido"] .nowc{background:var(--s1)}
+:root[data-ui="nitido"] .card.hero .t,:root[data-ui="nitido"] .nowc .t,:root[data-ui="nitido"] .card.acc .t{font-size:13px;font-weight:500;color:var(--muted)}
+:root[data-ui="nitido"] .card.hero .v{font-size:38px;font-weight:600;letter-spacing:-.04em}
+:root[data-ui="nitido"] .nowc .v,:root[data-ui="nitido"] .card.acc .v{font-weight:600;letter-spacing:-.035em}
+:root[data-ui="nitido"] .card.hero .v.pos{color:var(--in)}
+:root[data-ui="nitido"] .nowc .fill{background:var(--accent)}
+:root[data-ui="nitido"] .nowc .sm,:root[data-ui="nitido"] .card.hero .sm{font-weight:500}
+:root[data-ui="nitido"] .sechead{font-size:15px;font-weight:600;letter-spacing:-.01em}
+:root[data-ui="nitido"] .ssec .sh{background:var(--s1);border-radius:16px;box-shadow:none;font-size:15px;font-weight:600}
+:root[data-ui="nitido"] .bars .col{background:var(--carta)}
+:root[data-ui="nitido"] .bars .col.sv{background:var(--in)}
+:root[data-ui="nitido"] .wd .hot i{background:var(--accent)}
+:root[data-ui="nitido"] .hbar .top{font-weight:500}
+:root[data-ui="nitido"] .hbar .track,:root[data-ui="nitido"] .split{background:var(--s3)}
+:root[data-ui="nitido"] .kv{font-weight:500}
+:root[data-ui="nitido"] .kv b{font-weight:600}
+:root[data-ui="nitido"] .lv b{font-weight:600}
+:root[data-ui="nitido"] .sumhero{background:var(--s2);color:var(--text);border-radius:18px}
+:root[data-ui="nitido"] .sumhero::after{display:none}
+:root[data-ui="nitido"] .sh-l{color:var(--muted);font-weight:500}
+:root[data-ui="nitido"] .sh-v{font-weight:600;letter-spacing:-.04em}
+:root[data-ui="nitido"] .sh-v.neg{color:var(--red)}
+:root[data-ui="nitido"] .donut text{font-weight:700}
+
+/* ---------- Altro: elenco con icone, come le Impostazioni di iOS ---------- */
+:root[data-ui="nitido"] .row{padding:12px 14px;gap:12px}
+:root[data-ui="nitido"] .row .ttl{font-weight:500;font-size:15.5px}
+:root[data-ui="nitido"] .row .sm{font-size:12.5px;margin-top:2px}
+:root[data-ui="nitido"] .row+.row::before{left:56px}
+:root[data-ui="nitido"] #sheetRoot .row+.row::before{left:16px}
+:root[data-ui="nitido"] .rico{flex:0 0 30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--c) 20%,transparent);color:color-mix(in srgb,var(--c) 88%,var(--text))}
+:root[data-ui="nitido"] .rico svg{width:18px;height:18px;fill:currentColor}
+:root[data-ui="nitido"] .empty{color:var(--muted)}
+
+/* ---------- ritocchi ---------- */
+:root[data-ui="nitido"] #sheetRoot .card{background:var(--s2)}
+:root[data-ui="nitido"] #sheetRoot .kv+.kv{border-top-color:var(--sep)}
+:root[data-ui="nitido"] .gsum b.neg{color:var(--text)}
+
+
+/* ===================================================================
+   Liquid Glass = Nitido + vetro (Altro > Aspetto > Stile grafico), in chiaro e in scuro.
+   Stessa struttura e stessa logica di Nitido: Carta blu, Contanti verde, uscite neutre, icone a riquadro.
+   Il vetro sta dove le cose galleggiano (barra in basso, fogli, menu, tasti in alto, riquadri dei saldi):
+   sfocatura, bordo luminoso, riflessi. I movimenti restano leggibili: appena traslucidi, senza sfocatura.
+   Si attiva con data-ui="nitido" e data-glass sull'elemento html.
+   =================================================================== */
+:root[data-ui="nitido"][data-glass]{
+  --bg:#E3E9F8;
+  --s1:rgba(255,255,255,.60);--s2:rgba(255,255,255,.44);--s3:rgba(60,82,150,.15);
+  --text:#0B1124;--muted:#46526E;--faint:#76829F;--sep:rgba(50,70,130,.14);
+  --g-glass:rgba(255,255,255,.52);--g-sheet:rgba(243,246,255,.74);--g-pop:rgba(250,252,255,.9);--g-on:rgba(255,255,255,.96);
+  --g-rim:rgba(255,255,255,.95);--g-rim2:rgba(255,255,255,.6);--g-drop:rgba(40,62,135,.36);
+  --g-rowfx:inset 0 1px 0 rgba(255,255,255,.95),0 8px 16px -12px rgba(40,62,135,.42);
+  --g-bar:rgba(255,255,255,.62);--g-tab-on:var(--accent);
+  --bl1:rgba(45,98,224,.30);--bl2:rgba(14,156,118,.26);--bl3:rgba(110,110,255,.22);--bl4:rgba(255,150,170,.22);
+}
+@media (prefers-color-scheme:dark){
+  :root[data-ui="nitido"][data-glass]:not([data-theme="light"]){
+    --bg:#060914;
+    --s1:rgba(255,255,255,.07);--s2:rgba(255,255,255,.105);--s3:rgba(255,255,255,.17);
+    --text:#F2F5FF;--muted:#AAB4D0;--faint:#7D88A7;--sep:rgba(255,255,255,.11);
+    --g-glass:rgba(255,255,255,.085);--g-sheet:rgba(15,20,40,.68);--g-pop:rgba(22,28,52,.9);--g-on:rgba(255,255,255,.2);
+    --g-rim:rgba(255,255,255,.38);--g-rim2:rgba(255,255,255,.1);--g-drop:rgba(0,0,0,.8);
+    --g-rowfx:inset 0 1px 0 rgba(255,255,255,.15),0 8px 16px -12px rgba(0,0,0,.7);
+    --g-bar:rgba(14,18,38,.58);--g-tab-on:color-mix(in srgb,var(--accent) 58%,#fff);
+    --bl1:rgba(63,111,235,.44);--bl2:rgba(47,199,154,.26);--bl3:rgba(84,100,255,.28);--bl4:rgba(63,111,235,.24);
+  }
+}
+:root[data-ui="nitido"][data-glass][data-theme="dark"]{
+  --bg:#060914;
+  --s1:rgba(255,255,255,.07);--s2:rgba(255,255,255,.105);--s3:rgba(255,255,255,.17);
+  --text:#F2F5FF;--muted:#AAB4D0;--faint:#7D88A7;--sep:rgba(255,255,255,.11);
+  --g-glass:rgba(255,255,255,.085);--g-sheet:rgba(15,20,40,.68);--g-pop:rgba(22,28,52,.9);--g-on:rgba(255,255,255,.2);
+  --g-rim:rgba(255,255,255,.38);--g-rim2:rgba(255,255,255,.1);--g-drop:rgba(0,0,0,.8);
+  --g-rowfx:inset 0 1px 0 rgba(255,255,255,.15),0 8px 16px -12px rgba(0,0,0,.7);
+    --g-bar:rgba(14,18,38,.58);--g-tab-on:color-mix(in srgb,var(--accent) 58%,#fff);
+  --bl1:rgba(63,111,235,.44);--bl2:rgba(47,199,154,.26);--bl3:rgba(84,100,255,.28);--bl4:rgba(63,111,235,.24);
+}
+/* chi preferisce meno trasparenza la ottiene */
+@media (prefers-reduced-transparency:reduce){
+  :root[data-ui="nitido"][data-glass]{--s1:#FFFFFF;--s2:#F0F2F7;--s3:#E2E6F0;--g-glass:#FFFFFF;--g-sheet:#F6F8FD;--g-pop:#FFFFFF;--g-on:#FFFFFF;--g-bar:#FFFFFF}
+  @media (prefers-color-scheme:dark){:root[data-ui="nitido"][data-glass]:not([data-theme="light"]){--s1:#141923;--s2:#1B2130;--s3:#262D40;--g-glass:#1B2130;--g-sheet:#141923;--g-pop:#1B2130;--g-on:#2F374C;--g-bar:#141923}}
+  :root[data-ui="nitido"][data-glass][data-theme="dark"]{--s1:#141923;--s2:#1B2130;--s3:#262D40;--g-glass:#1B2130;--g-sheet:#141923;--g-pop:#1B2130;--g-on:#2F374C;--g-bar:#141923}
+}
+
+/* sfondo: aloni dei colori dell'app (il blu della carta, il verde dei contanti) dietro a tutto */
+:root[data-ui="nitido"][data-glass] body{background:transparent}
+:root[data-ui="nitido"][data-glass] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(70% 30% at 28% 4%,var(--bl1),transparent 70%),radial-gradient(60% 28% at 96% 14%,var(--bl2),transparent 70%),
+    radial-gradient(80% 36% at 6% 98%,var(--bl3),transparent 70%),radial-gradient(60% 30% at 100% 100%,var(--bl4),transparent 70%)}
+:root[data-ui="nitido"][data-glass] body::after{content:none}
+
+/* testata e ricerca */
+:root[data-ui="nitido"][data-glass] .iconbtn{background:var(--g-glass);-webkit-backdrop-filter:blur(18px) saturate(170%);backdrop-filter:blur(18px) saturate(170%);
+  box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2),0 8px 16px -10px var(--g-drop)}
+:root[data-ui="nitido"][data-glass] .iconbtn:active{background:var(--g-on)}
+:root[data-ui="nitido"][data-glass] .iconbtn.on{background:color-mix(in srgb,var(--accent) 32%,var(--g-glass))}
+:root[data-ui="nitido"][data-glass] .search input{background:var(--g-glass);box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2)}
+:root[data-ui="nitido"][data-glass] .search input:focus{box-shadow:0 0 0 2px var(--accent)}
+:root[data-ui="nitido"][data-glass] .activef{background:color-mix(in srgb,var(--accent) 24%,var(--g-glass))}
+
+/* saldi: vetro tinto dal conto, con un riflesso in alto a destra */
+:root[data-ui="nitido"][data-glass] .bx,:root[data-ui="nitido"][data-glass] .bx.carta,:root[data-ui="nitido"][data-glass] .bx.contanti{-webkit-backdrop-filter:blur(20px) saturate(170%);backdrop-filter:blur(20px) saturate(170%);
+  box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2),0 16px 28px -16px var(--g-drop)}
+:root[data-ui="nitido"][data-glass] .bx.carta{background:linear-gradient(150deg,color-mix(in srgb,var(--carta) 44%,transparent),color-mix(in srgb,var(--carta) 13%,transparent) 72%)}
+:root[data-ui="nitido"][data-glass] .bx.contanti{background:linear-gradient(150deg,color-mix(in srgb,var(--cash) 44%,transparent),color-mix(in srgb,var(--cash) 13%,transparent) 72%)}
+:root[data-ui="nitido"][data-glass] .bx::after{content:"";width:120px;height:80px;right:-24px;top:-30px;background:radial-gradient(closest-side,rgba(255,255,255,.34),rgba(255,255,255,0))}
+:root[data-ui="nitido"][data-glass] .dbox{background:var(--g-glass);-webkit-backdrop-filter:blur(18px) saturate(160%);backdrop-filter:blur(18px) saturate(160%);
+  box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2),0 12px 24px -16px var(--g-drop)}
+:root[data-ui="nitido"][data-glass] .dbox.saved.bad{background:color-mix(in srgb,var(--red) 22%,var(--g-glass))}
+
+/* controlli */
+:root[data-ui="nitido"][data-glass] .seg{background:var(--g-glass);-webkit-backdrop-filter:blur(18px) saturate(160%);backdrop-filter:blur(18px) saturate(160%);border-radius:99px;
+  box-shadow:inset 0 1px 0 var(--g-rim2),inset 0 0 0 1px var(--g-rim2)}
+:root[data-ui="nitido"][data-glass] .seg button{border-radius:99px}
+:root[data-ui="nitido"][data-glass] .seg button.on{background:var(--g-on);color:var(--text);box-shadow:inset 0 1px 0 var(--g-rim),0 4px 12px -4px var(--g-drop)}
+:root[data-ui="nitido"][data-glass] .seg.sm button.on{background:var(--pl);color:#fff;box-shadow:none}
+:root[data-ui="nitido"][data-glass] #sheetRoot .seg{background:var(--s2);-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}
+:root[data-ui="nitido"][data-glass] #sheetRoot .seg button.on{background:var(--g-on);box-shadow:inset 0 1px 0 var(--g-rim),0 4px 12px -4px var(--g-drop)}
+:root[data-ui="nitido"][data-glass] #sheetRoot .seg.sm button.on{background:var(--pl);box-shadow:none}
+:root[data-ui="nitido"][data-glass] .btn,:root[data-ui="nitido"][data-glass] .fbtn.save{background-image:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,0) 55%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 0 0 1px rgba(255,255,255,.12),0 12px 24px -12px color-mix(in srgb,var(--pl) 80%,transparent)}
+:root[data-ui="nitido"][data-glass] #sheetRoot .sheet[data-acct] .fbtn.save{background-image:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,0) 55%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 0 0 1px rgba(255,255,255,.12),0 12px 24px -12px color-mix(in srgb,var(--ac) 80%,transparent)}
+:root[data-ui="nitido"][data-glass] .btn.sec{background:var(--g-glass);background-image:none;color:var(--accent);box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2)}
+:root[data-ui="nitido"][data-glass] .btn.red{background:color-mix(in srgb,var(--red) 18%,var(--g-glass));background-image:none;box-shadow:none}
+:root[data-ui="nitido"][data-glass] .fbtn.del{background:color-mix(in srgb,var(--red) 18%,var(--g-glass))}
+
+/* movimenti: appena traslucidi, bordo luminoso in alto, striscia del conto */
+:root[data-ui="nitido"][data-glass] .mv{box-shadow:var(--g-rowfx)}
+:root[data-ui="nitido"][data-glass] .mv.unp{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--red) 55%,transparent),var(--g-rowfx)}
+:root[data-ui="nitido"][data-glass][data-mvs="rail"] .mv.ac-carta{box-shadow:inset 4px 0 0 var(--carta),var(--g-rowfx)}
+:root[data-ui="nitido"][data-glass][data-mvs="rail"] .mv.ac-cash{box-shadow:inset 4px 0 0 var(--cash),var(--g-rowfx)}
+:root[data-ui="nitido"][data-glass][data-mvs="rail"] .mv.unp.ac-carta{box-shadow:inset 4px 0 0 var(--carta),inset 0 0 0 1.5px color-mix(in srgb,var(--red) 55%,transparent),var(--g-rowfx)}
+:root[data-ui="nitido"][data-glass][data-mvs="rail"] .mv.unp.ac-cash{box-shadow:inset 4px 0 0 var(--cash),inset 0 0 0 1.5px color-mix(in srgb,var(--red) 55%,transparent),var(--g-rowfx)}
+:root[data-ui="nitido"][data-glass][data-mvs="solid"] .mv.ac-carta,:root[data-ui="nitido"][data-glass][data-mvs="solid"] .mv.ac-cash{background-image:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,0) 60%)}
+:root[data-ui="nitido"][data-glass] .mv .ico{box-shadow:inset 0 1px 0 rgba(255,255,255,.28)}
+:root[data-ui="nitido"][data-glass] button.mv:active{background:var(--g-on)}
+
+/* barra in basso: capsula di vetro, la voce attiva e' una lente luminosa */
+:root[data-ui="nitido"][data-glass] .tabpill{background:var(--g-bar);-webkit-backdrop-filter:blur(30px) saturate(150%);backdrop-filter:blur(30px) saturate(150%);border:0;border-radius:32px;
+  box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2),0 20px 40px -14px var(--g-drop)}
+:root[data-ui="nitido"][data-glass] .tabpill button{color:var(--muted);isolation:isolate}
+:root[data-ui="nitido"][data-glass] .tabpill button.on{color:var(--g-tab-on)}
+:root[data-ui="nitido"][data-glass] .tabpill button.on::before{content:"";position:absolute;inset:6px 2px;border-radius:24px;z-index:-1;background:var(--g-on);
+  box-shadow:inset 0 1px 0 var(--g-rim),0 4px 12px -4px var(--g-drop)}
+:root[data-ui="nitido"][data-glass] #tabs .plus,:root[data-ui="nitido"][data-glass] .amx{border-radius:50%;background-image:radial-gradient(120% 90% at 28% 12%,rgba(255,255,255,.55),rgba(255,255,255,0) 55%);
+  box-shadow:inset 0 1.5px 1px rgba(255,255,255,.7),inset 0 -8px 14px rgba(0,0,0,.16),0 16px 30px -10px color-mix(in srgb,var(--pl) 75%,transparent)}
+:root[data-ui="nitido"][data-glass] #selBar{background:var(--g-pop);-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);border-radius:28px;
+  box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2),0 20px 40px -14px var(--g-drop)}
+:root[data-ui="nitido"][data-glass] #selFab{background:var(--g-pop);-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);border-radius:50%;
+  box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2),0 16px 30px -12px var(--g-drop)}
+:root[data-ui="nitido"][data-glass] #toast{background:var(--g-pop);-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);
+  box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2),0 16px 34px -14px var(--g-drop)}
+
+/* fogli e menu: lastre di vetro sopra la pagina */
+:root[data-ui="nitido"][data-glass] #sheetRoot .back{background:rgba(6,9,22,.34);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+:root[data-ui="nitido"][data-glass] #sheetRoot .sheet{background:var(--g-sheet);-webkit-backdrop-filter:blur(34px) saturate(180%);backdrop-filter:blur(34px) saturate(180%);
+  box-shadow:inset 0 1px 0 var(--g-rim),0 -26px 60px -26px var(--g-drop)}
+:root[data-ui="nitido"][data-glass] #sheetRoot .sheet::before{background:color-mix(in srgb,var(--text) 30%,transparent)}
+:root[data-ui="nitido"][data-glass] #sheetRoot .sheet[data-acct]{background:linear-gradient(180deg,color-mix(in srgb,var(--ac) 28%,transparent),transparent 300px),var(--g-sheet);
+  box-shadow:inset 0 2.5px 0 var(--ac),0 -26px 60px -26px var(--g-drop)}
+:root[data-ui="nitido"][data-glass] .sheet .foot{background:transparent}
+:root[data-ui="nitido"][data-glass] #sheetRoot :is(.form,.list,.card,.morehd,.cpick){box-shadow:inset 0 1px 0 var(--g-rim2),inset 0 0 0 1px var(--g-rim2)}
+:root[data-ui="nitido"][data-glass] .cmlist{background:var(--g-pop);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+  box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2),0 24px 50px -16px var(--g-drop)}
+:root[data-ui="nitido"][data-glass] .amback{background:rgba(6,9,22,.46);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+:root[data-ui="nitido"][data-glass] .amdot{border-radius:50%;background:linear-gradient(145deg,color-mix(in srgb,var(--cc) 46%,transparent),color-mix(in srgb,var(--cc) 16%,transparent));
+  -webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 0 0 1px color-mix(in srgb,var(--cc) 45%,transparent),0 16px 30px -10px rgba(0,0,0,.6)}
+:root[data-ui="nitido"][data-glass] .amdot .gl{fill:#fff}
+:root[data-ui="nitido"][data-glass] .amlbl{background:var(--g-pop);-webkit-backdrop-filter:blur(20px) saturate(170%);backdrop-filter:blur(20px) saturate(170%);
+  box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2)}
+
+/* statistiche e Altro: schede appena traslucide con il bordo luminoso */
+:root[data-ui="nitido"][data-glass] .card:not(.tag),:root[data-ui="nitido"][data-glass] .list,:root[data-ui="nitido"][data-glass] .ssec .sh,:root[data-ui="nitido"][data-glass] .cpick{box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2),0 12px 26px -18px var(--g-drop)}

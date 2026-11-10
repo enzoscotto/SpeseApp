@@ -1168,33 +1168,34 @@ function recEditor(rule) {
 const q2 = (w, s) => w.querySelector(s);
 
 // ---------- ALTRO ----------
+const ri = (name, color) => uiPref() !== 'classic' ? `<span class="rico" style="--c:${color}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name]}"/></svg></span>` : '';
 function viewAltro() {
   const d = backupDays(), n = S.state.transactions.length;
   const warn = !Sync.config() && n > 0 && (d === null || d > 30) ? `<div class="warn">⚠️ ${d === null ? 'Non hai ancora fatto nessun backup.' : `Ultimo backup ${d} giorni fa.`} I dati sono salvati solo su questo iPhone: esporta un backup e salvalo su iCloud Drive.</div>` : '';
   return `<div class="bar"><h1>Altro</h1><div class="nav">${eyeBtn()}</div></div>${warn}
   <div class="sechead"><span>Aspetto</span></div>
-  <div class="list"><button class="row" data-act="themeSheet"><div class="main"><div class="ttl">Tema</div><div class="sm">${{ auto: 'Automatico (come l’iPhone)', light: 'Chiaro', dark: 'Scuro' }[themePref()]}</div></div></button><button class="row" data-act="colorSheet"><div class="main"><div class="ttl">Personalizzazione</div><div class="sm">Colori di Carta, Contanti, entrate, uscite</div></div></button><button class="row" data-act="mvStyleSheet"><div class="main"><div class="ttl">Colori dei movimenti</div><div class="sm">${MVS[mvStyle()]}</div></div></button></div>
+  <div class="list"><button class="row" data-act="uiSheet">${ri('palette', '#B07BFF')}<div class="main"><div class="ttl">Stile grafico</div><div class="sm">${UIS[uiPref()][0]}</div></div></button><button class="row" data-act="themeSheet">${ri('theme-light-dark', '#7C7BFF')}<div class="main"><div class="ttl">Tema</div><div class="sm">${{ auto: 'Automatico (come l’iPhone)', light: 'Chiaro', dark: 'Scuro' }[themePref()]}</div></div></button><button class="row" data-act="colorSheet">${ri('palette-swatch', '#FF9F4A')}<div class="main"><div class="ttl">Personalizzazione</div><div class="sm">Colori di Carta, Contanti, entrate, uscite</div></div></button><button class="row" data-act="mvStyleSheet">${ri('view-list', '#4DB8E8')}<div class="main"><div class="ttl">Colori dei movimenti</div><div class="sm">${MVS[mvStyle()]}</div></div></button></div>
   <div class="sechead"><span>Movimenti</span></div>
-  <div class="list"><label class="row"><div class="main"><div class="ttl">Raggruppa movimenti</div><div class="sm">Crea gruppi con un nome e il totale dei loro movimenti, ad esempio un acquisto per qualcuno e i soldi che ti ridà</div></div><span class="switch"><input type="checkbox" data-groups ${groupsOn() ? 'checked' : ''}><i></i></span></label>
-    <label class="row"><div class="main"><div class="ttl">Chiudi i gruppi</div><div class="sm">Mostra solo il riquadro del gruppo con nome e totale; i movimenti si aprono con la freccia</div></div><span class="switch"><input type="checkbox" data-gclosed ${groupsClosed() ? 'checked' : ''}><i></i></span></label></div>
+  <div class="list"><label class="row">${ri('folder-multiple', '#F5B84B')}<div class="main"><div class="ttl">Raggruppa movimenti</div><div class="sm">Crea gruppi con un nome e il totale dei loro movimenti, ad esempio un acquisto per qualcuno e i soldi che ti ridà</div></div><span class="switch"><input type="checkbox" data-groups ${groupsOn() ? 'checked' : ''}><i></i></span></label>
+    <label class="row">${ri('unfold-less-horizontal', '#F5B84B')}<div class="main"><div class="ttl">Chiudi i gruppi</div><div class="sm">Mostra solo il riquadro del gruppo con nome e totale; i movimenti si aprono con la freccia</div></div><span class="switch"><input type="checkbox" data-gclosed ${groupsClosed() ? 'checked' : ''}><i></i></span></label></div>
   <div class="sechead"><span>Categorie</span></div>
-  <div class="list"><button class="row" data-act="catSheet"><div class="main"><div class="ttl">Gestisci categorie</div><div class="sm">${S.state.transactions.filter(t => !t.cat).length} movimenti da categorizzare</div></div></button></div>
+  <div class="list"><button class="row" data-act="catSheet">${ri('tag-multiple', '#34C79A')}<div class="main"><div class="ttl">Gestisci categorie</div><div class="sm">${S.state.transactions.filter(t => !t.cat).length} movimenti da categorizzare</div></div></button></div>
   <div class="sechead"><span>Spese ricorrenti</span></div>
-  <div class="list"><button class="row" data-act="recurringSheet"><div class="main"><div class="ttl">Spese ricorrenti</div><div class="sm">${(S.state.meta.recurring || []).length ? (S.state.meta.recurring || []).filter(r => !r.off).length + ' attive · inserite in automatico' : 'Abbonamenti, rate, affitto: inseriti in automatico'}</div></div></button></div>
+  <div class="list"><button class="row" data-act="recurringSheet">${ri('repeat', '#FF8A5B')}<div class="main"><div class="ttl">Spese ricorrenti</div><div class="sm">${(S.state.meta.recurring || []).length ? (S.state.meta.recurring || []).filter(r => !r.off).length + ' attive · inserite in automatico' : 'Abbonamenti, rate, affitto: inseriti in automatico'}</div></div></button></div>
   <div class="sechead"><span>Excel e sincronizzazione</span></div>
-  <div class="list"><button class="row" data-act="syncSheet"><div class="main"><div class="ttl">Sincronizzazione GitHub</div><div class="sm">${esc(syncLine())}</div></div></button></div>
+  <div class="list"><button class="row" data-act="syncSheet">${ri('cloud-sync', '#5B8CFF')}<div class="main"><div class="ttl">Sincronizzazione GitHub</div><div class="sm">${esc(syncLine())}</div></div></button></div>
   <div class="sechead"><span>Backup e dati</span></div>
   <div class="list">
-    <button class="row" data-act="export"><div class="main"><div class="ttl">Esporta backup (JSON)</div></div></button>
-    <label class="row"><div class="main"><div class="ttl">Importa / ripristina backup</div></div><input type="file" accept=".json,application/json" hidden data-import="ask"></label>
-    <button class="row" data-act="csv"><div class="main"><div class="ttl">Esporta tutti i movimenti (CSV)</div></div></button>
+    <button class="row" data-act="export">${ri('database-export', '#8F9BB5')}<div class="main"><div class="ttl">Esporta backup (JSON)</div></div></button>
+    <label class="row">${ri('database-import', '#8F9BB5')}<div class="main"><div class="ttl">Importa / ripristina backup</div></div><input type="file" accept=".json,application/json" hidden data-import="ask"></label>
+    <button class="row" data-act="csv">${ri('file-delimited', '#8F9BB5')}<div class="main"><div class="ttl">Esporta tutti i movimenti (CSV)</div></div></button>
   </div>
   <div class="sechead"><span>Riepilogo</span></div>
   <div class="card"><div class="kv"><span>Mesi</span><b>${S.state.periods.length}</b></div><div class="kv"><span>Movimenti</span><b>${n}</b></div><div class="kv"><span>Voci di debito</span><b>${S.state.debts.length}</b></div></div>
   <div class="sechead"><span>App</span></div>
   <div class="list">
-    <button class="row" data-act="update"><div class="main"><div class="ttl">Aggiorna app</div></div></button>
-    <button class="row" data-act="wipe"><div class="main"><div class="ttl neg">Cancella tutti i dati</div></div></button>
+    <button class="row" data-act="update">${ri('refresh', '#8F9BB5')}<div class="main"><div class="ttl">Aggiorna app</div></div></button>
+    <button class="row" data-act="wipe">${ri('delete-alert', '#FF7B6C')}<div class="main"><div class="ttl neg">Cancella tutti i dati</div></div></button>
   </div>`;
 }
 
@@ -1272,12 +1273,30 @@ function openGroupSheet(gid) {
   });
 }
 
+// ---------- stile grafico ----------
+const UIS = { classic: ['Classico', 'L’aspetto di sempre: schede piene e pulite'], nitido: ['Nitido', 'Superfici piene e piatte, icone a riquadro e colore solo dove serve: le uscite non sono rosse'], glass: ['Liquid Glass', 'Nitido con il vetro: sfondo di colore sfocato, barra in basso, fogli e riquadri dei saldi traslucidi, bordi luminosi'] };
+function uiPref() { try { const v = localStorage.getItem('ui'); return v === 'glass' ? 'glass' : v === 'nitido' || v === 'gold' ? 'nitido' : 'classic'; } catch { return 'classic'; } }      // 'gold' (Nero e oro) non c'e' piu': chi lo usava passa a Nitido
+function setUiAttrs(v) { const r = document.documentElement; if (v === 'classic') delete r.dataset.ui; else r.dataset.ui = 'nitido'; if (v === 'glass') r.dataset.glass = '1'; else delete r.dataset.glass; }      // Liquid Glass = Nitido + data-glass
+function applyUi(v) {
+  setUiAttrs(v);
+  try { localStorage.setItem('ui', v); } catch { /* ignore */ }
+  applyMvStyle(mvStyle());
+}
+function uiSheet() {
+  const cur = uiPref();
+  openSheet('Stile grafico', `<div class="list">${Object.entries(UIS).map(([k, [n, d]]) => `<button class="row" data-u="${k}"><div class="main"><div class="ttl">${n}${cur === k ? ' ✓' : ''}</div><div class="sm">${d}</div></div></button>`).join('')}</div>`, {
+    onMount: (w, close) => w.querySelectorAll('[data-u]').forEach(b => b.onclick = () => { applyUi(b.dataset.u); close(); render(); })
+  });
+}
+
 // ---------- colori dei movimenti ----------
 const MVS = { rail: 'Striscia a lato', soft: 'Sfondo tenue', solid: 'Barra piena' };
-function mvStyle() { try { const v = localStorage.getItem('mvs'); return MVS[v] ? v : 'soft'; } catch { return 'soft'; } }
-function applyMvStyle(v) { document.documentElement.dataset.mvs = v; try { localStorage.setItem('mvs', v); } catch { /* ignore */ } }
+const mvKey = () => uiPref() === 'classic' ? 'mvs' : 'mvsN';      // Nitido e Liquid Glass hanno la loro scelta, che parte dalla striscia a lato
+const mvDefault = () => uiPref() === 'classic' ? 'soft' : 'rail';
+function mvStyle() { try { const v = localStorage.getItem(mvKey()); return MVS[v] ? v : mvDefault(); } catch { return mvDefault(); } }
+function applyMvStyle(v) { document.documentElement.dataset.mvs = v; try { localStorage.setItem(mvKey(), v); } catch { /* ignore */ } }
 function mvStyleSheet() {
-  const cur = mvStyle(), d = { rail: 'Movimento neutro con una striscia blu (carta) o verde (contanti) a sinistra', soft: 'Tutta la barra con una tinta leggera del colore del conto', solid: 'Barra blu o verde come i riquadri in alto, con l’importo in una chip bianca' };
+  const cur = mvStyle(), d = { rail: 'Movimento neutro con una striscia blu (carta) o verde (contanti) a sinistra', soft: 'Tutta la barra con una tinta leggera del colore del conto', solid: 'Barra piena blu o verde, con l’importo in una chip bianca' };
   openSheet('Colori dei movimenti', `<div class="list">${Object.keys(MVS).map(k => `<button class="row" data-s="${k}"><div class="main"><div class="ttl">${MVS[k]}${cur === k ? ' ✓' : ''}</div><div class="sm">${d[k]}</div></div></button>`).join('')}</div>`, {
     onMount: (w, close) => w.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { applyMvStyle(b.dataset.s); close(); render(); })
   });
@@ -1307,7 +1326,7 @@ function applyColors() {
   }
   put('--accent', ok('accent'));
   put('--in', ok('in')); put('--green', ok('in')); put('--in-strong', ok('in'));
-  put('--red', ok('red'));
+  put('--red', ok('red')); put('--out', ok('red'));
 }
 const cssColor = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 function colorSheet() {
@@ -1644,7 +1663,7 @@ const actions = {
   statYear: el => { ui.statYear = el.dataset.id; render(); },
   searchCat: el => { ui.q = ''; ui.catf = el.dataset.id === 'Senza categoria' ? '__none' : el.dataset.id; ui.allMonths = true; ui.tab = 'mese'; render(); window.scrollTo(0, 0); },
   allMonths: () => { ui.allMonths = !ui.allMonths; render(); },
-  export: doExport, csv: doCsv, syncSheet, catSheet, themeSheet, colorSheet, recurringSheet,
+  export: doExport, csv: doCsv, syncSheet, catSheet, themeSheet, colorSheet, recurringSheet, uiSheet,
   restoreSync: async () => {
     try { const d = await Sync.download(); await S.importData(d, 'replace'); await S.setMeta('catV', 3); await S.setMeta('groupsV', 1); await applyMeta(d); ui.periodId = null; C.ensurePeriodFor(C.today()); render(); toast('Dati ripristinati'); }
     catch (e) { alert(e.message); }
@@ -1663,6 +1682,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id
 // ---------- avvio ----------
 (async function boot() {
   C.setPrivacy(privacyOn());
+  setUiAttrs(uiPref());
   applyMvStyle(mvStyle());
   try {
     await S.load();
