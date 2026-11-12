@@ -450,9 +450,9 @@ function editPeriod() {
 const peopleNames = () => C.people().map(p => p.name).sort((a, b) => a.localeCompare(b));
 
 // ---------- spese per categoria (statistiche) ----------
-// Prestiti e riconversioni non sono spese. Un rimborso registrato sulla stessa riga di una spesa (stesso gruppo) la riduce:
+// Prestiti, contributo mensile alla famiglia e riconversioni non contano come spese per categoria. Un rimborso registrato sulla stessa riga di una spesa (stesso gruppo) la riduce:
 // cosi' un acquisto pagato da te e rimborsato da altri conta solo per la parte che ti e' costata davvero.
-const NOT_SPEND = new Set(['Riconversione', 'Prestiti e debiti']);
+const NOT_SPEND = new Set(['Riconversione', 'Prestiti e debiti', 'Contributo Famiglia']);
 function netSpend(txs) {
   const pools = new Map(), res = new Map();
   for (const t of txs) if (t.kind === 'in' && t.cat === 'Rimborsi e rientri' && (t.gid || t.grp)) pools.set(t.gid || t.grp, (pools.get(t.gid || t.grp) || 0) + t.amount);
