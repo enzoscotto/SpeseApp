@@ -93,6 +93,18 @@ function openSheet(title, body, { onSave, saveLabel = 'Salva', deleteLabel, onMo
   return { el: wrap, close };
 }
 
+// la pagina sotto un foglio resta dov'era: alla chiusura si torna allo stesso punto (anche dopo una selezione confermata)
+let lastY = 0, sheetY = null, sheetCtx = '';
+window.addEventListener('scroll', () => { if (!document.querySelector('#sheetRoot .sheet')) lastY = window.scrollY; }, { passive: true });
+new MutationObserver(() => {
+  const open = !!document.querySelector('#sheetRoot .sheet');
+  if (open && sheetY === null) { sheetY = window.scrollY || lastY; sheetCtx = ui.tab + '|' + ui.periodId; }
+  if (!open && sheetY !== null) {
+    const y = sheetY; sheetY = null;
+    if (!pageBusy && sheetCtx === ui.tab + '|' + ui.periodId && Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y);
+  }
+}).observe($('#sheetRoot'), { childList: true });
+
 // ---------- tabs ----------
 function renderTabs() {
   const t = (id, label, ic, dot) => `<button data-act="tab" data-id="${id}" class="${ui.tab === id ? 'on' : ''} ${dot ? 'dot' : ''}">${ic}<span>${label}</span></button>`;
@@ -105,18 +117,25 @@ function renderTabs() {
 function render() {
   if (ui.tab !== 'mese') ui.sel = null;
   renderTabs();
-  const v = $('#view');
+  const v = $('#view'), y0 = window.scrollY;
   v.innerHTML = ({ mese: viewMese, stat: viewStat, altro: viewAltro })[ui.tab]();
   if (ui.tab === 'mese') { renderList(); fitBx(); }
   if (ui.tab === 'stat') { const b = $('.bars.sc'); if (b) b.scrollLeft = b.scrollWidth; }
   renderSelBar();
   renderFab();
+  if (Math.abs(window.scrollY - y0) > 2) window.scrollTo(0, y0);      // ridisegnare non deve spostare la pagina
 }
 
 // i saldi restano su una riga anche con 5 cifre: stessa grandezza per Carta e Contanti
+// il nome del mese resta su una riga con la freccina, anche nella pagina vicina mentre scorri
+function fitTitle(root) {
+  const ttl = root.querySelector('.periodbtn'), grp = root.querySelector('.ttlgrp'); if (!ttl || !grp) return;
+  let fs = 24; ttl.style.fontSize = fs + 'px';
+  const over = () => grp.scrollWidth > grp.clientWidth + 0.5 || ttl.scrollWidth > ttl.clientWidth + 0.5;
+  while (fs > 15 && over()) { fs -= 0.5; ttl.style.fontSize = fs + 'px'; }
+}
 function fitBx() {
-  const ttl = $('#view .periodbtn'), grp = $('#view .ttlgrp');      // il nome del mese resta su una riga anche con i tasti ai lati
-  if (ttl && grp) { let fs = 26; ttl.style.fontSize = fs + 'px'; while (fs > 15 && grp.scrollWidth > grp.clientWidth + 0.5) { fs -= 0.5; ttl.style.fontSize = fs + 'px'; } }
+  document.querySelectorAll('#view, .ghost').forEach(fitTitle);
   const vs = [...document.querySelectorAll('.bx-v')]; if (!vs.length) return;
   let size = 22; vs.forEach(v => v.style.fontSize = size + 'px');
   while (size > 11 && vs.some(v => v.scrollWidth > v.clientWidth + 0.5)) { size -= 0.5; vs.forEach(v => v.style.fontSize = size + 'px'); }
@@ -266,7 +285,7 @@ function viewMese() {
     <button class="dbox saved ${p.salary != null && st.saved < 0 ? 'bad' : ''}" data-act="summary"><span>Risparmiato</span><b class="num">${p.salary == null ? '—' : (st.saved >= 0 ? money(st.saved) : '−' + money(-st.saved))}</b></button>
   </div>
   </div>
-  <div class="seg" id="acctSeg">${['tutti', 'carta', 'contanti'].map(a => `<button data-act="acct" data-id="${a}" class="${ui.acct === a ? 'on' : ''}">${{ tutti: 'Tutti', carta: 'Carta', contanti: 'Contanti' }[a]}</button>`).join('')}</div>
+  <div class="seg acctseg" id="acctSeg">${['tutti', 'carta', 'contanti'].map(a => `<button data-act="acct" data-id="${a}" class="${ui.acct === a ? 'on' : ''}">${{ tutti: 'Tutti', carta: 'Carta', contanti: 'Contanti' }[a]}</button>`).join('')}</div>
   ${ui.catf || ui.allMonths ? `<button class="activef" data-act="clearFilters">${esc(ui.catf === '__none' ? 'Senza categoria' : ui.catf || 'Tutte le categorie')}${ui.allMonths ? ' · tutti i mesi' : ''}<i>✕</i></button>` : ''}
   <div id="listBox"></div>`;
 }
@@ -277,6 +296,7 @@ function rowHtml(t, showAcct, showPeriod, sub, plain, extra) {
   const ico = glyph(t.cat), cc = t.cat ? C.catColor(t.cat) : '';
   const chips = [`<span class="tag ${t.account === 'carta' ? 'card' : 'cash'}">${t.account === 'carta' ? 'Carta' : 'Contanti'}</span>`,
     t.cat ? `<span class="tag cat">${esc(t.cat)}${t.sub ? ' · ' + esc(t.sub) : ''}</span>` : '<span class="tag nocat">Senza categoria</span>',
+    (t.cats2 || []).map(c => `<span class="tag cat" style="--cc:${C.catColor(c)}">${esc(c)}</span>`).join(''), tripChip(t),
     debt ? `<span class="tag dbt">${esc(debt.person)}</span>` : '', un, showPeriod ? `<span class="muted">${esc(fmtShort(t.date))}</span>` : '', extra || ''].join('');
   const title = esc(t.cat === 'Riconversione' && t.pair ? display(t) : (t.desc || t.category || '—'));
   const selOn = !plain && ui.sel?.has(t.id), lock = !plain && ui.sel && lockedIds.has(t.id), chk = !plain && ui.sel ? `<span class="chk ${selOn ? 'on' : ''} ${lock ? 'lk' : ''}"></span>` : '';
@@ -334,7 +354,8 @@ function groupItems(list) {   // list: movimenti gia' filtrati e ordinati -> [{ 
 function groupHtml(g, showAcct, showPeriod) {
   const all = gMembers(g.gid), tot = gTotal(all), n = all.length;
   const closed = groupsClosed(), col = closed && !ui.sel && !ui.open.has(g.gid), first = g.kids[0].date;
-  const head = `<button class="mv gh" data-act="openGroup" data-id="${g.gid}"><div class="ico">${IC.folder}</div><div class="main"><div class="mvt">${esc(gName(g.gid))}</div><div class="chips2"><span class="muted">${n} ${n === 1 ? 'movimento' : 'movimenti'}</span></div></div><div class="amt num ${sgnCls(tot)}">${signedRaw(tot)}</div>${closed ? `<span class="gtgl ${col ? '' : 'up'}" data-act="toggleGroup" data-id="${g.gid}">${IC.chev}</span>` : ''}</button>`;
+  const gSel = !!ui.sel && all.every(t => ui.sel.has(t.id));
+  const head = `<button class="mv gh ${gSel ? 'selected' : ''}" data-act="openGroup" data-id="${g.gid}">${ui.sel ? `<span class="chk ${gSel ? 'on' : ''}"></span>` : ''}<div class="ico">${IC.folder}</div><div class="main"><div class="mvt">${esc(gName(g.gid))}</div><div class="chips2"><span class="muted">${n} ${n === 1 ? 'movimento' : 'movimenti'}</span></div></div><div class="amt num ${sgnCls(tot)}">${signedRaw(tot)}</div>${closed ? `<span class="gtgl ${col ? '' : 'up'}" data-act="toggleGroup" data-id="${g.gid}">${IC.chev}</span>` : ''}</button>`;
   // aperto, il gruppo mostra anche i movimenti degli altri mesi (sfumati): nei conti del mese contano solo quelli del mese
   const mine = new Set(g.kids.map(k => k.id));
   const rows = showPeriod || ui.catf ? g.kids.map(k => ({ t: k })) : all.map(t => ({ t, out: !mine.has(t.id) }));
@@ -352,21 +373,22 @@ const relDay = d => {
   if (d === C.isoDate(y)) return 'Ieri';
   const t = fmtDay(d); return t[0].toUpperCase() + t.slice(1);
 };
-const byDateDesc = (a, b) => b[0].date.localeCompare(a[0].date) || b[1] - a[1];
+const regOf = t => t.ts || (t.row != null ? t.row : 1e9);      // ts = inserito nell'app; row = riga del foglio Excel
+const byDateDesc = (a, b) => b[0].date.localeCompare(a[0].date) || regOf(b[0]) - regOf(a[0]) || b[1] - a[1];
 
 function renderList(box = $('#listBox'), limit = 2000) {
   if (!box) return;
   box.classList.toggle('selmode', !!ui.sel);
-  lockedIds = ui.sel ? groupedIds() : new Set();
+  lockedIds = new Set();      // si puo' selezionare tutto (anche i movimenti dei gruppi, per i viaggi)
   const q = ui.q.trim().toLowerCase();
   const global = !!q || ui.allMonths;
-  const okCat = t => !ui.catf || (ui.catf === '__none' ? !t.cat : t.cat === ui.catf);
+  const okCat = t => !ui.catf || (ui.catf === '__none' ? !t.cat : catsOf(t).includes(ui.catf));
   const okAcct = t => ui.acct === 'tutti' || t.account === ui.acct;
   const qNone = q === 'senza categoria';   // anche scrivendolo nella ricerca
   let items;
   if (global) {
     items = S.state.transactions.map((t, i) => [t, i]).filter(([t]) => okAcct(t) && okCat(t) && (!q || (qNone ? !t.cat :
-      (display(t) + ' ' + (t.cat || '') + ' ' + t.amount + ' ' + (S.state.debts.find(d => d.txId === t.id)?.person || '')).toLowerCase().includes(q))));
+      (display(t) + ' ' + catsOf(t).join(' ') + ' ' + t.amount + ' ' + (S.state.debts.find(d => d.txId === t.id)?.person || '') + ' ' + (trips()[t.trip]?.name || '')).toLowerCase().includes(q))));
   } else {
     items = S.txOf(ui.periodId).map((t, i) => [t, i]).filter(([t]) => okAcct(t) && okCat(t));
   }
@@ -598,6 +620,7 @@ function openTxSheet(existing, preset = {}) {
     kind: e ? e.kind : (preset.kind || 'out'), acct: e ? e.account : (preset.acct || S.state.meta.lastAcct || 'carta'), giro: false, giroDir: 'prelievo',
     cat: e ? (e.cat || null) : null, catManual: !!(e && e.cat), catClicked: false, sub: e?.sub || null, subManual: !!e?.sub,
     more: !!(e && (ret0 || debt0 || e.unpaid)),
+    cats2: [...(e?.cats2 || [])], trip: e?.trip || '',
   };
   const body = `
     <div class="seg big" id="fKind" style="margin-bottom:12px" ${e ? '' : 'hidden'}><button data-v="out">Uscita</button><button data-v="in">Entrata</button></div>
@@ -607,7 +630,9 @@ function openTxSheet(existing, preset = {}) {
       <div class="frow"><label>Data</label><input id="fDate" type="date" value="${e ? e.date : C.today()}"></div>
       <div id="fTextRows"><div class="frow"><label>Motivo</label><input id="fDesc" placeholder="Descrizione" value="${esc(e?.desc || '')}" autocomplete="off" autocapitalize="sentences"></div></div>
     </div>
-    <div class="form" id="fChips"><div class="frow"><label>Categoria</label><button type="button" class="catsel" id="fCatBtn"></button></div></div>
+    <div class="form" id="fChips"><div class="frow"><label>Categoria</label><button type="button" class="catsel" id="fCatBtn"></button></div>
+      <div class="frow" id="fC2Row"><label>Anche in</label><div class="cats2" id="fC2"></div></div>
+      ${tripList().length || f.trip ? `<div class="frow"><label>Viaggio</label><select id="fTrip"><option value="">— nessuno —</option>${tripList().map(([id, tr]) => `<option value="${esc(id)}" ${f.trip === id ? 'selected' : ''}>${esc(tr.name)}</option>`).join('')}</select></div>` : ''}</div>
     <div class="catgrid" id="fSubs" hidden></div>
     <div id="fMore"><button type="button" class="morehd" id="fMoreBtn"><span>Rientro e debito</span><em id="fMoreTag"></em>${IC.chev}</button><div id="fMoreBody" hidden>
     <div class="form" id="fRetBox">
@@ -657,6 +682,11 @@ function openTxSheet(existing, preset = {}) {
       $$('#fKind button', w).forEach(b => b.onclick = () => { f.kind = b.dataset.v; sync(); });
       $$('#fAcct button', w).forEach(b => b.onclick = () => { f.acct = b.dataset.v; sync(); });
       const drawCat = () => {
+        f.cats2 = f.cats2.filter(c => c && c !== f.cat);
+        $('#fC2Row', w).hidden = !f.cat;
+        $('#fC2', w).innerHTML = f.cats2.map(c => `<button type="button" class="c2" data-rm2="${esc(c)}">${mini(c, null, 13)}<span>${esc(c)}</span><i>✕</i></button>`).join('') + '<button type="button" class="c2 add" data-add2>+ Aggiungi</button>';
+        $$('#fC2 [data-rm2]', w).forEach(b => b.onclick = () => { f.cats2 = f.cats2.filter(c => c !== b.dataset.rm2); drawCat(); });
+        $('#fC2 [data-add2]', w).onclick = ev => openCatMenu(ev.currentTarget, '', name => { if (name && name !== f.cat && !f.cats2.includes(name)) f.cats2.push(name); drawCat(); });
         $('#fCatBtn', w).innerHTML = (f.cat ? `${mini(f.cat, null, 15)}<span>${esc(f.cat)}</span>` : '<span class="ph">Scegli…</span>') + IC.chev;
         const shop = f.cat === 'Shopping online' && !f.giro;
         $('#fSubs', w).hidden = !shop;
@@ -739,7 +769,7 @@ function openTxSheet(existing, preset = {}) {
         const per = S.period(periodId);
         if (!per || date < per.start || date > per.end) periodId = C.ensurePeriodFor(date).id;
         const tid = e?.id || S.uid();
-        const t = { ...(e || {}), id: tid, grp: wantRet ? (e?.grp || tid) : (e?.grp === tid && !S.state.transactions.some(m => m.grp === tid && m.id !== tid && m.rientroOf !== tid) ? undefined : e?.grp), unpaid: unIn || undefined, expected: unIn ? exp : undefined, periodId, date, account: f.acct, kind: f.kind, amount: amt, category: sub ? cat + ' - ' + sub : cat, desc, cat: cat || undefined, sub: sub || undefined, catSet: (f.catClicked || e?.catSet) || undefined };
+        const t = { ...(e || {}), id: tid, grp: wantRet ? (e?.grp || tid) : (e?.grp === tid && !S.state.transactions.some(m => m.grp === tid && m.id !== tid && m.rientroOf !== tid) ? undefined : e?.grp), unpaid: unIn || undefined, expected: unIn ? exp : undefined, periodId, date, account: f.acct, kind: f.kind, amount: amt, category: sub ? cat + ' - ' + sub : cat, desc, cat: cat || undefined, sub: sub || undefined, catSet: (f.catClicked || e?.catSet) || undefined, cats2: cat && f.cats2.length ? f.cats2.slice() : undefined, trip: ($('#fTrip', w) ? $('#fTrip', w).value : e?.trip) || undefined };
         // movimenti importati dagli Excel: se il motivo non cambia, nel foglio resta il testo originale
         if (e && e.raw && e.desc === desc) { t.category = e.category; t.desc = e.desc; t.raw = e.raw; } else delete t.raw;
         if (cat && desc) await S.setMeta('learned', { ...(S.state.meta.learned || {}), [learnKey(desc)]: cat });
@@ -927,24 +957,26 @@ function viewStat() {
 
   // spese nette (senza prestiti e ricariche tra i tuoi conti)
   const rtx = rows.flatMap(({ p }) => S.txOf(p.id)), net = netSpend(rtx);
-  const cats = new Map(), subs = new Map(), subsc = new Map(), dayTot = new Map(), accs = { carta: 0, contanti: 0 }; let outTot = 0;
+  const hidCats = catHide(), catVis = new Map(), cats = new Map(), subs = new Map(), subsc = new Map(), dayTot = new Map(), accs = { carta: 0, contanti: 0 }; let outTot = 0;
   for (const t of rtx) {
     const v = net.get(t.id); if (!(v > 0)) continue;
-    const k = t.cat || 'Senza categoria';
-    cats.set(k, (cats.get(k) || 0) + v); outTot += v; accs[t.account] += v;
+    const ks = t.cat ? catsOf(t) : ['Senza categoria'];
+    for (const k of ks) cats.set(k, (cats.get(k) || 0) + v);      // nella lista delle categorie: in ognuna delle sue
+    const kv = ks.find(k => !hidCats.has(k)); if (kv) catVis.set(kv, (catVis.get(kv) || 0) + v);      // nel grafico: una volta sola
+    outTot += v; accs[t.account] += v;
     dayTot.set(t.date, (dayTot.get(t.date) || 0) + v);
     wdSum[wdIdx(isoToDate(t.date))] += v;
-    if (t.cat === 'Shopping online') { const sk = t.sub || 'Altri siti'; subs.set(sk, (subs.get(sk) || 0) + v); }
-    if (t.cat === 'Abbonamenti') {
+    if (catsOf(t).includes('Shopping online')) { const sk = t.sub || 'Altri siti'; subs.set(sk, (subs.get(sk) || 0) + v); }
+    if (catsOf(t).includes('Abbonamenti')) {
       const key = (t.desc || t.category || '').trim().toLowerCase(), e = subsc.get(key) || { name: t.desc || t.category || '—', n: 0, tot: 0, last: t };
       e.n++; e.tot += v; if (t.date >= e.last.date) e.last = t; subsc.set(key, e);
     }
   }
   const catAll = [...cats.entries()].sort((a, b) => b[1] - a[1]);
   // la lista delle categorie si puo' ridurre a quelle che scegli (solo per "Spese per categoria")
-  const hidCats = catHide(), catShown = catAll.filter(([k]) => !hidCats.has(k)), catTot = catShown.reduce((a, [, v]) => a + v, 0), top = catShown.slice(0, 14);
+  const catShown = [...catVis.entries()].sort((a, b) => b[1] - a[1]), catTot = catShown.reduce((a, [, v]) => a + v, 0), top = catShown.slice(0, 14);
   ui.catList = catAll;
-  const catPickBtn = `<button class="btn sec sm" data-act="catPick" style="margin:0 0 10px">Categorie mostrate: ${catShown.length} di ${catAll.length}</button>`;
+  const catPickBtn = `<button class="btn sec sm" data-act="catPick" style="margin:0 0 10px">Categorie mostrate: ${catAll.filter(([k]) => !hidCats.has(k)).length} di ${catAll.length}</button>`;
   const subList = [...subs.entries()].sort((a, b) => b[1] - a[1]);
   const subscList = [...subsc.values()].sort((a, b) => b.last.amount - a.last.amount).slice(0, 8);
   const big = rtx.filter(t => net.get(t.id) > 0).sort((a, b) => net.get(b.id) - net.get(a.id)).slice(0, 5);
@@ -1200,6 +1232,10 @@ function viewAltro() {
   <div class="list"><label class="row">${ri('folder-multiple', '#F5B84B')}<div class="main"><div class="ttl">Raggruppa movimenti</div><div class="sm">Crea gruppi con un nome e il totale dei loro movimenti, ad esempio un acquisto per qualcuno e i soldi che ti ridà</div></div><span class="switch"><input type="checkbox" data-groups ${groupsOn() ? 'checked' : ''}><i></i></span></label>
     <label class="row">${ri('unfold-less-horizontal', '#F5B84B')}<div class="main"><div class="ttl">Chiudi i gruppi</div><div class="sm">Mostra solo il riquadro del gruppo con nome e totale; i movimenti si aprono con la freccia</div></div><span class="switch"><input type="checkbox" data-gclosed ${groupsClosed() ? 'checked' : ''}><i></i></span></label>
     <label class="row">${ri('tag-multiple', '#4DB8E8')}<div class="main"><div class="ttl">Chip Carta e Contanti</div><div class="sm">Mostra in ogni movimento se è stato pagato con la carta o in contanti; vale per tutti i colori della barra</div></div><span class="switch"><input type="checkbox" data-acctchip ${acctChipOn() ? 'checked' : ''}><i></i></span></label></div>
+  <div class="sechead"><span>Viaggi</span></div>
+  <div class="list">${tripList().map(([id, tr]) => { const n = S.state.transactions.filter(t => t.trip === id).length, sp = tripInfo(id).spent;
+      return `<button class="row" data-act="tripSheet" data-id="${esc(id)}">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl">${esc(tr.name)}</div><div class="sm">${esc([tripDates(tr), n + (n === 1 ? ' movimento' : ' movimenti')].filter(Boolean).join(' · '))}</div></div><div class="amt num">${money(sp)}</div></button>`; }).join('')}
+    <button class="row" data-act="newTrip">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl" style="color:var(--accent)">Nuovo viaggio</div><div class="sm">Poi aggiungi le spese dalla selezione dei movimenti</div></div></button></div>
   <div class="sechead"><span>Categorie</span></div>
   <div class="list"><button class="row" data-act="catSheet">${ri('tag-multiple', '#34C79A')}<div class="main"><div class="ttl">Gestisci categorie</div><div class="sm">${S.state.transactions.filter(t => !t.cat).length} movimenti da categorizzare</div></div></button></div>
   <div class="sechead"><span>Spese ricorrenti</span></div>
@@ -1221,6 +1257,105 @@ function viewAltro() {
   </div>`;
 }
 
+
+// ---------- viaggi ----------
+// Un viaggio ha un nome e, se vuoi, le date (meta.trips[id]); i suoi movimenti hanno `trip`. Lo scegli tu, mai in automatico.
+const trips = () => S.state.meta.trips || {};
+const tripList = () => Object.entries(trips()).sort((a, b) => (b[1].from || '').localeCompare(a[1].from || '') || a[1].name.localeCompare(b[1].name));
+const tripChip = t => t.trip && trips()[t.trip] ? `<span class="tag trip">✈︎ ${esc(trips()[t.trip].name)}</span>` : '';
+const catsOf = t => [t.cat, ...(t.cats2 || [])].filter(Boolean);       // categoria principale + quelle in piu'
+function tripInfo(id) {
+  const txs = S.state.transactions.filter(t => t.trip === id), net = netSpend(txs), cats = new Map();
+  let spent = 0;
+  for (const t of txs) { const v = net.get(t.id); if (v > 0) { spent += v; const k = t.cat || 'Senza categoria'; cats.set(k, (cats.get(k) || 0) + v); } }
+  return { txs, spent, cats: [...cats.entries()].sort((a, b) => b[1] - a[1]) };
+}
+const tripDates = tr => tr.from ? (tr.to && tr.to !== tr.from ? `${fmtShort(tr.from)} – ${fmtShort(tr.to)}` : fmtShort(tr.from)) : '';
+function tripSheet(id) {
+  const tr = id ? trips()[id] : { name: '', from: '', to: '' }; if (!tr) return;
+  const info = id ? tripInfo(id) : null;
+  const body = `<div class="form">
+      <div class="frow"><label>Nome</label><input id="trNm" value="${esc(tr.name)}" placeholder="Es. Atene" autocomplete="off" autocapitalize="sentences"></div>
+      <div class="frow"><label>Dal</label><input id="trFrom" type="date" value="${esc(tr.from || '')}"></div>
+      <div class="frow"><label>Al</label><input id="trTo" type="date" value="${esc(tr.to || '')}"></div>
+    </div>
+    ${info ? `<div class="gsum">${info.txs.length} ${info.txs.length === 1 ? 'movimento' : 'movimenti'} · speso <b class="num">${money(info.spent)}</b></div>
+      ${info.cats.length ? `<div class="card">${info.cats.map(([k, v]) => `<div class="hbar"><div class="top"><span class="lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / info.cats[0][1] * 100}%;background:${k === 'Senza categoria' ? '#9CA3AF' : C.catColor(k)}"></div></div></div>`).join('')}</div>` : ''}
+      <div id="trList"></div>
+      ${info.txs.length ? '<button class="btn sec" data-see style="margin-top:12px">Vedi nei movimenti</button>' : ''}` : ''}
+    <p class="hint" style="margin:12px 4px 0">Per aggiungere movimenti: in Movimenti tocca il pallino di selezione, scegli i movimenti e poi Azioni › Aggiungi a un viaggio.</p>`;
+  openSheet(id ? 'Viaggio' : 'Nuovo viaggio', body, {
+    saveLabel: id ? 'Salva' : 'Crea viaggio', deleteLabel: id ? 'Elimina viaggio' : null,
+    onMount: (w, close) => {
+      const draw = () => {
+        const box = $('#trList', w); if (!box) return;
+        const ms = S.state.transactions.filter(t => t.trip === id).sort((a, b) => b.date.localeCompare(a.date));
+        box.innerHTML = ms.length ? `<div class="form linked">${ms.map(x => `<div class="lrow"><div class="lt"><b>${esc(x.desc || x.category || '—')}</b><span>${esc(fmtShort(x.date))} · ${esc(x.cat || 'Senza categoria')}</span></div><span class="num ${x.kind === 'in' ? 'pos' : 'neg'}">${x.kind === 'in' ? '+' : '−'}${moneyRaw(x.amount)}</span><button data-rm="${x.id}" aria-label="Togli dal viaggio">${IC.x}</button></div>`).join('')}</div>` : '';
+        box.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
+          const x = S.state.transactions.find(t => t.id === b.dataset.rm);
+          await S.save('transactions', { ...x, trip: undefined }); render(); draw();
+        });
+      };
+      draw();
+      const see = $('[data-see]', w);
+      if (see) see.onclick = () => { ui.q = tr.name; ui.searchOpen = true; ui.catf = null; ui.tab = 'mese'; close(); render(); window.scrollTo(0, 0); };
+      const del = $('[data-del]', w);
+      if (del) del.onclick = async () => {
+        if (!confirm(`Eliminare il viaggio “${tr.name}”? I movimenti restano, perdono solo il viaggio.`)) return;
+        await S.bulkSave('transactions', S.state.transactions.filter(t => t.trip === id).map(t => ({ ...t, trip: undefined })));
+        const all = { ...trips() }; delete all[id]; await S.setMeta('trips', all);
+        close(); render(); toast('Viaggio eliminato');
+      };
+      if (!id) setTimeout(() => $('#trNm', w).focus(), 300);
+    },
+    onSave: async w => {
+      const name = $('#trNm', w).value.trim(); if (!name) return toast('Scrivi il nome del viaggio'), false;
+      let from = $('#trFrom', w).value, to = $('#trTo', w).value; if (from && to && to < from) [from, to] = [to, from];
+      await S.setMeta('trips', { ...trips(), [id || S.uid()]: { name, from: from || undefined, to: to || undefined } });
+      render(); toast(id ? 'Salvato' : 'Viaggio creato ✓');
+    }
+  });
+}
+// selezione -> scelta del viaggio (o nuovo viaggio al volo)
+function pickTrip(txs) {
+  const list = tripList();
+  openSheet('Aggiungi a un viaggio', `${list.length ? `<div class="list">${list.map(([id, tr]) => `<button class="row" data-t="${esc(id)}">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl">${esc(tr.name)}</div><div class="sm">${esc(tripDates(tr) || 'senza date')}</div></div></button>`).join('')}</div>` : ''}
+    <div class="sechead"><span>Nuovo viaggio</span></div>
+    <div class="form"><div class="frow"><label>Nome</label><input id="ptNm" placeholder="Es. Atene" autocomplete="off" autocapitalize="sentences"></div></div>
+    <button class="btn" data-newtrip>Crea e aggiungi</button>`, {
+    onMount: (w, close) => {
+      const put = async id => {
+        await S.bulkSave('transactions', txs.map(t => ({ ...t, trip: id })));
+        ui.sel = null; close(); render(); toast(`Aggiunti a “${trips()[id].name}” ✓`);
+      };
+      w.querySelectorAll('[data-t]').forEach(b => b.onclick = () => put(b.dataset.t));
+      $('[data-newtrip]', w).onclick = async () => {
+        const name = $('#ptNm', w).value.trim(); if (!name) return toast('Scrivi il nome del viaggio');
+        const ds = txs.map(t => t.date).sort(), id = S.uid();
+        await S.setMeta('trips', { ...trips(), [id]: { name, from: ds[0], to: ds[ds.length - 1] } });
+        put(id);
+      };
+    }
+  });
+}
+// cosa fare con i movimenti selezionati
+const selTxs = () => [...(ui.sel || [])].map(id => S.state.transactions.find(t => t.id === id)).filter(Boolean);
+function selActions() {
+  const txs = selTxs(), n = txs.length; if (!n) return;
+  openSheet(`${n} ${n === 1 ? 'movimento selezionato' : 'movimenti selezionati'}`, `<div class="list">
+      <button class="row" data-a="group" ${n < 2 ? 'disabled' : ''}>${ri('folder-multiple', '#F5B84B')}<div class="main"><div class="ttl">Crea un gruppo</div><div class="sm">${n < 2 ? 'Servono almeno due movimenti' : 'Un nome e il totale dei movimenti scelti'}</div></div></button>
+      <button class="row" data-a="trip">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl">Aggiungi a un viaggio</div><div class="sm">Il viaggio compare come chip nei movimenti</div></div></button>
+      ${txs.some(t => t.trip) ? `<button class="row" data-a="untrip">${ri('airplane', '#FF7B6C')}<div class="main"><div class="ttl">Togli dal viaggio</div><div class="sm">I movimenti restano, perdono solo il viaggio</div></div></button>` : ''}
+    </div>`, {
+    onMount: (w, close) => {
+      $('[data-a="group"]', w).onclick = () => { if (n < 2) return; close(); createGroup(); };
+      $('[data-a="trip"]', w).onclick = () => { close(); pickTrip(txs); };
+      const un = $('[data-a="untrip"]', w);
+      if (un) un.onclick = async () => { await S.bulkSave('transactions', txs.filter(t => t.trip).map(t => ({ ...t, trip: undefined }))); ui.sel = null; close(); render(); toast('Tolti dal viaggio'); };
+    }
+  });
+}
+
 // ---------- selezione multipla e nuovo gruppo ----------
 // pallino fisso per iniziare la selezione: resta sullo schermo mentre scorri la lista
 function renderFab() {
@@ -1237,12 +1372,13 @@ function renderSelBar() {
   if (!ui.sel || ui.tab !== 'mese') { bar?.remove(); return; }
   if (!bar) { bar = document.createElement('div'); bar.id = 'selBar'; document.body.appendChild(bar); }
   const n = ui.sel.size;
-  bar.innerHTML = `<span>${n} ${n === 1 ? 'selezionato' : 'selezionati'}</span><button class="sbtn" data-act="selMode">Annulla</button><button class="sbtn go" data-act="createGroup" ${n < 2 ? 'disabled' : ''}>Crea gruppo</button>`;
+  bar.innerHTML = `<span>${n} ${n === 1 ? 'selezionato' : 'selezionati'}</span><button class="sbtn" data-act="selMode">Annulla</button><button class="sbtn go" data-act="selActions" ${n < 1 ? 'disabled' : ''}>Azioni</button>`;
 }
 function toggleSel(id) { if (lockedIds.has(id)) return toast('Fa già parte di un gruppo'); if (ui.sel.has(id)) ui.sel.delete(id); else ui.sel.add(id); renderList(); renderSelBar(); }
 function createGroup() {
   const txs = [...(ui.sel || [])].map(id => S.state.transactions.find(t => t.id === id)).filter(Boolean);
   if (txs.length < 2) return toast('Seleziona almeno due movimenti');
+  if (txs.some(t => t.gid && groups()[t.gid])) return toast('Alcuni movimenti sono già in un gruppo: toglili prima dal gruppo');
   const def = (txs.filter(t => t.kind === 'out').sort((a, b) => b.amount - a.amount)[0] || txs[0]).desc || '';
   openSheet('Nuovo gruppo', `<div class="form"><div class="frow"><label>Nome</label><input id="gnm" value="${esc(def)}" placeholder="Es. Acquisti per Mamma" autocomplete="off" autocapitalize="sentences"></div></div>
     <div class="gsum">${txs.length} movimenti · totale <b class="num ${sgnCls(gTotal(txs))}">${signedRaw(gTotal(txs))}</b></div>`, {
@@ -1631,6 +1767,7 @@ async function applyMeta(d, replace = false) {     // replace: i dati arrivano d
   if (d.statCfg) await S.setMeta('statCfg', d.statCfg);
   if (d.colors) { await S.setMeta('colors', d.colors); applyColors(); }
   if (d.recurring || replace) await S.setMeta('recurring', d.recurring || []);
+  if (d.trips || replace) await S.setMeta('trips', replace ? (d.trips || {}) : { ...trips(), ...d.trips });
 }
 
 async function doImport(file, mode) {
@@ -1678,7 +1815,12 @@ const actions = {
     el.setAttribute('aria-expanded', open); el.querySelector('.gch').classList.toggle('up', open);
     if (open) { const b = sec.querySelector('.bars.sc'); if (b) b.scrollLeft = b.scrollWidth; }
   },
-  openGroup: el => { if (!ui.sel) openGroupSheet(el.dataset.id); },
+  openGroup: el => {
+    if (!ui.sel) return openGroupSheet(el.dataset.id);
+    const ids = gMembers(el.dataset.id).map(t => t.id), all = ids.every(id => ui.sel.has(id));      // in selezione: tocca il gruppo per prenderlo tutto
+    ids.forEach(id => all ? ui.sel.delete(id) : ui.sel.add(id)); renderList(); renderSelBar();
+  },
+  selActions, tripSheet: el => tripSheet(el.dataset.id), newTrip: () => tripSheet(null),
   mvStyleSheet,
   toggleGroup: el => { if (ui.open.has(el.dataset.id)) ui.open.delete(el.dataset.id); else ui.open.add(el.dataset.id); renderList(); },
   newPerson, debtsSheet, person: el => { $('#sheetRoot').innerHTML = ''; openPerson(el.dataset.id); },

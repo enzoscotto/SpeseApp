@@ -614,3 +614,21 @@ html:has(#sheetRoot .sheet),html:has(#sheetRoot .sheet) body{overflow:hidden}
 
 /* chip Carta / Contanti nei movimenti: si possono nascondere da Altro (vale per ogni colore della barra) */
 :root[data-noacct] .mv .tag.card,:root[data-noacct] .mv .tag.cash{display:none}
+
+/* barra Tutti/Carta/Contanti con una classe: la pagina vicina che entra scorrendo (senza id) ha le stesse misure */
+.acctseg{margin-top:10px}
+.acctseg button{padding:6px}
+/* titolo del mese: altezza fissa, cosi' cambiando grandezza non sposta nulla */
+.ttlgrp .periodbtn{line-height:30px}
+
+/* viaggi */
+.tag.trip{background:color-mix(in srgb,#0EA5E9 18%,transparent);color:color-mix(in srgb,#0EA5E9 75%,var(--text));padding:1px 8px;border-radius:99px;font-weight:700}
+:root[data-mvs="solid"] .mv.ac-carta .tag.trip,:root[data-mvs="solid"] .mv.ac-cash .tag.trip{background:rgba(255,255,255,.24);color:#fff}
+.row[disabled]{opacity:.45}
+
+/* categorie in piu' nella scheda del movimento */
+.cats2{flex:1;min-width:0;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.c2{display:inline-flex;align-items:center;gap:5px;padding:4px 9px 4px 5px;border-radius:99px;background:var(--chip);font-size:13.5px;font-weight:600;color:var(--text)}
+.c2 .mini{width:20px;height:20px;flex-basis:20px}
+.c2 i{font-style:normal;color:var(--muted);font-size:11px}
+.c2.add{padding:4px 11px;color:var(--accent)}

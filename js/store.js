@@ -42,7 +42,8 @@ const coll = { periods: 'periods', transactions: 'transactions', debts: 'debts' 
 
 export async function save(store, obj) {
   const arr = state[store], i = arr.findIndex(x => x.id === obj.id);
-  if (i >= 0) arr[i] = obj; else arr.push(obj);
+  if (i >= 0) arr[i] = obj;
+  else { if (store === 'transactions' && obj.row == null && !obj.ts) obj.ts = Date.now(); arr.push(obj); }      // ts: quando e' stato inserito (ordina i movimenti dello stesso giorno)
   if (store === 'periods') sortPeriods();
   reindex();
   await req(tx(store).objectStore(store).put(obj));
@@ -57,13 +58,13 @@ export async function remove(store, id) {
 export async function setMeta(key, value) {
   state.meta[key] = value;
   await req(tx('meta').objectStore('meta').put({ id: key, value }));
-  if (['people', 'groups', 'categories', 'subs', 'statCfg', 'colors', 'recurring'].includes(key)) changed();
+  if (['people', 'groups', 'categories', 'subs', 'statCfg', 'colors', 'recurring', 'trips'].includes(key)) changed();
 }
 
 export const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9));
 
 export function exportData() {
-  return { version: 1, exportedAt: new Date().toISOString(), periods: state.periods, transactions: state.transactions, debts: state.debts, people: state.meta.people || [], categories: state.meta.categories, subs: state.meta.subs, groups: state.meta.groups || {}, statCfg: state.meta.statCfg, colors: state.meta.colors || {}, recurring: state.meta.recurring || [] };
+  return { version: 1, exportedAt: new Date().toISOString(), periods: state.periods, transactions: state.transactions, debts: state.debts, people: state.meta.people || [], categories: state.meta.categories, subs: state.meta.subs, groups: state.meta.groups || {}, statCfg: state.meta.statCfg, colors: state.meta.colors || {}, recurring: state.meta.recurring || [], trips: state.meta.trips || {} };
 }
 
 export function validate(d) {
@@ -106,7 +107,8 @@ export async function wipe() {
 export async function bulkSave(store, objs) {
   if (!objs.length) return;
   const m = new Map(state[store].map(x => [x.id, x]));
-  for (const o of objs) m.set(o.id, o);
+  let k = 0;
+  for (const o of objs) { if (store === 'transactions' && !m.has(o.id) && o.row == null && !o.ts) o.ts = Date.now() + k++; m.set(o.id, o); }
   state[store] = [...m.values()]; reindex();
   const t = tx(store);
   for (const o of objs) t.objectStore(store).put(o);

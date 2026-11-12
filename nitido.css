@@ -380,3 +380,8 @@
 
 /* statistiche e Altro: schede appena traslucide con il bordo luminoso */
 :root[data-ui="nitido"][data-glass] .card:not(.tag),:root[data-ui="nitido"][data-glass] .list,:root[data-ui="nitido"][data-glass] .ssec .sh,:root[data-ui="nitido"][data-glass] .cpick{box-shadow:inset 0 1px 0 var(--g-rim),inset 0 0 0 1px var(--g-rim2),0 12px 26px -18px var(--g-drop)}
+
+/* viaggi e categorie in piu' */
+:root[data-ui="nitido"] .tag.trip{padding:0 8px;border-radius:7px;font-weight:600}
+:root[data-ui="nitido"] .c2{background:var(--s3);border-radius:10px}
+:root[data-ui="nitido"] .c2 .mini{border-radius:6px}
