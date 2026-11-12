@@ -452,6 +452,21 @@ const peopleNames = () => C.people().map(p => p.name).sort((a, b) => a.localeCom
 // ---------- spese per categoria (statistiche) ----------
 // Prestiti, contributo mensile alla famiglia e riconversioni non contano come spese per categoria. Un rimborso registrato sulla stessa riga di una spesa (stesso gruppo) la riduce:
 // cosi' un acquisto pagato da te e rimborsato da altri conta solo per la parte che ti e' costata davvero.
+const catHide = () => { try { return new Set(JSON.parse(localStorage.getItem('cathide') || '[]')); } catch { return new Set(); } };
+const setCatHide = h => { try { localStorage.setItem('cathide', JSON.stringify([...h])); } catch { /* ignore */ } };
+function catPick() {
+  const list = ui.catList || [], hid = catHide();
+  const body = `<p class="hint" style="margin:0 4px 10px">Spunta le categorie da mostrare in “Spese per categoria”. Il totale e le percentuali si calcolano solo su quelle.</p>
+    <div class="btns2"><button class="btn sec sm" data-all="1">Tutte</button><button class="btn sec sm" data-all="0">Nessuna</button></div>
+    <div class="list">${list.map(([k, v]) => `<label class="row"><div class="main"><div class="ttl lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</div></div><span class="num muted">${money(v)}</span><span class="switch"><input type="checkbox" data-k="${esc(k)}" ${hid.has(k) ? '' : 'checked'}><i></i></span></label>`).join('')}</div>`;
+  openSheet('Categorie mostrate', body, {
+    onMount: w => {
+      const save = () => { const h = new Set([...w.querySelectorAll('input[data-k]')].filter(i => !i.checked).map(i => i.dataset.k)); setCatHide(h); render(); };
+      w.querySelectorAll('input[data-k]').forEach(i => i.onchange = save);
+      w.querySelectorAll('[data-all]').forEach(b => b.onclick = () => { w.querySelectorAll('input[data-k]').forEach(i => { i.checked = b.dataset.all === '1'; }); save(); });
+    }
+  });
+}
 const NOT_SPEND = new Set(['Riconversione', 'Prestiti e debiti', 'Contributo Famiglia']);
 function netSpend(txs) {
   const pools = new Map(), res = new Map();
@@ -925,7 +940,11 @@ function viewStat() {
       e.n++; e.tot += v; if (t.date >= e.last.date) e.last = t; subsc.set(key, e);
     }
   }
-  const catAll = [...cats.entries()].sort((a, b) => b[1] - a[1]), top = catAll.slice(0, 14);
+  const catAll = [...cats.entries()].sort((a, b) => b[1] - a[1]);
+  // la lista delle categorie si puo' ridurre a quelle che scegli (solo per "Spese per categoria")
+  const hidCats = catHide(), catShown = catAll.filter(([k]) => !hidCats.has(k)), catTot = catShown.reduce((a, [, v]) => a + v, 0), top = catShown.slice(0, 14);
+  ui.catList = catAll;
+  const catPickBtn = `<button class="btn sec sm" data-act="catPick" style="margin:0 0 10px">Categorie mostrate: ${catShown.length} di ${catAll.length}</button>`;
   const subList = [...subs.entries()].sort((a, b) => b[1] - a[1]);
   const subscList = [...subsc.values()].sort((a, b) => b.last.amount - a.last.amount).slice(0, 8);
   const big = rtx.filter(t => net.get(t.id) > 0).sort((a, b) => net.get(b.id) - net.get(a.id)).slice(0, 5);
@@ -987,11 +1006,11 @@ function viewStat() {
     saldo: rows.length >= 2 ? sec('saldo', 'Saldo nel tempo', 'carta + contanti',
       `<div class="card"><div class="lv"><b class="num">${money(bal[bal.length - 1])}</b><span class="num ${dBal >= 0 ? 'pos' : 'neg'}">${signed(dBal)}</span></div>${lineChart(bal)}<div class="lax"><span>${esc(periodLabel(rows[0].p))}</span><span>${esc(periodLabel(rows[rows.length - 1].p))}</span></div></div>`) : '',
     record: records.length ? sec('record', 'Record', '', `<div class="grid2">${records.join('')}</div>`) : '',
-    cat: sec('cat', 'Spese per categoria', `<span class="num">${money(outTot)}</span>`,
-      (cfg.pie.cat && outTot > 0
-        ? donut([...catAll.slice(0, 7).map(([k, v]) => ({ label: k, v, color: catColor(k), cat: k })), ...(catAll.length > 7 ? [{ label: 'Altre', v: catAll.slice(7).reduce((a, [, v]) => a + v, 0), color: '#6B7280' }] : [])], outTot, money(outTot))
-        : `<div class="card">${top.map(([k, v]) => `<button class="hbar" style="display:block;width:100%;text-align:left" data-act="searchCat" data-id="${esc(k)}"><div class="top"><span class="lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</span><span class="num">${money(v)} <span class="muted" style="font-weight:600">· ${Math.round(v / outTot * 100)}%</span></span></div><div class="track"><div class="fill" style="width:${v / top[0][1] * 100}%;background:${C.catColor(k)}"></div></div></button>`).join('') || '<div class="empty">—</div>'}</div>`)
-      + `<p class="hint" style="margin:-4px 4px 0">Prestiti e ricariche tra i tuoi conti non contano come spesa. Un rimborso nello stesso gruppo o sulla stessa riga riduce la spesa.</p>`),
+    cat: sec('cat', 'Spese per categoria', `<span class="num">${money(catTot)}</span>`,
+      catPickBtn + (cfg.pie.cat && catTot > 0
+        ? donut([...catShown.slice(0, 7).map(([k, v]) => ({ label: k, v, color: catColor(k), cat: k })), ...(catShown.length > 7 ? [{ label: 'Altre', v: catShown.slice(7).reduce((a, [, v]) => a + v, 0), color: '#6B7280' }] : [])], catTot, money(catTot))
+        : `<div class="card">${top.map(([k, v]) => `<button class="hbar" style="display:block;width:100%;text-align:left" data-act="searchCat" data-id="${esc(k)}"><div class="top"><span class="lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</span><span class="num">${money(v)} <span class="muted" style="font-weight:600">· ${Math.round(v / catTot * 100)}%</span></span></div><div class="track"><div class="fill" style="width:${v / top[0][1] * 100}%;background:${C.catColor(k)}"></div></div></button>`).join('') || '<div class="empty">—</div>'}</div>`)
+      + `<p class="hint" style="margin:-4px 4px 0">Prestiti, contributo mensile alla famiglia e ricariche tra i tuoi conti non contano come spesa. Un rimborso nello stesso gruppo o sulla stessa riga riduce la spesa.</p>`),
     quando: outTot > 0 ? sec('quando', 'Quando spendi', 'media per giorno',
       `<div class="card"><div class="wd">${avgWd.map((v, i) => `<div class="${i === hotWd ? 'hot' : ''}"><i style="height:${Math.max(3, maxWd ? v / maxWd * 100 : 0)}%"></i><span>${WEEKDAYS[i][0].toUpperCase()}</span></div>`).join('')}</div><div class="sm" style="margin-top:10px;color:var(--muted);font-weight:600">Spendi di più di ${WEEKDAYS[hotWd]}: in media <b class="num" style="color:var(--text)">${money(maxWd)}</b>.</div></div>`) : '',
     conto: outTot > 0 ? sec('conto', 'Carta o contanti', 'dove paghi', cfg.pie.conto
@@ -1651,7 +1670,7 @@ const actions = {
   editTx: el => ui.sel ? toggleSel(el.dataset.id) : openTxSheet(S.state.transactions.find(t => t.id === el.dataset.id)),
   selMode: () => { ui.sel = ui.sel ? null : new Set(); render(); },
   createGroup,
-  statSettings,
+  statSettings, catPick,
   statToggle: el => {
     const k = el.dataset.id, so = statOpen(), open = !(so[k] ?? !!STAT_DEF[k]);
     so[k] = open; try { localStorage.setItem('statopen', JSON.stringify(so)); } catch { /* ignore */ }
