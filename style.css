@@ -632,3 +632,9 @@ html:has(#sheetRoot .sheet),html:has(#sheetRoot .sheet) body{overflow:hidden}
 .c2 .mini{width:20px;height:20px;flex-basis:20px}
 .c2 i{font-style:normal;color:var(--muted);font-size:11px}
 .c2.add{padding:4px 11px;color:var(--accent)}
+
+/* tieni premuto: niente selezione del testo o menu di iOS sui movimenti */
+#listBox .mv{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+/* il gruppo appena creato si illumina un attimo */
+@keyframes mvflash{0%,55%{outline:3px solid var(--accent);outline-offset:-3px}100%{outline:3px solid transparent;outline-offset:-3px}}
+.mv.flash{animation:mvflash 1.6s ease-out}

@@ -94,13 +94,17 @@ function openSheet(title, body, { onSave, saveLabel = 'Salva', deleteLabel, onMo
 }
 
 // la pagina sotto un foglio resta dov'era: alla chiusura si torna allo stesso punto (anche dopo una selezione confermata)
-let lastY = 0, sheetY = null, sheetCtx = '';
+let lastY = 0, sheetY = null, sheetCtx = '', focusAfter = null;      // focusAfter: elemento da mostrare quando il foglio si chiude
 window.addEventListener('scroll', () => { if (!document.querySelector('#sheetRoot .sheet')) lastY = window.scrollY; }, { passive: true });
 new MutationObserver(() => {
   const open = !!document.querySelector('#sheetRoot .sheet');
   if (open && sheetY === null) { sheetY = window.scrollY || lastY; sheetCtx = ui.tab + '|' + ui.periodId; }
   if (!open && sheetY !== null) {
     const y = sheetY; sheetY = null;
+    if (focusAfter) {
+      const el = document.querySelector(focusAfter); focusAfter = null;
+      if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); return; }
+    }
     if (!pageBusy && sheetCtx === ui.tab + '|' + ui.periodId && Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y);
   }
 }).observe($('#sheetRoot'), { childList: true });
@@ -919,13 +923,13 @@ function lineChart(vals) {
 }
 
 // sezioni delle statistiche che si aprono e si chiudono (la scelta si ricorda); all'inizio sono aperte solo le principali
-const STAT_DEF = { trend: true, cat: true };
+const STAT_DEF = { trend: true, cat: true, viaggi: true };
 const statOpen = () => { try { return JSON.parse(localStorage.getItem('statopen') || '{}'); } catch { return {}; } };
 
 // sezioni: chiave, titolo, se si puo' mostrare a torta
 const STAT_ITEMS = [['now', 'Mese in corso'], ['hero', 'Risparmiato e medie'], ['trend', 'Mese per mese'], ['stip', 'Crescita dello stipendio'], ['saldo', 'Saldo nel tempo'],
   ['record', 'Record'], ['cat', 'Spese per categoria', true], ['quando', 'Quando spendi'], ['conto', 'Carta o contanti', true], ['abb', 'Abbonamenti'], ['top', 'Le spese più alte'],
-  ['shop', 'Shopping online per sito', true], ['debiti', 'Debiti'], ['mesi', 'Per mese']];
+  ['shop', 'Shopping online per sito', true], ['debiti', 'Debiti'], ['viaggi', 'Viaggi'], ['mesi', 'Per mese']];
 const statCfg = () => ({ order: [], hide: [], pie: {}, ...(S.state.meta.statCfg || {}) });
 const statOrder = () => { const o = statCfg().order, keys = STAT_ITEMS.map(x => x[0]); return [...o.filter(k => keys.includes(k)), ...keys.filter(k => !o.includes(k))]; };
 
@@ -1056,6 +1060,7 @@ function viewStat() {
       : `<div class="card">${subList.map(([k, v]) => `<div class="hbar"><div class="top"><span>${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / subList[0][1] * 100}%"></div></div></div>`).join('')}</div>`) : '',
     debiti: sec('debiti', 'Debiti', `Ti devono ${money(owed)}`,
       `<div class="list"><button class="row" data-act="debtsSheet"><div class="main"><div class="ttl">Vedi le persone</div><div class="sm">Ti devono ${money(owed)} · Devi ${money(owe)}</div></div><span class="gch rt">${IC.chev}</span></button></div>`),
+    viaggi: sec('viaggi', 'Viaggi', tripList().length ? `${tripList().length} ${tripList().length === 1 ? 'viaggio' : 'viaggi'}` : '', `<div class="list">${tripRowsHtml()}</div>`),
     mesi: sec('mesi', 'Per mese', '', `<div class="list">${[...rows].reverse().map(({ p, s }) => `<button class="row" data-act="gotoPeriod" data-id="${esc(p.id)}"><div class="main"><div class="ttl">${esc(periodLabel(p))}</div><div class="sm num">Spesa ${money(s.real)}</div></div><div class="amt num ${s.saved == null ? 'muted' : s.saved >= 0 ? 'pos' : 'neg'}">${s.saved == null ? '—' : signed(s.saved)}</div></button>`).join('')}</div>`),
   };
   const shown = statOrder().filter(k => !cfg.hide.includes(k)).map(k => blocks[k]).join('');
@@ -1231,11 +1236,8 @@ function viewAltro() {
   <div class="sechead"><span>Movimenti</span></div>
   <div class="list"><label class="row">${ri('folder-multiple', '#F5B84B')}<div class="main"><div class="ttl">Raggruppa movimenti</div><div class="sm">Crea gruppi con un nome e il totale dei loro movimenti, ad esempio un acquisto per qualcuno e i soldi che ti ridà</div></div><span class="switch"><input type="checkbox" data-groups ${groupsOn() ? 'checked' : ''}><i></i></span></label>
     <label class="row">${ri('unfold-less-horizontal', '#F5B84B')}<div class="main"><div class="ttl">Chiudi i gruppi</div><div class="sm">Mostra solo il riquadro del gruppo con nome e totale; i movimenti si aprono con la freccia</div></div><span class="switch"><input type="checkbox" data-gclosed ${groupsClosed() ? 'checked' : ''}><i></i></span></label>
-    <label class="row">${ri('tag-multiple', '#4DB8E8')}<div class="main"><div class="ttl">Chip Carta e Contanti</div><div class="sm">Mostra in ogni movimento se è stato pagato con la carta o in contanti; vale per tutti i colori della barra</div></div><span class="switch"><input type="checkbox" data-acctchip ${acctChipOn() ? 'checked' : ''}><i></i></span></label></div>
-  <div class="sechead"><span>Viaggi</span></div>
-  <div class="list">${tripList().map(([id, tr]) => { const n = S.state.transactions.filter(t => t.trip === id).length, sp = tripInfo(id).spent;
-      return `<button class="row" data-act="tripSheet" data-id="${esc(id)}">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl">${esc(tr.name)}</div><div class="sm">${esc([tripDates(tr), n + (n === 1 ? ' movimento' : ' movimenti')].filter(Boolean).join(' · '))}</div></div><div class="amt num">${money(sp)}</div></button>`; }).join('')}
-    <button class="row" data-act="newTrip">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl" style="color:var(--accent)">Nuovo viaggio</div><div class="sm">Poi aggiungi le spese dalla selezione dei movimenti</div></div></button></div>
+    <label class="row">${ri('tag-multiple', '#4DB8E8')}<div class="main"><div class="ttl">Chip Carta e Contanti</div><div class="sm">Mostra in ogni movimento se è stato pagato con la carta o in contanti; vale per tutti i colori della barra</div></div><span class="switch"><input type="checkbox" data-acctchip ${acctChipOn() ? 'checked' : ''}><i></i></span></label>
+    <button class="row" data-act="lpSheet">${ri(ICONS['gesture-tap-hold'] ? 'gesture-tap-hold' : 'view-list', '#4DB8E8')}<div class="main"><div class="ttl">Tieni premuto per selezionare</div><div class="sm">${(LP_OPTS.find(o => o[0] === lpMs()) || LP_OPTS[2]).slice(1).join(' · ')}</div></div></button></div>
   <div class="sechead"><span>Categorie</span></div>
   <div class="list"><button class="row" data-act="catSheet">${ri('tag-multiple', '#34C79A')}<div class="main"><div class="ttl">Gestisci categorie</div><div class="sm">${S.state.transactions.filter(t => !t.cat).length} movimenti da categorizzare</div></div></button></div>
   <div class="sechead"><span>Spese ricorrenti</span></div>
@@ -1270,6 +1272,9 @@ function tripInfo(id) {
   for (const t of txs) { const v = net.get(t.id); if (v > 0) { spent += v; const k = t.cat || 'Senza categoria'; cats.set(k, (cats.get(k) || 0) + v); } }
   return { txs, spent, cats: [...cats.entries()].sort((a, b) => b[1] - a[1]) };
 }
+const tripRowsHtml = () => tripList().map(([id, tr]) => { const n = S.state.transactions.filter(t => t.trip === id).length, sp = tripInfo(id).spent;
+  return `<button class="row" data-act="tripSheet" data-id="${esc(id)}">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl">${esc(tr.name)}</div><div class="sm">${esc([tripDates(tr), n + (n === 1 ? ' movimento' : ' movimenti')].filter(Boolean).join(' · '))}</div></div><div class="amt num">${money(sp)}</div></button>`; }).join('')
+  + `<button class="row" data-act="newTrip">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl" style="color:var(--accent)">Nuovo viaggio</div><div class="sm">Poi aggiungi le spese dalla selezione dei movimenti</div></div></button>`;
 const tripDates = tr => tr.from ? (tr.to && tr.to !== tr.from ? `${fmtShort(tr.from)} – ${fmtShort(tr.to)}` : fmtShort(tr.from)) : '';
 function tripSheet(id) {
   const tr = id ? trips()[id] : { name: '', from: '', to: '' }; if (!tr) return;
@@ -1283,7 +1288,7 @@ function tripSheet(id) {
       ${info.cats.length ? `<div class="card">${info.cats.map(([k, v]) => `<div class="hbar"><div class="top"><span class="lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / info.cats[0][1] * 100}%;background:${k === 'Senza categoria' ? '#9CA3AF' : C.catColor(k)}"></div></div></div>`).join('')}</div>` : ''}
       <div id="trList"></div>
       ${info.txs.length ? '<button class="btn sec" data-see style="margin-top:12px">Vedi nei movimenti</button>' : ''}` : ''}
-    <p class="hint" style="margin:12px 4px 0">Per aggiungere movimenti: in Movimenti tocca il pallino di selezione, scegli i movimenti e poi Azioni › Aggiungi a un viaggio.</p>`;
+    <p class="hint" style="margin:12px 4px 0">Per aggiungere movimenti: in Movimenti tocca il pallino di selezione, scegli i movimenti (o tienine premuto uno) e poi Aggiungi a… › Un viaggio.</p>`;
   openSheet(id ? 'Viaggio' : 'Nuovo viaggio', body, {
     saveLabel: id ? 'Salva' : 'Crea viaggio', deleteLabel: id ? 'Elimina viaggio' : null,
     onMount: (w, close) => {
@@ -1342,9 +1347,9 @@ function pickTrip(txs) {
 const selTxs = () => [...(ui.sel || [])].map(id => S.state.transactions.find(t => t.id === id)).filter(Boolean);
 function selActions() {
   const txs = selTxs(), n = txs.length; if (!n) return;
-  openSheet(`${n} ${n === 1 ? 'movimento selezionato' : 'movimenti selezionati'}`, `<div class="list">
-      <button class="row" data-a="group" ${n < 2 ? 'disabled' : ''}>${ri('folder-multiple', '#F5B84B')}<div class="main"><div class="ttl">Crea un gruppo</div><div class="sm">${n < 2 ? 'Servono almeno due movimenti' : 'Un nome e il totale dei movimenti scelti'}</div></div></button>
-      <button class="row" data-a="trip">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl">Aggiungi a un viaggio</div><div class="sm">Il viaggio compare come chip nei movimenti</div></div></button>
+  openSheet(`Aggiungi ${n} ${n === 1 ? 'movimento' : 'movimenti'} a…`, `<div class="list">
+      <button class="row" data-a="group" ${n < 2 ? 'disabled' : ''}>${ri('folder-multiple', '#F5B84B')}<div class="main"><div class="ttl">Un nuovo gruppo</div><div class="sm">${n < 2 ? 'Servono almeno due movimenti' : 'Un nome e il totale dei movimenti scelti'}</div></div></button>
+      <button class="row" data-a="trip">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl">Un viaggio</div><div class="sm">Il viaggio compare come chip nei movimenti</div></div></button>
       ${txs.some(t => t.trip) ? `<button class="row" data-a="untrip">${ri('airplane', '#FF7B6C')}<div class="main"><div class="ttl">Togli dal viaggio</div><div class="sm">I movimenti restano, perdono solo il viaggio</div></div></button>` : ''}
     </div>`, {
     onMount: (w, close) => {
@@ -1353,6 +1358,37 @@ function selActions() {
       const un = $('[data-a="untrip"]', w);
       if (un) un.onclick = async () => { await S.bulkSave('transactions', txs.filter(t => t.trip).map(t => ({ ...t, trip: undefined }))); ui.sel = null; close(); render(); toast('Tolti dal viaggio'); };
     }
+  });
+}
+
+// tieni premuto un movimento per iniziare la selezione (durata scelta in Altro; 0 = spento)
+const LP_OPTS = [[0, 'Spento'], [300, 'Breve', '0,3 secondi'], [500, 'Normale', '0,5 secondi'], [800, 'Lungo', '0,8 secondi'], [1200, 'Molto lungo', '1,2 secondi']];
+const lpMs = () => { try { const v = localStorage.getItem('lpms'); return v == null ? 500 : +v || 0; } catch { return 500; } };
+let lp = null;
+const lpStop = () => { if (lp) { clearTimeout(lp.t); lp = null; } };
+document.addEventListener('pointerdown', e => {
+  lpStop();
+  const row = e.target.closest?.('#listBox .mv'), ms = lpMs();
+  if (!row || !ms || ui.tab !== 'mese' || !e.isPrimary || e.target.closest('.gtgl') || document.querySelector('#sheetRoot .sheet')) return;
+  lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => startSelFrom(row), ms) };
+});
+document.addEventListener('pointermove', e => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) lpStop(); });
+['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, lpStop));
+window.addEventListener('scroll', lpStop, { passive: true });
+document.addEventListener('contextmenu', e => { if (e.target.closest?.('#listBox .mv')) e.preventDefault(); });
+function startSelFrom(row) {
+  lp = null; noClickUntil = Date.now() + 700;      // il dito che si alza non deve togliere subito la selezione
+  const ids = row.classList.contains('gh') ? gMembers(row.dataset.id).map(t => t.id) : [row.dataset.id];
+  if (!ui.sel) ui.sel = new Set();
+  ids.forEach(id => ui.sel.add(id));
+  try { navigator.vibrate?.(15); } catch { /* ignore */ }
+  renderList(); renderSelBar(); renderFab();
+}
+function lpSheet() {
+  const cur = lpMs();
+  openSheet('Tieni premuto per selezionare', `<p class="hint" style="margin:0 4px 10px">Tenendo premuto un movimento inizia la selezione (per creare un gruppo o aggiungerlo a un viaggio). Scegli quanto a lungo tenere premuto.</p>
+    <div class="list">${LP_OPTS.map(([ms, n, d]) => `<button class="row" data-ms="${ms}"><div class="main"><div class="ttl">${n}${cur === ms ? ' ✓' : ''}</div>${d ? `<div class="sm">${d}</div>` : ''}</div></button>`).join('')}</div>`, {
+    onMount: (w, close) => w.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('lpms', b.dataset.ms); } catch { /* ignore */ } close(); render(); })
   });
 }
 
@@ -1372,7 +1408,7 @@ function renderSelBar() {
   if (!ui.sel || ui.tab !== 'mese') { bar?.remove(); return; }
   if (!bar) { bar = document.createElement('div'); bar.id = 'selBar'; document.body.appendChild(bar); }
   const n = ui.sel.size;
-  bar.innerHTML = `<span>${n} ${n === 1 ? 'selezionato' : 'selezionati'}</span><button class="sbtn" data-act="selMode">Annulla</button><button class="sbtn go" data-act="selActions" ${n < 1 ? 'disabled' : ''}>Azioni</button>`;
+  bar.innerHTML = `<span>${n} ${n === 1 ? 'selezionato' : 'selezionati'}</span><button class="sbtn" data-act="selMode">Annulla</button><button class="sbtn go" data-act="selActions" ${n < 1 ? 'disabled' : ''}>Aggiungi a…</button>`;
 }
 function toggleSel(id) { if (lockedIds.has(id)) return toast('Fa già parte di un gruppo'); if (ui.sel.has(id)) ui.sel.delete(id); else ui.sel.add(id); renderList(); renderSelBar(); }
 function createGroup() {
@@ -1389,7 +1425,7 @@ function createGroup() {
       const gid = S.uid();
       await S.setMeta('groups', { ...groups(), [gid]: { name } });
       await S.bulkSave('transactions', txs.map(t => ({ ...t, gid })));
-      ui.sel = null; render(); toast('Gruppo creato ✓');
+      ui.sel = null; focusAfter = `#listBox .mv.gh[data-id="${gid}"]`; render(); toast('Gruppo creato ✓');
     }
   });
 }
@@ -1820,7 +1856,7 @@ const actions = {
     const ids = gMembers(el.dataset.id).map(t => t.id), all = ids.every(id => ui.sel.has(id));      // in selezione: tocca il gruppo per prenderlo tutto
     ids.forEach(id => all ? ui.sel.delete(id) : ui.sel.add(id)); renderList(); renderSelBar();
   },
-  selActions, tripSheet: el => tripSheet(el.dataset.id), newTrip: () => tripSheet(null),
+  selActions, lpSheet, tripSheet: el => tripSheet(el.dataset.id), newTrip: () => tripSheet(null),
   mvStyleSheet,
   toggleGroup: el => { if (ui.open.has(el.dataset.id)) ui.open.delete(el.dataset.id); else ui.open.add(el.dataset.id); renderList(); },
   newPerson, debtsSheet, person: el => { $('#sheetRoot').innerHTML = ''; openPerson(el.dataset.id); },
