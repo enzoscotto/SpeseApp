@@ -94,18 +94,31 @@ function openSheet(title, body, { onSave, saveLabel = 'Salva', deleteLabel, onMo
 }
 
 // la pagina sotto un foglio resta dov'era: alla chiusura si torna allo stesso punto (anche dopo una selezione confermata)
-let lastY = 0, sheetY = null, sheetCtx = '', focusAfter = null;      // focusAfter: elemento da mostrare quando il foglio si chiude
+// Safari non tiene ferma la lista quando le righe cambiano altezza (es. compaiono le caselle della selezione):
+// si ricorda una riga visibile e la si rimette nello stesso punto dello schermo
+function anchorOf(el) {
+  const vis = r => { const b = r.getBoundingClientRect(); return b.bottom > 90 && b.top < window.innerHeight - 120; };
+  const a = el || [...document.querySelectorAll('#listBox .mv.selected')].find(vis) || [...document.querySelectorAll('#listBox .mv')].find(r => r.getBoundingClientRect().bottom > 90);      // meglio un movimento selezionato
+  return a ? { act: a.dataset.act, id: a.dataset.id, top: a.getBoundingClientRect().top } : null;
+}
+function restoreAnchor(a) {
+  if (!a) return;
+  const el = [...document.querySelectorAll(`#listBox .mv[data-act="${a.act}"]`)].find(r => r.dataset.id === a.id);
+  if (el) { const d = el.getBoundingClientRect().top - a.top; if (Math.abs(d) > 1) window.scrollBy(0, d); }
+}
+let lastY = 0, sheetY = null, sheetCtx = '', sheetAnchor = null, focusAfter = null;      // focusAfter: elemento da mostrare quando il foglio si chiude
 window.addEventListener('scroll', () => { if (!document.querySelector('#sheetRoot .sheet')) lastY = window.scrollY; }, { passive: true });
 new MutationObserver(() => {
   const open = !!document.querySelector('#sheetRoot .sheet');
-  if (open && sheetY === null) { sheetY = window.scrollY || lastY; sheetCtx = ui.tab + '|' + ui.periodId; }
+  if (open && sheetY === null) { sheetY = window.scrollY || lastY; sheetCtx = ui.tab + '|' + ui.periodId; sheetAnchor = ui.tab === 'mese' ? anchorOf() : null; }
   if (!open && sheetY !== null) {
     const y = sheetY; sheetY = null;
     if (focusAfter) {
       const el = document.querySelector(focusAfter); focusAfter = null;
       if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); return; }
     }
-    if (!pageBusy && sheetCtx === ui.tab + '|' + ui.periodId && Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y);
+    if (!pageBusy && sheetCtx === ui.tab + '|' + ui.periodId) { if (Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y); restoreAnchor(sheetAnchor); }
+    sheetAnchor = null;
   }
 }).observe($('#sheetRoot'), { childList: true });
 
@@ -1377,12 +1390,13 @@ document.addEventListener('pointermove', e => { if (lp && Math.hypot(e.clientX -
 window.addEventListener('scroll', lpStop, { passive: true });
 document.addEventListener('contextmenu', e => { if (e.target.closest?.('#listBox .mv')) e.preventDefault(); });
 function startSelFrom(row) {
+  const anc = anchorOf(row);
   lp = null; noClickUntil = Date.now() + 700;      // il dito che si alza non deve togliere subito la selezione
   const ids = row.classList.contains('gh') ? gMembers(row.dataset.id).map(t => t.id) : [row.dataset.id];
   if (!ui.sel) ui.sel = new Set();
   ids.forEach(id => ui.sel.add(id));
   try { navigator.vibrate?.(15); } catch { /* ignore */ }
-  renderList(); renderSelBar(); renderFab();
+  renderList(); renderSelBar(); renderFab(); restoreAnchor(anc);
 }
 function lpSheet() {
   const cur = lpMs();
@@ -1841,7 +1855,7 @@ const actions = {
   gotoPeriod: el => { ui.q = ''; $('#sheetRoot').innerHTML = ''; slideTo(el.dataset.id); },
   acct: el => { ui.acct = el.dataset.id; render(); },
   editTx: el => ui.sel ? toggleSel(el.dataset.id) : openTxSheet(S.state.transactions.find(t => t.id === el.dataset.id)),
-  selMode: () => { ui.sel = ui.sel ? null : new Set(); render(); },
+  selMode: () => { const a = anchorOf(); ui.sel = ui.sel ? null : new Set(); render(); restoreAnchor(a); },
   createGroup,
   statSettings, catPick,
   statToggle: el => {
