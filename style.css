@@ -638,3 +638,9 @@ html:has(#sheetRoot .sheet),html:has(#sheetRoot .sheet) body{overflow:hidden}
 /* il gruppo appena creato si illumina un attimo */
 @keyframes mvflash{0%,55%{outline:3px solid var(--accent);outline-offset:-3px}100%{outline:3px solid transparent;outline-offset:-3px}}
 .mv.flash{animation:mvflash 1.6s ease-out}
+
+/* selezione: la casella si appoggia sull'icona, cosi' le righe non cambiano larghezza ne' altezza (la lista non si sposta) */
+#listBox.selmode .mv .chk{position:absolute;left:14px;top:50%;margin-top:-12px;z-index:1}
+#listBox.selmode .mv .chk:not(.on){background:var(--card)}
+#listBox.selmode .mv.sub .chk{left:10px}
+#listBox.selmode .mv .ico{opacity:.2}
