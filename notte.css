@@ -1,0 +1,133 @@
+/* ===================================================================
+   Stile "Notte" (Altro > Aspetto > Stile grafico), nato dalla prova con la skill di design (taste-skill).
+   Si appoggia a Nitido (data-ui="nitido") e aggiunge data-notte:
+   - palette "blu notte e azzurro" (scura) e la sua versione chiara
+   - carattere Onest, cifre allineate, pesi leggeri (400-600)
+   - angoli piu' squadrati, schede con un bordo sottile, banda del conto a sinistra dei saldi
+   Le parti di struttura (mesi in fila, tastierino, statistiche a blocchi) le disegna main.js solo con questo stile.
+   =================================================================== */
+@font-face{font-family:"Onest";src:url(fonts/onest.woff2) format("woff2");font-weight:400 600;font-display:swap}
+
+:root[data-ui="nitido"][data-notte]{
+  color-scheme:light;
+  --f:"Onest",-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;
+  --bg:#F6F8FB;--s1:#FFFFFF;--s2:#EDF1F6;--s3:#DFE5EE;--line:#DDE3EB;
+  --card:var(--s1);--chip:var(--s2);
+  --text:#0F1726;--muted:#5F6B7D;--faint:#8A94A6;--sep:rgba(15,23,38,.09);
+  --carta:#1F7FD1;--cash:#15955A;--in:#15955A;--green:#15955A;--in-strong:#15955A;--red:#D93A3A;--warn:#B7791F;
+  --accent:#1F7FD1;--pl:#1F7FD1;--pl-l:#1F7FD1;--pl-d:#1F7FD1;--pl-ink:#FFFFFF;
+}
+@media (prefers-color-scheme:dark){
+  :root[data-ui="nitido"][data-notte]:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0A0D14;--s1:#131824;--s2:#1B2131;--s3:#252C3D;--line:#232A3A;
+    --text:#E9EDF3;--muted:#8B94A6;--faint:#677085;--sep:rgba(255,255,255,.075);
+    --carta:#5AB9FC;--cash:#4FD18B;--in:#4FD18B;--green:#4FD18B;--in-strong:#4FD18B;--red:#FF6B6B;--warn:#F5B84B;
+    --accent:#5AB9FC;--pl:#5AB9FC;--pl-l:#5AB9FC;--pl-d:#5AB9FC;--pl-ink:#05121F;
+  }
+}
+:root[data-ui="nitido"][data-notte][data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0A0D14;--s1:#131824;--s2:#1B2131;--s3:#252C3D;--line:#232A3A;
+  --text:#E9EDF3;--muted:#8B94A6;--faint:#677085;--sep:rgba(255,255,255,.075);
+  --carta:#5AB9FC;--cash:#4FD18B;--in:#4FD18B;--green:#4FD18B;--in-strong:#4FD18B;--red:#FF6B6B;--warn:#F5B84B;
+  --accent:#5AB9FC;--pl:#5AB9FC;--pl-l:#5AB9FC;--pl-d:#5AB9FC;--pl-ink:#05121F;
+}
+:root[data-ui="nitido"][data-notte] body{font-synthesis-weight:none;letter-spacing:0}
+
+/* ---------- testata e mesi in fila ---------- */
+:root[data-ui="nitido"][data-notte] .bar h1,:root[data-ui="nitido"][data-notte] .periodbtn{font-weight:500;letter-spacing:-.035em}
+:root[data-ui="nitido"][data-notte] .iconbtn{border-radius:9px;background:var(--s1);box-shadow:inset 0 0 0 1px var(--line)}
+:root[data-ui="nitido"][data-notte] .iconbtn.on{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent)}
+.mstrip{display:flex;align-items:baseline;gap:14px;min-width:0;overflow:hidden}
+.mstrip .mside{flex:none;font:500 15px/1 var(--f);color:var(--muted);padding:8px 2px}
+.mstrip .mside:active{color:var(--text)}
+.mstrip .periodbtn{align-items:baseline;gap:6px;flex:0 1 auto;min-width:0}
+.mstrip .periodbtn small{font-size:13px;font-weight:500;letter-spacing:0;color:var(--muted)}
+
+/* ---------- saldi: carta con la banda del conto, poi Speso e Risparmiato ---------- */
+:root[data-ui="nitido"][data-notte] .bx,:root[data-ui="nitido"][data-notte] .bx.carta,:root[data-ui="nitido"][data-notte] .bx.contanti{background:var(--s1);border-radius:10px;box-shadow:inset 3px 0 0 var(--ac),inset 0 0 0 1px var(--line)}
+:root[data-ui="nitido"][data-notte] .bx-t{color:var(--muted);font-weight:500}
+:root[data-ui="nitido"][data-notte] .bx-t svg{background:none;padding:0;width:17px;height:17px}
+:root[data-ui="nitido"][data-notte] .bx-v{font-weight:500}
+:root[data-ui="nitido"][data-notte] .dbox{background:var(--s2);border-radius:10px}
+:root[data-ui="nitido"][data-notte] .dbox b{font-weight:500}
+:root[data-ui="nitido"][data-notte] .dbox.saved:not(.bad) b{color:var(--in)}
+:root[data-ui="nitido"][data-notte] .seg{background:var(--s2);border-radius:10px}
+:root[data-ui="nitido"][data-notte] .seg button{border-radius:7px}
+:root[data-ui="nitido"][data-notte] .seg button.on{background:var(--s1);box-shadow:0 0 0 1px var(--line);font-weight:500}
+:root[data-ui="nitido"][data-notte] .seg.sm button.on{background:var(--pl);color:var(--pl-ink)}
+
+/* ---------- movimenti ---------- */
+:root[data-ui="nitido"][data-notte] .dayh{font-weight:500}
+:root[data-ui="nitido"][data-notte] .mv{border-radius:10px;border:1px solid var(--line)}
+:root[data-ui="nitido"][data-notte][data-mvs="rail"] .mv.ac-carta{box-shadow:inset 3px 0 0 var(--carta)}
+:root[data-ui="nitido"][data-notte][data-mvs="rail"] .mv.ac-cash{box-shadow:inset 3px 0 0 var(--cash)}
+:root[data-ui="nitido"][data-notte][data-mvs="rail"] .mv.unp.ac-carta{box-shadow:inset 3px 0 0 var(--carta),inset 0 0 0 1.5px color-mix(in srgb,var(--red) 55%,transparent)}
+:root[data-ui="nitido"][data-notte][data-mvs="rail"] .mv.unp.ac-cash{box-shadow:inset 3px 0 0 var(--cash),inset 0 0 0 1.5px color-mix(in srgb,var(--red) 55%,transparent)}
+:root[data-ui="nitido"][data-notte][data-mvs="solid"] .mv{border-color:transparent}
+:root[data-ui="nitido"][data-notte] .mv .ico{border-radius:7px}
+:root[data-ui="nitido"][data-notte] .mv .mvt,:root[data-ui="nitido"][data-notte] .mv.gh .mvt{font-weight:500}
+:root[data-ui="nitido"][data-notte] .mv .amt{font-weight:500}
+:root[data-ui="nitido"][data-notte] .tag.cat,:root[data-ui="nitido"][data-notte] .tag.dbt,:root[data-ui="nitido"][data-notte] .tag.red,:root[data-ui="nitido"][data-notte] .tag.trip{border-radius:4px;font-weight:500}
+:root[data-ui="nitido"][data-notte] .gtgl{border-radius:7px}
+:root[data-ui="nitido"][data-notte] .chk.on{background:var(--accent);border-color:var(--accent)}
+
+/* ---------- barra in basso, tasti, fogli ---------- */
+:root[data-ui="nitido"][data-notte] .tabpill{border-radius:18px;border-color:var(--line)}
+:root[data-ui="nitido"][data-notte] .tabpill button.on{font-weight:500}
+:root[data-ui="nitido"][data-notte] #tabs .plus,:root[data-ui="nitido"][data-notte] .amx{border-radius:16px;color:var(--pl-ink)}
+:root[data-ui="nitido"][data-notte] .btn,:root[data-ui="nitido"][data-notte] .fbtn.save,:root[data-ui="nitido"][data-notte] .sbtn.go{border-radius:10px;color:var(--pl-ink);font-weight:500}
+:root[data-ui="nitido"][data-notte] .btn.sec{color:var(--accent)}
+:root[data-ui="nitido"][data-notte] .btn.red{color:var(--red)}
+:root[data-ui="nitido"][data-notte] .fbtn{border-radius:10px;font-weight:500}
+:root[data-ui="nitido"][data-notte] #sheetRoot .sheet{border-radius:20px 20px 0 0}
+:root[data-ui="nitido"][data-notte] #sheetRoot .sheet[data-acct] .fbtn.save,:root[data-ui="nitido"][data-notte] #sheetRoot .sheet[data-acct] .seg button.on{background:var(--ac);color:var(--pl-ink)}
+:root[data-ui="nitido"][data-notte] .form,:root[data-ui="nitido"][data-notte] .list,:root[data-ui="nitido"][data-notte] .card:not(.tag),:root[data-ui="nitido"][data-notte] .ssec .sh,:root[data-ui="nitido"][data-notte] .morehd{border-radius:12px}
+:root[data-ui="nitido"][data-notte] .list,:root[data-ui="nitido"][data-notte] .card:not(.tag){box-shadow:inset 0 0 0 1px var(--line)}
+:root[data-ui="nitido"][data-notte] #sheetRoot .list,:root[data-ui="nitido"][data-notte] #sheetRoot .card:not(.tag){box-shadow:none}
+:root[data-ui="nitido"][data-notte] .rico{border-radius:7px}
+:root[data-ui="nitido"][data-notte] .row .ttl{font-weight:500}
+:root[data-ui="nitido"][data-notte] .sheet .head h2,:root[data-ui="nitido"][data-notte] .sechead{font-weight:500}
+:root[data-ui="nitido"][data-notte] #toast{border-radius:10px}
+
+/* ---------- inserimento: importo grande, categorie a chip, tastierino sopra al Salva ---------- */
+:root[data-ui="nitido"][data-notte] .frow.amount input{font-size:50px;font-weight:500;text-align:center;letter-spacing:-.05em}
+.kpin{caret-color:transparent;cursor:default}
+.sheet .foot.kp{flex-wrap:wrap}
+.keypad{flex:1 0 100%;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.keypad button{height:46px;border-radius:10px;background:var(--s2);font:500 22px/1 var(--f);color:var(--text)}
+.keypad button:active{background:var(--s3)}
+.catchips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.catchips button{display:inline-flex;align-items:center;gap:6px;padding:6px 10px 6px 7px;border-radius:8px;font:500 13.5px/1.2 var(--f);background:color-mix(in srgb,var(--cc) 15%,transparent);color:color-mix(in srgb,var(--cc) 78%,var(--text))}
+.catchips button .mini{width:20px;height:20px;flex:0 0 20px;border-radius:5px;background:var(--cc);color:#fff}
+.catchips button.on{background:var(--cc);color:#fff}
+.catchips button.on .mini{background:rgba(255,255,255,.22)}
+.catchips button.more{background:var(--s2);color:var(--muted);padding:6px 12px}
+
+/* ---------- statistiche a blocchi ---------- */
+.nsum{margin:0 4px 14px}
+.nsum h2{font:500 28px/1.15 var(--f);letter-spacing:-.035em;margin:0}
+.nsum p{margin:4px 0 0;font-size:14.5px;color:var(--muted)}
+.nsum b{color:var(--text);font-weight:600}
+.nstack{display:flex;height:40px;border-radius:7px;overflow:hidden;gap:2px;margin-bottom:6px}
+.nstack i{display:block;min-width:3px}
+.nlist button{display:grid;grid-template-columns:10px minmax(0,1fr) auto 40px;gap:10px;align-items:center;width:100%;padding:10px 2px;border-top:1px solid var(--sep);font:500 14.5px var(--f);color:var(--text);text-align:left}
+.nlist button:first-child{border-top:0}
+.nlist .d{width:10px;height:10px;border-radius:3px;background:var(--cc)}
+.nlist .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nlist em{font-style:normal;color:var(--muted);text-align:right;font-size:13px}
+.ncols{display:flex;gap:5px;height:150px}
+.ncols.sc{overflow-x:auto;scrollbar-width:none}
+.ncols button{flex:1 0 20px;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:5px;padding:0;font:500 10.5px/1.15 var(--f);color:var(--muted);text-align:center}
+.ncols i{align-self:end;display:block;background:var(--s3);border-radius:3px 3px 0 0}
+.ncols button.cur i{background:var(--accent)}
+.ncols button.cur span{color:var(--text)}
+.ntrip{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2px 12px;align-items:center;width:100%;text-align:left;padding:12px 14px;border-radius:12px;background:var(--s1);box-shadow:inset 0 0 0 1px var(--line,var(--sep));margin-bottom:8px;color:var(--text);font:inherit}
+.ntrip .ti{grid-row:1/3;width:36px;height:36px;border-radius:8px;display:grid;place-items:center;background:color-mix(in srgb,var(--tc) 18%,transparent);color:var(--tc)}
+.ntrip .ti svg{width:19px;height:19px;fill:currentColor}
+.ntrip b{font-weight:500;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ntrip .v{font-weight:500;font-size:16px}
+.ntrip .sm{grid-column:2/4;font-size:12.5px;color:var(--muted)}
+.ntrip .nbar{grid-column:1/4;display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px;margin-top:9px}
+.ntrip .nbar i{display:block;min-width:3px}

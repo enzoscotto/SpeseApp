@@ -288,7 +288,7 @@ function viewMese() {
   return `
   <div id="topArea">
   <div class="bar">
-    <div class="ttlgrp"><button class="iconbtn" data-act="periodInfo" aria-label="Dati del mese">${IC.info}</button><button class="periodbtn" data-act="pickPeriod"><span>${esc(periodLabel(p))}</span>${IC.chev}</button></div>
+    <div class="ttlgrp"><button class="iconbtn" data-act="periodInfo" aria-label="Dati del mese">${IC.info}</button>${isNotte() ? monthStrip(p, i) : `<button class="periodbtn" data-act="pickPeriod"><span>${esc(periodLabel(p))}</span>${IC.chev}</button>`}</div>
     <div class="nav">
       <button class="iconbtn ${ui.q ? 'on' : ''}" data-act="searchToggle" aria-label="Cerca">${IC.searchBtn}</button>
       <button class="iconbtn ${ui.catf || ui.allMonths ? 'on' : ''}" data-act="filterSheet" aria-label="Filtra per categoria">${IC.filter}</button>
@@ -307,6 +307,14 @@ function viewMese() {
   <div id="listBox"></div>`;
 }
 
+// stile Notte: i mesi in fila (quello prima, questo, quello dopo); tocchi un mese vicino per andarci, quello in mezzo apre l'elenco
+function monthStrip(p, i) {
+  const ps = S.state.periods, short = x => C.MESI_BREVI[+x.start.slice(5, 7) - 1];
+  const lab = periodLabel(p), m = lab.match(/^(\S+) (\d{4})$/);
+  const side = x => x ? `<button class="mside" data-act="gotoPeriod" data-id="${esc(x.id)}">${short(x)}</button>` : '';
+  return `<div class="mstrip">${side(ps[i - 1])}<button class="periodbtn" data-act="pickPeriod" aria-label="Scegli il mese">${m ? `<span>${m[1]}</span><small>${m[2]}</small>` : `<span>${esc(lab)}</span>`}</button>${side(ps[i + 1])}</div>`;
+}
+
 function rowHtml(t, showAcct, showPeriod, sub, plain, extra) {
   const debt = S.state.debts.find(d => d.txId === t.id);
   const un = t.unpaid ? `<span class="tag red">Da incassare${t.expected ? ' ' + moneyRaw(Math.max(0, t.expected - t.amount)) : ''}</span>` : '';
@@ -318,7 +326,7 @@ function rowHtml(t, showAcct, showPeriod, sub, plain, extra) {
   const title = esc(t.cat === 'Riconversione' && t.pair ? display(t) : (t.desc || t.category || '—'));
   const selOn = !plain && ui.sel?.has(t.id), lock = !plain && ui.sel && lockedIds.has(t.id), chk = !plain && ui.sel ? `<span class="chk ${selOn ? 'on' : ''} ${lock ? 'lk' : ''}"></span>` : '';
   return `<button class="mv ${selOn ? 'selected' : ''} ${lock ? 'lock' : ''} ${cc ? 'cc' : ''} ${t.unpaid ? 'unp' : ''} ${sub ? 'sub' : ''} ${t.account === 'carta' ? 'ac-carta' : 'ac-cash'}" ${cc ? `style="--cc:${cc}"` : ''} data-act="editTx" data-id="${t.id}">${chk}<div class="ico">${ico}</div><div class="main"><div class="mvt">${title}</div><div class="chips2">${chips}</div></div>
-    <div class="amt num ${t.kind === 'in' ? 'pos' : 'neg'}">${t.kind === 'in' ? '+' : '−'}${moneyRaw(t.amount)}</div></button>`;
+    <div class="amtc"><div class="amt num ${t.kind === 'in' ? 'pos' : 'neg'}">${t.kind === 'in' ? '+' : '−'}${moneyRaw(t.amount)}</div></div></button>`;
 }
 // ---------- gruppi di movimenti ----------
 // Un gruppo ha un nome (meta.groups[gid]) e i suoi movimenti hanno `gid`. Il gruppo e' sempre una tua scelta.
@@ -372,7 +380,7 @@ function groupHtml(g, showAcct, showPeriod) {
   const all = gMembers(g.gid), tot = gTotal(all), n = all.length;
   const closed = groupsClosed(), col = closed && !ui.sel && !ui.open.has(g.gid), first = g.kids[0].date;
   const gSel = !!ui.sel && all.every(t => ui.sel.has(t.id));
-  const head = `<button class="mv gh ${gSel ? 'selected' : ''}" data-act="openGroup" data-id="${g.gid}">${ui.sel ? `<span class="chk ${gSel ? 'on' : ''}"></span>` : ''}<div class="ico">${IC.folder}</div><div class="main"><div class="mvt">${esc(gName(g.gid))}</div><div class="chips2"><span class="muted">${n} ${n === 1 ? 'movimento' : 'movimenti'}</span></div></div><div class="amt num ${sgnCls(tot)}">${signedRaw(tot)}</div>${closed ? `<span class="gtgl ${col ? '' : 'up'}" data-act="toggleGroup" data-id="${g.gid}">${IC.chev}</span>` : ''}</button>`;
+  const head = `<button class="mv gh ${gSel ? 'selected' : ''}" data-act="openGroup" data-id="${g.gid}">${ui.sel ? `<span class="chk ${gSel ? 'on' : ''}"></span>` : ''}<div class="ico">${IC.folder}</div><div class="main"><div class="mvt">${esc(gName(g.gid))}</div><div class="chips2"><span class="muted">${n} ${n === 1 ? 'movimento' : 'movimenti'}</span></div></div><div class="amtc"><div class="amt num ${sgnCls(tot)}">${signedRaw(tot)}</div></div>${closed ? `<span class="gtgl ${col ? '' : 'up'}" data-act="toggleGroup" data-id="${g.gid}">${IC.chev}</span>` : ''}</button>`;
   // aperto, il gruppo mostra anche i movimenti degli altri mesi (sfumati): nei conti del mese contano solo quelli del mese
   const mine = new Set(g.kids.map(k => k.id));
   const rows = showPeriod || ui.catf ? g.kids.map(k => ({ t: k })) : all.map(t => ({ t, out: !mine.has(t.id) }));
@@ -631,6 +639,27 @@ function openCatMenu(anchor, cur, pick) {
   list.querySelectorAll('.cmrow').forEach(b => b.onclick = () => { close(); pick(b.dataset.c); });
 }
 
+// stile Notte: le categorie piu' usate (per uscite o entrate), da mostrare come chip
+function topCats(kind) {
+  const n = new Map();
+  for (const t of S.state.transactions) if (t.cat && t.kind === kind && t.cat !== 'Riconversione') n.set(t.cat, (n.get(t.cat) || 0) + 1);
+  return [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([c]) => c);
+}
+// stile Notte: tastierino sempre aperto sopra al tasto Salva (niente tastiera di iOS per l'importo)
+function mountKeypad(w, input) {
+  const foot = $('.foot', w); if (!foot || !input) return;
+  input.readOnly = true; input.setAttribute('inputmode', 'none'); input.classList.add('kpin');
+  foot.classList.add('kp');
+  foot.insertAdjacentHTML('afterbegin', `<div class="keypad">${['1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '0', 'del'].map(k => `<button type="button" data-k="${k}" ${k === 'del' ? 'aria-label="Cancella"' : ''}>${k === 'del' ? '⌫' : k}</button>`).join('')}</div>`);
+  foot.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
+    let v = input.value; const k = b.dataset.k;
+    if (k === 'del') v = v.slice(0, -1);
+    else if (k === ',') { if (!v.includes(',')) v = (v || '0') + ','; }
+    else { const dec = v.split(',')[1]; if (dec != null && dec.length >= 2) return; if (v === '0') v = ''; if (v.replace(/\D/g, '').length >= 7) return; v += k; }
+    input.value = v; input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
 function openTxSheet(existing, preset = {}) {
   const e = existing, debt0 = e && S.state.debts.find(d => d.txId === e.id), ret0 = e && findBack(e);
   const f = {
@@ -647,9 +676,10 @@ function openTxSheet(existing, preset = {}) {
       <div class="frow"><label>Data</label><input id="fDate" type="date" value="${e ? e.date : C.today()}"></div>
       <div id="fTextRows"><div class="frow"><label>Motivo</label><input id="fDesc" placeholder="Descrizione" value="${esc(e?.desc || '')}" autocomplete="off" autocapitalize="sentences"></div></div>
     </div>
-    <div class="form" id="fChips"><div class="frow"><label>Categoria</label><button type="button" class="catsel" id="fCatBtn"></button></div>
+    ${isNotte() ? '<div class="catchips" id="fCatChips"></div>' : ''}
+    <div class="form" id="fChips"><div class="frow" ${isNotte() ? 'hidden' : ''}><label>Categoria</label><button type="button" class="catsel" id="fCatBtn"></button></div>
       <div class="frow" id="fC2Row"><label>Anche in</label><div class="cats2" id="fC2"></div></div>
-      ${tripList().length || f.trip ? `<div class="frow"><label>Viaggio</label><select id="fTrip"><option value="">— nessuno —</option>${tripList().map(([id, tr]) => `<option value="${esc(id)}" ${f.trip === id ? 'selected' : ''}>${esc(tr.name)}</option>`).join('')}</select></div>` : ''}</div>
+      ${tripList().length || f.trip ? `<div class="frow"><label style="width:auto">Viaggio o evento</label><select id="fTrip"><option value="">— nessuno —</option>${tripList().map(([id, tr]) => `<option value="${esc(id)}" ${f.trip === id ? 'selected' : ''}>${esc(tr.name)}</option>`).join('')}</select></div>` : ''}</div>
     <div class="catgrid" id="fSubs" hidden></div>
     <div id="fMore"><button type="button" class="morehd" id="fMoreBtn"><span>Rientro e debito</span><em id="fMoreTag"></em>${IC.chev}</button><div id="fMoreBody" hidden>
     <div class="form" id="fRetBox">
@@ -705,6 +735,14 @@ function openTxSheet(existing, preset = {}) {
         $$('#fC2 [data-rm2]', w).forEach(b => b.onclick = () => { f.cats2 = f.cats2.filter(c => c !== b.dataset.rm2); drawCat(); });
         $('#fC2 [data-add2]', w).onclick = ev => openCatMenu(ev.currentTarget, '', name => { if (name && name !== f.cat && !f.cats2.includes(name)) f.cats2.push(name); drawCat(); });
         $('#fCatBtn', w).innerHTML = (f.cat ? `${mini(f.cat, null, 15)}<span>${esc(f.cat)}</span>` : '<span class="ph">Scegli…</span>') + IC.chev;
+        const cc = $('#fCatChips', w);
+        if (cc) {
+          const top = topCats(f.kind === 'in' ? 'in' : 'out'), list = f.cat && !top.includes(f.cat) ? [f.cat, ...top.slice(0, 7)] : top;
+          cc.hidden = f.giro;
+          cc.innerHTML = list.map(c => `<button type="button" class="${c === f.cat ? 'on' : ''}" data-cc="${esc(c)}" style="--cc:${C.catColor(c)}">${mini(c, null, 14)}<span>${esc(c)}</span></button>`).join('') + '<button type="button" class="more" data-ccmore>Altre…</button>';
+          $$('#fCatChips [data-cc]', w).forEach(b => b.onclick = () => { f.cat = f.cat === b.dataset.cc ? null : b.dataset.cc; f.catManual = !!f.cat; f.catClicked = true; guessSubNow(); drawCat(); });
+          $('#fCatChips [data-ccmore]', w).onclick = ev => openCatMenu(ev.currentTarget, f.cat, name => { f.cat = name || null; f.catManual = !!f.cat; f.catClicked = true; guessSubNow(); drawCat(); });
+        }
         const shop = f.cat === 'Shopping online' && !f.giro;
         $('#fSubs', w).hidden = !shop;
         $$('#fSubs button', w).forEach(b => b.classList.toggle('on', b.dataset.s === f.sub));
@@ -757,7 +795,8 @@ function openTxSheet(existing, preset = {}) {
         w.remove(); render(); toast('Eliminato');
       };
       sync();
-      if (!e) setTimeout(() => $('#fAmt', w).focus(), 300);
+      if (isNotte()) mountKeypad(w, $('#fAmt', w));
+      else if (!e) setTimeout(() => $('#fAmt', w).focus(), 300);
       w._f = f;
     },
     onSave: async w => {
@@ -942,7 +981,7 @@ const statOpen = () => { try { return JSON.parse(localStorage.getItem('statopen'
 // sezioni: chiave, titolo, se si puo' mostrare a torta
 const STAT_ITEMS = [['now', 'Mese in corso'], ['hero', 'Risparmiato e medie'], ['trend', 'Mese per mese'], ['stip', 'Crescita dello stipendio'], ['saldo', 'Saldo nel tempo'],
   ['record', 'Record'], ['cat', 'Spese per categoria', true], ['quando', 'Quando spendi'], ['conto', 'Carta o contanti', true], ['abb', 'Abbonamenti'], ['top', 'Le spese più alte'],
-  ['shop', 'Shopping online per sito', true], ['debiti', 'Debiti'], ['viaggi', 'Viaggi'], ['mesi', 'Per mese']];
+  ['shop', 'Shopping online per sito', true], ['debiti', 'Debiti'], ['viaggi', 'Viaggi ed eventi'], ['mesi', 'Per mese']];
 const statCfg = () => ({ order: [], hide: [], pie: {}, ...(S.state.meta.statCfg || {}) });
 const statOrder = () => { const o = statCfg().order, keys = STAT_ITEMS.map(x => x[0]); return [...o.filter(k => keys.includes(k)), ...keys.filter(k => !o.includes(k))]; };
 
@@ -1031,13 +1070,22 @@ function viewStat() {
   const yAvg = y => { const l = sp.filter(p => C.periodYear(p) === y); return { n: l.length, avg: l.reduce((a, p) => a + p.salary, 0) / l.length }; };
   const dSal = sp.length >= 2 ? sp[sp.length - 1].salary - sp[0].salary : 0, pSal = sp.length >= 2 ? dSal / sp[0].salary * 100 : 0;
 
+  const notte = isNotte();
+  // stile Notte: una frase in cima sul mese in corso
+  let nsum = '';
+  if (notte && !cfg.hide.includes('now') && cp && cp.start <= today && today <= cp.end) {      // prende il posto della scheda "Mese in corso"
+    const cs = C.stats(cp), el = dayDiff(today, cp.start) + 1, proj = cs.real / el * (dayDiff(cp.end, cp.start) + 1), done = ps.filter(p => p.end < today).slice(-12).map(p => C.stats(p).real).filter(v => v > 0);
+    const avg = done.length ? done.reduce((a, v) => a + v, 0) / done.length : 0, d = avg ? Math.round((cs.real - avg) / avg * 100) : null;
+    nsum = `<div class="nsum"><h2>${esc(periodLabel(cp))}</h2><p><b class="num">${money(cs.real)}</b> spesi in ${el} ${el === 1 ? 'giorno' : 'giorni'}${d === null ? '' : d <= 0 ? `, il ${-d}% in meno della tua media` : `, il ${d}% in più della tua media`}.${cs.real > 0 ? ` A questo ritmo chiudi il mese a circa <b class="num">${money(proj)}</b>.` : ''}</p></div>`;
+  }
+  const avgReal = rows.length ? tot.real / rows.length : 0;
   const so = statOpen();
   const sec = (key, title, right, body) => {
     const open = so[key] ?? !!STAT_DEF[key];
     return `<div class="ssec"><button class="sechead sh" data-act="statToggle" data-id="${key}" aria-expanded="${open}"><span>${title}</span><span class="sr">${right || ''}<i class="gch ${open ? 'up' : ''}">${IC.chev}</i></span></button><div class="sbody" ${open ? '' : 'hidden'}>${body}</div></div>`;
   };
   const blocks = {
-    now,
+    now: notte ? '' : now,
     hero: `<div class="card hero"><div class="t">Risparmiato</div><div class="v num ${tot.sav >= 0 ? 'pos' : 'neg'}">${signed(tot.sav).replace('+', '')}</div><div class="sm">${rate !== null ? `${Math.round(rate)}% degli stipendi` : 'in attesa degli stipendi'}</div></div>
   <div class="grid2">
     <div class="card acc"><div class="t">Stipendi</div><div class="v num">${money(tot.sal)}</div></div>
@@ -1045,7 +1093,9 @@ function viewStat() {
     <div class="card acc"><div class="t">Media al mese</div><div class="v num">${money(rows.length ? tot.real / rows.length : 0)}</div></div>
     <div class="card acc"><div class="t">Media al giorno</div><div class="v num">${money(days ? tot.real / days : 0)}</div></div>
   </div>`,
-    trend: sec('trend', 'Mese per mese', '<span style="color:var(--carta)">■</span> spesa <span style="color:var(--cash)">■</span> risparmio',
+    trend: notte ? sec('trend', 'Mese per mese', `media ${money(avgReal)}`,
+      `<div class="card"><div class="ncols ${rows.length > 12 ? 'sc' : ''}">${rows.map(({ p, s }) => `<button class="${p.id === cp?.id ? 'cur' : ''}" data-act="gotoPeriod" data-id="${esc(p.id)}"><i style="height:${Math.max(2, s.real / max * 100)}%"></i><span>${lbl(p)}</span></button>`).join('')}</div></div>`)
+    : sec('trend', 'Mese per mese', '<span style="color:var(--carta)">■</span> spesa <span style="color:var(--cash)">■</span> risparmio',
       `<div class="card"><div class="bars ${rows.length > 9 ? 'sc' : ''}">${rows.map(({ p, s }) => `<button class="b" data-act="gotoPeriod" data-id="${esc(p.id)}"><div style="display:flex;gap:2px;align-items:flex-end;width:100%;height:100%"><div class="col" style="height:${Math.max(1, s.real / max * 100)}%"></div><div class="col sv" style="height:${Math.max(1, Math.max(0, s.saved || 0) / max * 100)}%"></div></div><div class="m">${lbl(p)}</div></button>`).join('')}</div></div>`),
     stip: sec('stip', 'Crescita dello stipendio', sp.length ? `<span class="num">ultimo ${money(sp[sp.length - 1].salary)}</span>` : '', sp.length >= 2
       ? `<div class="card"><div class="lv"><b class="num">${money(sp[sp.length - 1].salary)}</b><span class="num ${dSal >= 0 ? 'pos' : 'neg'}">${signed(dSal)} · ${pSal >= 0 ? '+' : '−'}${Math.abs(Math.round(pSal))}%</span></div>${lineChart(sp.map(p => p.salary))}<div class="lax"><span>${esc(periodLabel(sp[0]))} · ${money(sp[0].salary)}</span><span>${esc(periodLabel(sp[sp.length - 1]))}</span></div></div>
@@ -1056,7 +1106,10 @@ function viewStat() {
       `<div class="card"><div class="lv"><b class="num">${money(bal[bal.length - 1])}</b><span class="num ${dBal >= 0 ? 'pos' : 'neg'}">${signed(dBal)}</span></div>${lineChart(bal)}<div class="lax"><span>${esc(periodLabel(rows[0].p))}</span><span>${esc(periodLabel(rows[rows.length - 1].p))}</span></div></div>`) : '',
     record: records.length ? sec('record', 'Record', '', `<div class="grid2">${records.join('')}</div>`) : '',
     cat: sec('cat', 'Spese per categoria', `<span class="num">${money(catTot)}</span>`,
-      catPickBtn + (cfg.pie.cat && catTot > 0
+      catPickBtn + (notte && !cfg.pie.cat && catTot > 0
+        ? `<div class="card"><div class="nstack">${top.map(([k, v]) => `<i style="flex:${v};background:${catColor(k)}"></i>`).join('')}</div>
+          <div class="nlist">${top.map(([k, v]) => `<button data-act="searchCat" data-id="${esc(k)}" style="--cc:${catColor(k)}"><span class="d"></span><span class="n">${esc(k)}</span><span class="num">${money(v)}</span><em class="num">${Math.round(v / catTot * 100)}%</em></button>`).join('')}</div></div>`
+        : cfg.pie.cat && catTot > 0
         ? donut([...catShown.slice(0, 7).map(([k, v]) => ({ label: k, v, color: catColor(k), cat: k })), ...(catShown.length > 7 ? [{ label: 'Altre', v: catShown.slice(7).reduce((a, [, v]) => a + v, 0), color: '#6B7280' }] : [])], catTot, money(catTot))
         : `<div class="card">${top.map(([k, v]) => `<button class="hbar" style="display:block;width:100%;text-align:left" data-act="searchCat" data-id="${esc(k)}"><div class="top"><span class="lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</span><span class="num">${money(v)} <span class="muted" style="font-weight:600">· ${Math.round(v / catTot * 100)}%</span></span></div><div class="track"><div class="fill" style="width:${v / top[0][1] * 100}%;background:${C.catColor(k)}"></div></div></button>`).join('') || '<div class="empty">—</div>'}</div>`)
       + `<p class="hint" style="margin:-4px 4px 0">Prestiti, contributo mensile alla famiglia e ricariche tra i tuoi conti non contano come spesa. Un rimborso nello stesso gruppo o sulla stessa riga riduce la spesa.</p>`),
@@ -1073,11 +1126,11 @@ function viewStat() {
       : `<div class="card">${subList.map(([k, v]) => `<div class="hbar"><div class="top"><span>${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / subList[0][1] * 100}%"></div></div></div>`).join('')}</div>`) : '',
     debiti: sec('debiti', 'Debiti', `Ti devono ${money(owed)}`,
       `<div class="list"><button class="row" data-act="debtsSheet"><div class="main"><div class="ttl">Vedi le persone</div><div class="sm">Ti devono ${money(owed)} · Devi ${money(owe)}</div></div><span class="gch rt">${IC.chev}</span></button></div>`),
-    viaggi: sec('viaggi', 'Viaggi', tripList().length ? `${tripList().length} ${tripList().length === 1 ? 'viaggio' : 'viaggi'}` : '', `<div class="list">${tripRowsHtml()}</div>`),
+    viaggi: sec('viaggi', 'Viaggi ed eventi', tripCount(), notte ? tripCardsHtml() : `<div class="list">${tripRowsHtml()}</div>`),
     mesi: sec('mesi', 'Per mese', '', `<div class="list">${[...rows].reverse().map(({ p, s }) => `<button class="row" data-act="gotoPeriod" data-id="${esc(p.id)}"><div class="main"><div class="ttl">${esc(periodLabel(p))}</div><div class="sm num">Spesa ${money(s.real)}</div></div><div class="amt num ${s.saved == null ? 'muted' : s.saved >= 0 ? 'pos' : 'neg'}">${s.saved == null ? '—' : signed(s.saved)}</div></button>`).join('')}</div>`),
   };
   const shown = statOrder().filter(k => !cfg.hide.includes(k)).map(k => blocks[k]).join('');
-  return `${head}
+  return `${head}${nsum}
   <div class="seg" style="overflow-x:auto">${[...years, 'tutto'].map(y => `<button data-act="statYear" data-id="${y}" class="${ui.statYear === y ? 'on' : ''}">${y === 'tutto' ? 'Tutto' : y}</button>`).join('')}</div>
   <div style="height:10px"></div>
   ${shown || '<div class="empty">Nessuna sezione visibile.<br>Usa il pulsante in alto per sceglierle.</div>'}`;
@@ -1277,7 +1330,15 @@ function viewAltro() {
 // Un viaggio ha un nome e, se vuoi, le date (meta.trips[id]); i suoi movimenti hanno `trip`. Lo scegli tu, mai in automatico.
 const trips = () => S.state.meta.trips || {};
 const tripList = () => Object.entries(trips()).sort((a, b) => (b[1].from || '').localeCompare(a[1].from || '') || a[1].name.localeCompare(b[1].name));
-const tripChip = t => t.trip && trips()[t.trip] ? `<span class="tag trip">✈︎ ${esc(trips()[t.trip].name)}</span>` : '';
+const isEvent = tr => tr?.type === 'evento';
+const tripIco = tr => isEvent(tr) ? 'ticket' : 'airplane', tripCol = tr => isEvent(tr) ? '#F472B6' : '#38BDF8';
+const tripGlyph = tr => `<svg class="tg" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[tripIco(tr)]}"/></svg>`;
+const tripChip = t => t.trip && trips()[t.trip] ? `<span class="tag trip ${isEvent(trips()[t.trip]) ? 'ev' : ''}">${tripGlyph(trips()[t.trip])}${esc(trips()[t.trip].name)}</span>` : '';
+const tripCount = () => { const l = tripList(), e = l.filter(([, tr]) => isEvent(tr)).length, v = l.length - e;
+  return [v && `${v} ${v === 1 ? 'viaggio' : 'viaggi'}`, e && `${e} ${e === 1 ? 'evento' : 'eventi'}`].filter(Boolean).join(', '); };
+const tripTypeSeg = cur => `<div class="seg" id="trType" style="margin-bottom:12px"><button type="button" data-v="viaggio" class="${cur !== 'evento' ? 'on' : ''}">Viaggio</button><button type="button" data-v="evento" class="${cur === 'evento' ? 'on' : ''}">Evento</button></div>`;
+const tripTypeOf = w => w.querySelector('#trType button.on')?.dataset.v || 'viaggio';
+const bindTripType = w => w.querySelectorAll('#trType button').forEach(b => b.onclick = () => w.querySelectorAll('#trType button').forEach(x => x.classList.toggle('on', x === b)));
 const catsOf = t => [t.cat, ...(t.cats2 || [])].filter(Boolean);       // categoria principale + quelle in piu'
 function tripInfo(id) {
   const txs = S.state.transactions.filter(t => t.trip === id), net = netSpend(txs), cats = new Map();
@@ -1286,14 +1347,20 @@ function tripInfo(id) {
   return { txs, spent, cats: [...cats.entries()].sort((a, b) => b[1] - a[1]) };
 }
 const tripRowsHtml = () => tripList().map(([id, tr]) => { const n = S.state.transactions.filter(t => t.trip === id).length, sp = tripInfo(id).spent;
-  return `<button class="row" data-act="tripSheet" data-id="${esc(id)}">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl">${esc(tr.name)}</div><div class="sm">${esc([tripDates(tr), n + (n === 1 ? ' movimento' : ' movimenti')].filter(Boolean).join(' · '))}</div></div><div class="amt num">${money(sp)}</div></button>`; }).join('')
-  + `<button class="row" data-act="newTrip">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl" style="color:var(--accent)">Nuovo viaggio</div><div class="sm">Poi aggiungi le spese dalla selezione dei movimenti</div></div></button>`;
+  return `<button class="row" data-act="tripSheet" data-id="${esc(id)}">${ri(tripIco(tr), tripCol(tr))}<div class="main"><div class="ttl">${esc(tr.name)}</div><div class="sm">${esc([tripDates(tr), n + (n === 1 ? ' movimento' : ' movimenti')].filter(Boolean).join(' · '))}</div></div><div class="amt num">${money(sp)}</div></button>`; }).join('')
+  + `<button class="row" data-act="newTrip">${ri('plus', '#38BDF8')}<div class="main"><div class="ttl" style="color:var(--accent)">Nuovo viaggio o evento</div><div class="sm">Poi aggiungi le spese dalla selezione dei movimenti</div></div></button>`;
+// stile Notte: un viaggio o evento per card, con la barra delle sue categorie
+const tripCardsHtml = () => tripList().map(([id, tr]) => { const inf = tripInfo(id), n = inf.txs.length, tot = inf.cats.reduce((a, [, v]) => a + v, 0);
+  return `<button class="ntrip" data-act="tripSheet" data-id="${esc(id)}" style="--tc:${tripCol(tr)}"><span class="ti">${tripGlyph(tr)}</span><b>${esc(tr.name)}</b><span class="v num">${money(inf.spent)}</span>
+    <span class="sm">${esc([tripDates(tr), n + (n === 1 ? ' movimento' : ' movimenti')].filter(Boolean).join(', '))}</span>
+    ${tot > 0 ? `<span class="nbar">${inf.cats.map(([k, v]) => `<i style="flex:${v};background:${k === 'Senza categoria' ? '#9CA3AF' : C.catColor(k)}"></i>`).join('')}</span>` : ''}</button>`; }).join('')
+  + `<button class="btn sec" data-act="newTrip">Nuovo viaggio o evento</button>`;
 const tripDates = tr => tr.from ? (tr.to && tr.to !== tr.from ? `${fmtShort(tr.from)} – ${fmtShort(tr.to)}` : fmtShort(tr.from)) : '';
 function tripSheet(id) {
   const tr = id ? trips()[id] : { name: '', from: '', to: '' }; if (!tr) return;
   const info = id ? tripInfo(id) : null;
-  const body = `<div class="form">
-      <div class="frow"><label>Nome</label><input id="trNm" value="${esc(tr.name)}" placeholder="Es. Atene" autocomplete="off" autocapitalize="sentences"></div>
+  const body = `${tripTypeSeg(tr.type)}<div class="form">
+      <div class="frow"><label>Nome</label><input id="trNm" value="${esc(tr.name)}" placeholder="Es. Atene o Comicon 2023" autocomplete="off" autocapitalize="sentences"></div>
       <div class="frow"><label>Dal</label><input id="trFrom" type="date" value="${esc(tr.from || '')}"></div>
       <div class="frow"><label>Al</label><input id="trTo" type="date" value="${esc(tr.to || '')}"></div>
     </div>
@@ -1301,56 +1368,57 @@ function tripSheet(id) {
       ${info.cats.length ? `<div class="card">${info.cats.map(([k, v]) => `<div class="hbar"><div class="top"><span class="lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / info.cats[0][1] * 100}%;background:${k === 'Senza categoria' ? '#9CA3AF' : C.catColor(k)}"></div></div></div>`).join('')}</div>` : ''}
       <div id="trList"></div>
       ${info.txs.length ? '<button class="btn sec" data-see style="margin-top:12px">Vedi nei movimenti</button>' : ''}` : ''}
-    <p class="hint" style="margin:12px 4px 0">Per aggiungere movimenti: in Movimenti tocca il pallino di selezione, scegli i movimenti (o tienine premuto uno) e poi Aggiungi a… › Un viaggio.</p>`;
-  openSheet(id ? 'Viaggio' : 'Nuovo viaggio', body, {
-    saveLabel: id ? 'Salva' : 'Crea viaggio', deleteLabel: id ? 'Elimina viaggio' : null,
+    <p class="hint" style="margin:12px 4px 0">Per aggiungere movimenti: in Movimenti tocca il pallino di selezione, scegli i movimenti (o tienine premuto uno) e poi Aggiungi a… › Un viaggio o evento.</p>`;
+  openSheet(id ? (isEvent(tr) ? 'Evento' : 'Viaggio') : 'Nuovo viaggio o evento', body, {
+    saveLabel: id ? 'Salva' : 'Crea', deleteLabel: id ? (isEvent(tr) ? 'Elimina evento' : 'Elimina viaggio') : null,
     onMount: (w, close) => {
       const draw = () => {
         const box = $('#trList', w); if (!box) return;
         const ms = S.state.transactions.filter(t => t.trip === id).sort((a, b) => b.date.localeCompare(a.date));
-        box.innerHTML = ms.length ? `<div class="form linked">${ms.map(x => `<div class="lrow"><div class="lt"><b>${esc(x.desc || x.category || '—')}</b><span>${esc(fmtShort(x.date))} · ${esc(x.cat || 'Senza categoria')}</span></div><span class="num ${x.kind === 'in' ? 'pos' : 'neg'}">${x.kind === 'in' ? '+' : '−'}${moneyRaw(x.amount)}</span><button data-rm="${x.id}" aria-label="Togli dal viaggio">${IC.x}</button></div>`).join('')}</div>` : '';
+        box.innerHTML = ms.length ? `<div class="form linked">${ms.map(x => `<div class="lrow"><div class="lt"><b>${esc(x.desc || x.category || '—')}</b><span>${esc(fmtShort(x.date))} · ${esc(x.cat || 'Senza categoria')}</span></div><span class="num ${x.kind === 'in' ? 'pos' : 'neg'}">${x.kind === 'in' ? '+' : '−'}${moneyRaw(x.amount)}</span><button data-rm="${x.id}" aria-label="Togli">${IC.x}</button></div>`).join('')}</div>` : '';
         box.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
           const x = S.state.transactions.find(t => t.id === b.dataset.rm);
           await S.save('transactions', { ...x, trip: undefined }); render(); draw();
         });
       };
-      draw();
+      draw(); bindTripType(w);
       const see = $('[data-see]', w);
       if (see) see.onclick = () => { ui.q = tr.name; ui.searchOpen = true; ui.catf = null; ui.tab = 'mese'; close(); render(); window.scrollTo(0, 0); };
       const del = $('[data-del]', w);
       if (del) del.onclick = async () => {
-        if (!confirm(`Eliminare il viaggio “${tr.name}”? I movimenti restano, perdono solo il viaggio.`)) return;
+        if (!confirm(`Eliminare “${tr.name}”? I movimenti restano, perdono solo ${isEvent(tr) ? 'l’evento' : 'il viaggio'}.`)) return;
         await S.bulkSave('transactions', S.state.transactions.filter(t => t.trip === id).map(t => ({ ...t, trip: undefined })));
         const all = { ...trips() }; delete all[id]; await S.setMeta('trips', all);
-        close(); render(); toast('Viaggio eliminato');
+        close(); render(); toast('Eliminato');
       };
       if (!id) setTimeout(() => $('#trNm', w).focus(), 300);
     },
     onSave: async w => {
-      const name = $('#trNm', w).value.trim(); if (!name) return toast('Scrivi il nome del viaggio'), false;
+      const name = $('#trNm', w).value.trim(); if (!name) return toast('Scrivi il nome'), false;
       let from = $('#trFrom', w).value, to = $('#trTo', w).value; if (from && to && to < from) [from, to] = [to, from];
-      await S.setMeta('trips', { ...trips(), [id || S.uid()]: { name, from: from || undefined, to: to || undefined } });
-      render(); toast(id ? 'Salvato' : 'Viaggio creato ✓');
+      const type = tripTypeOf(w) === 'evento' ? 'evento' : undefined;
+      await S.setMeta('trips', { ...trips(), [id || S.uid()]: { name, type, from: from || undefined, to: to || undefined } });
+      render(); toast(id ? 'Salvato' : (type ? 'Evento creato ✓' : 'Viaggio creato ✓'));
     }
   });
 }
 // selezione -> scelta del viaggio (o nuovo viaggio al volo)
 function pickTrip(txs) {
   const list = tripList();
-  openSheet('Aggiungi a un viaggio', `${list.length ? `<div class="list">${list.map(([id, tr]) => `<button class="row" data-t="${esc(id)}">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl">${esc(tr.name)}</div><div class="sm">${esc(tripDates(tr) || 'senza date')}</div></div></button>`).join('')}</div>` : ''}
-    <div class="sechead"><span>Nuovo viaggio</span></div>
-    <div class="form"><div class="frow"><label>Nome</label><input id="ptNm" placeholder="Es. Atene" autocomplete="off" autocapitalize="sentences"></div></div>
+  openSheet('Aggiungi a un viaggio o evento', `${list.length ? `<div class="list">${list.map(([id, tr]) => `<button class="row" data-t="${esc(id)}">${ri(tripIco(tr), tripCol(tr))}<div class="main"><div class="ttl">${esc(tr.name)}</div><div class="sm">${esc(tripDates(tr) || 'senza date')}</div></div></button>`).join('')}</div>` : ''}
+    <div class="sechead"><span>Nuovo viaggio o evento</span></div>
+    ${tripTypeSeg('viaggio')}<div class="form"><div class="frow"><label>Nome</label><input id="ptNm" placeholder="Es. Atene o Comicon 2023" autocomplete="off" autocapitalize="sentences"></div></div>
     <button class="btn" data-newtrip>Crea e aggiungi</button>`, {
     onMount: (w, close) => {
       const put = async id => {
         await S.bulkSave('transactions', txs.map(t => ({ ...t, trip: id })));
         ui.sel = null; close(); render(); toast(`Aggiunti a “${trips()[id].name}” ✓`);
       };
-      w.querySelectorAll('[data-t]').forEach(b => b.onclick = () => put(b.dataset.t));
+      w.querySelectorAll('[data-t]').forEach(b => b.onclick = () => put(b.dataset.t)); bindTripType(w);
       $('[data-newtrip]', w).onclick = async () => {
-        const name = $('#ptNm', w).value.trim(); if (!name) return toast('Scrivi il nome del viaggio');
+        const name = $('#ptNm', w).value.trim(); if (!name) return toast('Scrivi il nome');
         const ds = txs.map(t => t.date).sort(), id = S.uid();
-        await S.setMeta('trips', { ...trips(), [id]: { name, from: ds[0], to: ds[ds.length - 1] } });
+        await S.setMeta('trips', { ...trips(), [id]: { name, type: tripTypeOf(w) === 'evento' ? 'evento' : undefined, from: ds[0], to: ds[ds.length - 1] } });
         put(id);
       };
     }
@@ -1362,14 +1430,14 @@ function selActions() {
   const txs = selTxs(), n = txs.length; if (!n) return;
   openSheet(`Aggiungi ${n} ${n === 1 ? 'movimento' : 'movimenti'} a…`, `<div class="list">
       <button class="row" data-a="group" ${n < 2 ? 'disabled' : ''}>${ri('folder-multiple', '#F5B84B')}<div class="main"><div class="ttl">Un nuovo gruppo</div><div class="sm">${n < 2 ? 'Servono almeno due movimenti' : 'Un nome e il totale dei movimenti scelti'}</div></div></button>
-      <button class="row" data-a="trip">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl">Un viaggio</div><div class="sm">Il viaggio compare come chip nei movimenti</div></div></button>
-      ${txs.some(t => t.trip) ? `<button class="row" data-a="untrip">${ri('airplane', '#FF7B6C')}<div class="main"><div class="ttl">Togli dal viaggio</div><div class="sm">I movimenti restano, perdono solo il viaggio</div></div></button>` : ''}
+      <button class="row" data-a="trip">${ri('airplane', '#38BDF8')}<div class="main"><div class="ttl">Un viaggio o evento</div><div class="sm">Compare come chip nei movimenti</div></div></button>
+      ${txs.some(t => t.trip) ? `<button class="row" data-a="untrip">${ri('airplane', '#FF7B6C')}<div class="main"><div class="ttl">Togli dal viaggio o evento</div><div class="sm">I movimenti restano, perdono solo il viaggio</div></div></button>` : ''}
     </div>`, {
     onMount: (w, close) => {
       $('[data-a="group"]', w).onclick = () => { if (n < 2) return; close(); createGroup(); };
       $('[data-a="trip"]', w).onclick = () => { close(); pickTrip(txs); };
       const un = $('[data-a="untrip"]', w);
-      if (un) un.onclick = async () => { await S.bulkSave('transactions', txs.filter(t => t.trip).map(t => ({ ...t, trip: undefined }))); ui.sel = null; close(); render(); toast('Tolti dal viaggio'); };
+      if (un) un.onclick = async () => { await S.bulkSave('transactions', txs.filter(t => t.trip).map(t => ({ ...t, trip: undefined }))); ui.sel = null; close(); render(); toast('Tolti'); };
     }
   });
 }
@@ -1400,7 +1468,7 @@ function startSelFrom(row) {
 }
 function lpSheet() {
   const cur = lpMs();
-  openSheet('Tieni premuto per selezionare', `<p class="hint" style="margin:0 4px 10px">Tenendo premuto un movimento inizia la selezione (per creare un gruppo o aggiungerlo a un viaggio). Scegli quanto a lungo tenere premuto.</p>
+  openSheet('Tieni premuto per selezionare', `<p class="hint" style="margin:0 4px 10px">Tenendo premuto un movimento inizia la selezione (per creare un gruppo o aggiungerlo a un viaggio o evento). Scegli quanto a lungo tenere premuto.</p>
     <div class="list">${LP_OPTS.map(([ms, n, d]) => `<button class="row" data-ms="${ms}"><div class="main"><div class="ttl">${n}${cur === ms ? ' ✓' : ''}</div>${d ? `<div class="sm">${d}</div>` : ''}</div></button>`).join('')}</div>`, {
     onMount: (w, close) => w.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => { try { localStorage.setItem('lpms', b.dataset.ms); } catch { /* ignore */ } close(); render(); })
   });
@@ -1482,9 +1550,11 @@ function openGroupSheet(gid) {
 }
 
 // ---------- stile grafico ----------
-const UIS = { classic: ['Classico', 'L’aspetto di sempre: schede piene e pulite'], nitido: ['Nitido', 'Superfici piene e piatte, icone a riquadro tinto e carattere Geist: pulito e leggibile'], glass: ['Liquid Glass', 'Nitido con il vetro: sfondo di colore sfocato, barra in basso, fogli e riquadri dei saldi traslucidi, bordi luminosi'] };
-function uiPref() { try { const v = localStorage.getItem('ui'); return v === 'glass' ? 'glass' : v === 'nitido' || v === 'gold' ? 'nitido' : 'classic'; } catch { return 'classic'; } }      // 'gold' (Nero e oro) non c'e' piu': chi lo usava passa a Nitido
-function setUiAttrs(v) { const r = document.documentElement; if (v === 'classic') delete r.dataset.ui; else r.dataset.ui = 'nitido'; if (v === 'glass') r.dataset.glass = '1'; else delete r.dataset.glass; }      // Liquid Glass = Nitido + data-glass
+const UIS = { classic: ['Classico', 'L’aspetto di sempre: schede piene e pulite'], nitido: ['Nitido', 'Superfici piene e piatte, icone a riquadro tinto e carattere Geist: pulito e leggibile'], glass: ['Liquid Glass', 'Nitido con il vetro: sfondo di colore sfocato, barra in basso, fogli e riquadri dei saldi traslucidi, bordi luminosi'],
+  notte: ['Notte', 'Blu notte e azzurro, carattere Onest: mesi in fila in alto, inserimento col tastierino, statistiche a blocchi'] };
+function uiPref() { try { const v = localStorage.getItem('ui'); return v === 'glass' || v === 'notte' ? v : v === 'nitido' || v === 'gold' ? 'nitido' : 'classic'; } catch { return 'classic'; } }      // 'gold' (Nero e oro) non c'e' piu': chi lo usava passa a Nitido
+function setUiAttrs(v) { const r = document.documentElement; if (v === 'classic') delete r.dataset.ui; else r.dataset.ui = 'nitido'; if (v === 'glass') r.dataset.glass = '1'; else delete r.dataset.glass; if (v === 'notte') r.dataset.notte = '1'; else delete r.dataset.notte; }      // Liquid Glass = Nitido + data-glass; Notte = Nitido + data-notte (notte.css)
+const isNotte = () => uiPref() === 'notte';
 function applyUi(v) {
   setUiAttrs(v);
   try { localStorage.setItem('ui', v); } catch { /* ignore */ }
