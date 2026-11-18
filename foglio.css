@@ -339,18 +339,18 @@
   & .mv .chips2>*{flex:none;white-space:nowrap}
 }
 
-/* ---------- ruota dei mesi (nella riga in alto, fra il tasto info e le icone): i mesi che girano (vicini piu' piccoli ai lati), sotto l'anno fermo allineato a sinistra col mese.
+/* ---------- ruota dei mesi (nella riga in alto, fra il tasto info e le icone): i mesi che girano (vicini piu' piccoli ai lati), il mese scelto parte a sinistra subito dopo il tasto info; sotto l'anno fermo, allineato a sinistra.
    Le posizioni le calcola wheelTo() in main.js, anche mentre trascini la pagina ---------- */
 :root[data-ui="nitido"][data-foglio]{
   & .bar{margin-bottom:16px}
   & .ttlgrp{align-self:stretch;align-items:center}
   & .mwheel{position:relative;flex:1 1 auto;min-width:0;align-self:stretch;height:46px;overflow:hidden;
-    -webkit-mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent)}
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 3px,#000 78%,transparent);mask-image:linear-gradient(90deg,transparent,#000 3px,#000 78%,transparent)}
   & .ghost .bar{visibility:hidden}
-  & .mwheel{perspective:520px;perspective-origin:50% 40%}
+  & .mwheel{perspective:520px;perspective-origin:30% 40%}
   & .mwi{backface-visibility:hidden}
-  & .mwy{position:absolute;left:0;top:31px;font:500 10.5px/1 var(--f);letter-spacing:.18em;color:var(--faint);pointer-events:none}
-  & .mwi{position:absolute;left:50%;top:2px;display:flex;flex-direction:column;align-items:center;padding:0 4px;white-space:nowrap;transform-origin:50% 50%;transform:translate3d(-50%,0,0);will-change:transform,opacity}
+  & .mwy{position:absolute;left:4px;top:31px;font:500 10.5px/1 var(--f);letter-spacing:.18em;color:var(--faint);pointer-events:none}
+  & .mwi{position:absolute;left:0;top:2px;display:flex;flex-direction:column;align-items:flex-start;padding:0;white-space:nowrap;transform-origin:50% 50%;transform:translate3d(4px,0,0);will-change:transform,opacity}
   & .mwi b{font:500 24px/1.1 var(--f);letter-spacing:-.045em;color:var(--text)}
   & .mwi:not(.mid) b{color:var(--muted)}
   & .mwi.mid:active b{opacity:.7}
