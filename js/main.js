@@ -1398,7 +1398,7 @@ function tripSheet(id) {
       ${info.cats.length ? `<div class="card">${info.cats.map(([k, v]) => `<div class="hbar"><div class="top"><span class="lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / info.cats[0][1] * 100}%;background:${k === 'Senza categoria' ? '#9CA3AF' : C.catColor(k)}"></div></div></div>`).join('')}</div>` : ''}
       <div id="trList"></div>
       ${info.txs.length ? '<button class="btn sec" data-see style="margin-top:12px">Vedi nei movimenti</button>' : ''}` : ''}
-    <p class="hint" style="margin:12px 4px 0">Per aggiungere movimenti: in Movimenti tocca il pallino di selezione, scegli i movimenti (o tienine premuto uno) e poi Aggiungi a… › Un viaggio o evento.</p>`;
+    <p class="hint" style="margin:12px 4px 0">Per aggiungere movimenti: in Movimenti tocca il pallino di selezione, scegli i movimenti (o tienine premuto uno) e poi Aggiungi › Un viaggio o evento.</p>`;
   openSheet(id ? (isEvent(tr) ? 'Evento' : 'Viaggio') : 'Nuovo viaggio o evento', body, {
     saveLabel: id ? 'Salva' : 'Crea', deleteLabel: id ? (isEvent(tr) ? 'Elimina evento' : 'Elimina viaggio') : null,
     onMount: (w, close) => {
@@ -1520,7 +1520,7 @@ function renderSelBar() {
   if (!ui.sel || ui.tab !== 'mese') { bar?.remove(); return; }
   if (!bar) { bar = document.createElement('div'); bar.id = 'selBar'; document.body.appendChild(bar); }
   const n = ui.sel.size;
-  bar.innerHTML = `<span>${n} ${n === 1 ? 'selezionato' : 'selezionati'}</span><button class="sbtn" data-act="selMode">Annulla</button><button class="sbtn go" data-act="selActions" ${n < 1 ? 'disabled' : ''}>Aggiungi a…</button>`;
+  bar.innerHTML = `<span>${n} ${n === 1 ? 'selezionato' : 'selezionati'}</span><button class="sbtn" data-act="selMode">Annulla</button><button class="sbtn go" data-act="selActions" ${n < 1 ? 'disabled' : ''}>Aggiungi</button>`;
 }
 function toggleSel(id) { if (lockedIds.has(id)) return toast('Fa già parte di un gruppo'); if (ui.sel.has(id)) ui.sel.delete(id); else ui.sel.add(id); renderList(); renderSelBar(); }
 function createGroup() {

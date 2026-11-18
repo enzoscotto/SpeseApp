@@ -659,3 +659,5 @@ html:has(#sheetRoot .sheet),html:has(#sheetRoot .sheet) body{overflow:hidden}
 .setstats b{display:block;font-size:19px;font-weight:800;letter-spacing:-.02em;margin-top:2px}
 .setx .row>.chev,.sethero>.chev{flex:none;color:var(--muted);display:inline-flex}
 .setx .row>.chev svg,.sethero>.chev svg{width:14px;height:14px;transform:rotate(-90deg)}
+/* in selezione la barra in basso non deve coprire gli ultimi movimenti: spazio in piu' sotto la lista */
+#listBox.selmode{padding-bottom:84px}

@@ -122,9 +122,9 @@
   & .chk.on{background:var(--accent);border-color:var(--accent)}
   & .chk.on::after{border-color:var(--pl-ink)}
   & .mv.selected{outline:2px solid var(--accent);outline-offset:-2px}
-  & #selBar{background:var(--accent);color:var(--pl-ink);border-radius:99px;box-shadow:0 16px 36px -14px rgba(0,0,0,.55)}
-  & #selBar .sbtn{background:color-mix(in srgb,var(--pl-ink) 14%,transparent);color:var(--pl-ink);border-radius:99px;font-weight:500}
-  & #selBar .sbtn.go{background:var(--pl-ink);color:var(--accent)}
+  & #selBar{background:color-mix(in srgb,var(--s1) 94%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);color:var(--text);border-radius:99px;box-shadow:inset 0 0 0 1px var(--line),0 14px 34px -16px rgba(0,0,0,.4)}
+  & #selBar .sbtn{background:var(--s2);color:var(--text);border-radius:99px;font-weight:500;box-shadow:inset 0 0 0 1px var(--line)}
+  & #selBar .sbtn.go{background:var(--text);color:var(--bg);box-shadow:none}
   & #selFab{background:var(--accent);color:var(--pl-ink);border-radius:50%;box-shadow:0 12px 28px -12px rgba(0,0,0,.55),0 0 0 3px var(--bg)}
   & .mv.flash{animation:none}
 
@@ -207,9 +207,9 @@
   & .catchips button.more{background:none;color:var(--muted);padding:6px 13px}
 
   /* ---------- statistiche a blocchi ---------- */
-  & .nsum{margin:0 2px 18px}
-  & .nsum h2{font:350 30px/1.12 var(--f);letter-spacing:-.045em;margin:0}
-  & .nsum p{margin:6px 0 0;font-size:14.5px;color:var(--muted)}
+  & .nsum{margin:0 0 16px;padding:16px 18px 17px;border-radius:var(--r3);background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 16%,var(--s1)),var(--s1) 70%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 26%,var(--line))}
+  & .nsum h2{font:350 28px/1.12 var(--f);letter-spacing:-.045em;margin:0}
+  & .nsum p{margin:8px 0 0;font-size:14.5px;line-height:1.45;color:var(--muted)}
   & .nsum b{color:var(--text);font-weight:500}
   & .nstack{display:flex;height:34px;border-radius:99px;overflow:hidden;gap:2px;margin-bottom:8px}
   & .nstack i{display:block;min-width:4px}
