@@ -312,3 +312,21 @@
   & .mv.ac-carta .tag.red,& .mv.ac-cash .tag.red{background:var(--red);color:#fff}
   & .mv.ac-carta .muted,& .mv.ac-cash .muted{color:rgba(255,255,255,.7)}
 }
+
+/* ---------- inserimento compatto: su iPhone le tre chip si vedono senza scorrere (si scorre solo per rientro e debito) ---------- */
+:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(#fAmt){
+  & .head{padding:16px 18px 6px}
+  & .body{padding-top:2px;padding-bottom:10px}
+  & #fKind,& #fAcct{margin-bottom:8px!important}
+  & .seg button{padding:7px 8px}
+  & .seg.big button{padding:8px}
+  & .frow{padding:10px 16px}
+  & .frow.amount{padding:8px 16px 6px}
+  & .frow.amount input{font-size:46px;line-height:1.1}
+  & .chip3{margin-bottom:8px}
+  & .chip3 button{padding:7px 22px 8px 12px}
+  & .foot{padding:8px 16px calc(env(safe-area-inset-bottom) + 8px);gap:8px}
+  & .keypad{gap:5px}
+  & .keypad button{height:clamp(36px,5.2dvh,46px);font-size:22px}
+  & .fbtn{padding:12px}
+}
