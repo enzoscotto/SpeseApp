@@ -1,0 +1,314 @@
+/* ===================================================================
+   Stile "Scuro Moderno" (Impostazioni > Aspetto > Stile grafico), nato con la skill taste-skill.
+   Nel codice si chiama ancora "foglio" (data-foglio, isFoglio(), foglio.css).
+   - sempre scuro: nero bluastro, superfici a tre livelli, bordi sottili al posto delle ombre
+   - un solo accento (viola) per tasti, selezioni e voci attive; il colore per il resto solo dove significa
+     qualcosa (Carta blu, Contanti verde, entrate verdi); uscite rosso acceso (#FF5252), entrate verde acceso (#22E07A)
+   - un solo carattere (Geist), cifre allineate, etichette in maiuscoletto spaziato, numeri grandi e leggeri
+   - micro-animazioni solo dove si tocca: i tasti si abbassano, le righe si schiacciano appena
+   Si appoggia a Nitido (data-ui="nitido") e aggiunge data-foglio. La struttura (saldi in un riquadro solo,
+   mesi in fila, tastierino, tre chip nell'inserimento, statistiche a blocchi) la disegna main.js solo con questo stile.
+   =================================================================== */
+
+/* sempre scuro, qualunque sia il tema scelto */
+:root[data-ui="nitido"][data-foglio],:root[data-ui="nitido"][data-foglio][data-theme]{
+  color-scheme:dark;
+  --f:"Geist",-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;
+  --bg:#0B0C10;--s1:#14161D;--s2:#1C1F28;--s3:#282C38;--line:rgba(236,238,245,.08);
+  --card:var(--s1);--chip:var(--s2);
+  --text:#ECEEF5;--muted:#9298AA;--faint:#646A7C;--sep:rgba(236,238,245,.07);
+  --carta:#7AA2FF;--cash:#4ED6A2;--in:#22E07A;--green:#22E07A;--in-strong:#22E07A;--red:#FF5252;--warn:#F5BE5A;
+  --accent:#9B8CFF;--pl:#9B8CFF;--pl-l:#9B8CFF;--pl-d:#9B8CFF;--pl-ink:#0B0C10;
+  --r1:12px;--r2:16px;--r3:22px;
+}
+
+:root[data-ui="nitido"][data-foglio]{
+  & body{font-size:15px;letter-spacing:-.005em;font-synthesis-weight:none;font-feature-settings:"tnum" 1}
+  & #view{padding-left:18px;padding-right:18px}
+  & :focus-visible{outline-color:var(--accent)}
+
+  /* ---------- testata: il mese come titolo, i vicini piccoli ai lati ---------- */
+  & .bar{margin-bottom:16px}
+  & .bar h1,& .periodbtn{font-weight:500;letter-spacing:-.045em}
+  & .iconbtn{width:36px;height:36px;border-radius:50%;background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--text);transition:background .15s,transform .15s}
+  & .iconbtn:active{background:var(--s2);transform:scale(.94)}
+  & .iconbtn.on{background:var(--accent);color:var(--pl-ink);box-shadow:none}
+  & .mstrip{display:flex;align-items:baseline;gap:10px;min-width:0;overflow:hidden}
+  & .mstrip .mside{flex:none;font:500 12px/1 var(--f);letter-spacing:.07em;text-transform:uppercase;color:var(--faint);padding:10px 2px;transition:color .15s}
+  & .mstrip .mside:active{color:var(--text)}
+  & .mstrip .periodbtn{align-items:baseline;gap:7px;flex:0 1 auto;min-width:0;font-size:25px}
+  & .mstrip .periodbtn small{font-size:13px;font-weight:500;letter-spacing:.02em;color:var(--faint)}
+  & .search input{background:none;box-shadow:inset 0 0 0 1px var(--line);border-radius:99px;font-weight:400}
+  & .search input:focus{box-shadow:inset 0 0 0 1.5px var(--text)}
+  & .activef{background:var(--accent);color:var(--pl-ink);font-weight:500}
+  & .activef i{background:var(--pl-ink);color:var(--accent)}
+
+  /* ---------- saldi: un solo riquadro, Carta | Contanti sopra, Speso | Risparmiato sotto ---------- */
+  & .bxs{gap:0;margin:0;background:var(--s1);border:1px solid var(--line);border-bottom:0;border-radius:var(--r3) var(--r3) 0 0}
+  & .bx,& .bx.carta,& .bx.contanti{background:none;box-shadow:none;border-radius:0;color:var(--text);padding:15px 18px 14px;gap:9px;min-height:0;position:static}
+  & .bx+.bx{box-shadow:inset 1px 0 0 var(--line)}
+  & .bx-t{font:500 11px/1 var(--f);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);gap:7px;opacity:1}
+  & .bx-t svg{display:none}
+  & .bx-t::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ac,var(--carta));flex:none}
+  & .bx.carta{--ac:var(--carta)}
+  & .bx.contanti{--ac:var(--cash)}
+  & .bx-v{font-size:26px;font-weight:350;letter-spacing:-.045em;line-height:1}
+  & .duo{gap:0;margin:0;background:var(--s1);border:1px solid var(--line);border-radius:var(--r3)}
+  & .bxs+.duo{border-radius:0 0 var(--r3) var(--r3)}
+  & .dbox,& .dbox.spent,& .dbox.saved,& .dbox.saved.bad{background:none;border-radius:0;color:var(--text);padding:12px 18px 13px;gap:5px;flex-direction:column;transition:background .15s}
+  & .dbox+.dbox{box-shadow:inset 1px 0 0 var(--line)}
+  & .dbox:active{background:var(--s2)}
+  & .dbox span{font:500 11px/1 var(--f);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);opacity:1}
+  & .dbox b{font-size:18px;font-weight:450;letter-spacing:-.035em}
+  & .dbox.saved:not(.bad) b{color:var(--in)}
+  & .dbox.saved.bad b{color:var(--red)}
+
+  /* ---------- controlli ---------- */
+  & .seg{background:none;border-radius:99px;padding:3px;box-shadow:inset 0 0 0 1px var(--line)}
+  & .seg button{border-radius:99px;font-weight:450;color:var(--muted);transition:background .15s,color .15s}
+  & .seg button.on{background:var(--accent);color:var(--pl-ink);box-shadow:none;font-weight:500}
+  & #sheetRoot .seg{background:none}
+  & #sheetRoot .seg button.on{background:var(--accent);color:var(--pl-ink)}
+  & .seg.sm button.on,& #sheetRoot .seg.sm button.on{background:var(--accent);color:var(--pl-ink)}
+  & #acctSeg,& .acctseg{margin-top:14px}
+  & .btn{background:var(--pl);color:var(--pl-ink);border-radius:99px;font-weight:500;transition:transform .15s,opacity .15s}
+  & .btn:active{transform:scale(.985);filter:none;opacity:.88}
+  & .btn.sec{background:none;color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+  & .btn.red{background:none;color:var(--red);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--red) 40%,transparent)}
+  & .switch i{background:var(--s3)}
+  & .switch input:checked+i{background:var(--accent)}
+  & .switch i::after{background:#fff}
+
+  /* ---------- movimenti ---------- */
+  & .dayh{margin:24px 2px 9px;font:500 11px/1.2 var(--f);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+  & .dayh .num{font:500 12px var(--f);letter-spacing:0;text-transform:none;color:var(--faint)}
+  & .mvs,& .mvg{gap:6px}
+  & .mv{gap:12px;padding:10px 14px 10px 10px;border-radius:var(--r2);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);transition:transform .15s,background .15s}
+  & button.mv:active{transform:scale(.99);background:var(--s2)}
+  /* la striscia a sinistra e' il colore del conto (blu carta, verde contanti), come nella scelta "Striscia a lato" */
+  &[data-mvs="rail"] .mv.ac-carta{box-shadow:inset 3px 0 0 var(--carta),inset 0 0 0 1px var(--line)}
+  &[data-mvs="rail"] .mv.ac-cash{box-shadow:inset 3px 0 0 var(--cash),inset 0 0 0 1px var(--line)}
+  &[data-mvs="rail"] .mv.unp{background:var(--s1)}
+  &[data-mvs="rail"] .mv.unp.ac-carta{box-shadow:inset 3px 0 0 var(--carta),inset 0 0 0 1.5px color-mix(in srgb,var(--red) 60%,transparent)}
+  &[data-mvs="rail"] .mv.unp.ac-cash{box-shadow:inset 3px 0 0 var(--cash),inset 0 0 0 1.5px color-mix(in srgb,var(--red) 60%,transparent)}
+  & .mv.unp{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--red) 60%,transparent)}
+  & .mv.gh,&[data-mvs="rail"] .mv.gh{box-shadow:inset 0 0 0 1px var(--line);background:var(--s2)}
+  & .mv .ico{flex:0 0 38px;width:38px;height:38px;border-radius:50%;background:color-mix(in srgb,var(--cc,var(--faint)) 17%,transparent);color:color-mix(in srgb,var(--cc,var(--muted)) 82%,var(--text))}
+  & .mv .ico svg{width:19px;height:19px}
+  & .mv.gh .ico{background:var(--accent);color:var(--pl-ink)}
+  & .mv .mvt,& .mv.gh .mvt{font-size:15px;font-weight:500;letter-spacing:-.012em}
+  & .mv .chips2{margin-top:4px;gap:3px 9px;font-size:12px}
+  & .mv .tag{font-size:12px;font-weight:450;color:var(--muted);padding:0;border-radius:0;background:none}
+  & .mv .tag.card,& .mv .tag.cash{background:none;padding:0;color:var(--muted);gap:5px}
+  & .mv .tag.card::before,& .mv .tag.cash::before{width:6px;height:6px;flex:0 0 6px}
+  & .mv .tag.cat{background:color-mix(in srgb,var(--cc,var(--faint)) 15%,transparent);color:color-mix(in srgb,var(--cc,var(--muted)) 78%,var(--text));padding:1px 8px;border-radius:99px;font-weight:500}
+  & .mv .tag.nocat{color:var(--faint);font-style:normal}
+  & .mv .tag.dbt,& .mv .tag.red,& .mv .tag.trip{padding:1px 8px;border-radius:99px;font-weight:500}
+  & .mv .tag.red{background:color-mix(in srgb,var(--red) 16%,transparent);color:var(--red)}
+  & .mv .tag.gtog{background:var(--s3);color:var(--text);padding:2px 6px 2px 10px}
+  & .mv .amt{font-size:15.5px;font-weight:500;letter-spacing:-.02em}
+  & .mv .amt.neg,&[data-mvs] .mv .amt.neg{color:var(--out,var(--red))}
+  & .mv .amt.pos{color:var(--in)}
+  /* gruppi: le linee di collegamento seguono l'icona da 38px e lo spazio di 6px fra le righe */
+  & .mvg{--gl:color-mix(in srgb,var(--faint) 55%,transparent)}
+  & .mvg>.mv:first-child::after{left:29px;top:calc(50% + 19px);bottom:-6px}
+  & .mv.sub{margin-left:40px;width:calc(100% - 40px);padding:8px 12px 8px 9px}
+  & .mv.sub .ico{flex:0 0 30px;width:30px;height:30px}
+  & .mv.sub .ico svg{width:16px;height:16px}
+  & .mv.sub::before{top:-6px;height:calc(50% + 6px);left:-10px}
+  & .mv.sub:not(:last-child)::after{bottom:-6px;left:-10px}
+  & .gtgl{border-radius:50%;background:var(--s3)}
+  & .chk{border-color:var(--faint)}
+  & .chk.on{background:var(--accent);border-color:var(--accent)}
+  & .chk.on::after{border-color:var(--pl-ink)}
+  & .mv.selected{outline:2px solid var(--accent);outline-offset:-2px}
+  & #selBar{background:var(--accent);color:var(--pl-ink);border-radius:99px;box-shadow:0 16px 36px -14px rgba(0,0,0,.55)}
+  & #selBar .sbtn{background:color-mix(in srgb,var(--pl-ink) 14%,transparent);color:var(--pl-ink);border-radius:99px;font-weight:500}
+  & #selBar .sbtn.go{background:var(--pl-ink);color:var(--accent)}
+  & #selFab{background:var(--accent);color:var(--pl-ink);border-radius:50%;box-shadow:0 12px 28px -12px rgba(0,0,0,.55),0 0 0 3px var(--bg)}
+  & .mv.flash{animation:none}
+
+  /* ---------- barra in basso ---------- */
+  & .tabpill{background:color-mix(in srgb,var(--s1) 92%,transparent);border:1px solid var(--line);border-radius:99px;box-shadow:0 14px 34px -16px rgba(0,0,0,.4)}
+  & .tabpill button{font-size:10.5px;font-weight:500;letter-spacing:.01em;color:var(--faint);transition:color .15s}
+  & .tabpill button svg{box-sizing:content-box;padding:4px 15px;border-radius:99px;transition:background .2s}
+  & .tabpill button.on{color:var(--accent);font-weight:600}
+  & .tabpill button.on svg{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+  & .tabpill .dot::after{background:var(--red);top:8px;right:calc(50% - 21px)}
+  & #tabs .plus,& .amx{border-radius:50%;background:var(--accent);color:var(--pl-ink);box-shadow:0 14px 30px -12px rgba(0,0,0,.55);transition:transform .15s}
+  & #tabs .plus:active{transform:scale(.93)}
+  & #toast{background:var(--s3);color:var(--text);border-radius:99px;font-weight:500;box-shadow:0 14px 34px -14px rgba(0,0,0,.5)}
+
+  /* ---------- fogli ---------- */
+  & #sheetRoot .back{background:rgba(3,4,8,.62)}
+  & #sheetRoot .sheet{background:var(--bg);border-radius:28px 28px 0 0;box-shadow:none}
+  & #sheetRoot .sheet::before{background:var(--s3)}
+  & .sheet .head h2{font-size:17px;font-weight:500;letter-spacing:-.02em}
+  & .sheet .head button{color:var(--accent);font-weight:500}
+  & .sheet .foot{background:var(--bg);border-top:1px solid var(--line)}
+  & .fbtn{border-radius:99px;font-weight:500;transition:transform .15s}
+  & .fbtn:active{transform:scale(.985)}
+  & .fbtn.save{background:var(--pl);color:var(--pl-ink);box-shadow:none}
+  & .fbtn.del{background:none;color:var(--red);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--red) 40%,transparent)}
+  & #sheetRoot .sheet[data-acct]{--ac:var(--carta);background:var(--bg);box-shadow:none}
+  & #sheetRoot .sheet[data-acct="contanti"]{--ac:var(--cash)}
+  & #sheetRoot .sheet[data-acct]::before{background:var(--s3)}
+  & #sheetRoot .sheet[data-acct] .head h2::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ac);margin-right:9px;vertical-align:1px}
+  & #sheetRoot .sheet[data-acct] .seg button.on,& #sheetRoot .sheet[data-acct] .fbtn.save{background:var(--ac);color:var(--pl-ink,#fff)}
+  & #sheetRoot .sheet[data-acct] .head button{color:var(--accent)}
+  & #sheetRoot .sheet[data-acct] .form,& #sheetRoot .sheet[data-acct] .morehd{box-shadow:inset 0 0 0 1px var(--line)}
+  & .form,& .list,& .morehd,& .card:not(.tag),& .ssec .sh,& .cpick{background:var(--s1);border-radius:var(--r2);box-shadow:inset 0 0 0 1px var(--line)}
+  & #sheetRoot .form,& #sheetRoot .list,& #sheetRoot .morehd,& #sheetRoot .card:not(.tag),& #sheetRoot .cpick{background:var(--s1);box-shadow:inset 0 0 0 1px var(--line)}
+  & .morehd{font-weight:500}
+  & .morehd em{color:var(--muted)}
+  & .frow label{font-weight:450;color:var(--muted)}
+  & .frow input,& .frow select{font-weight:450}
+  & .frow+.frow::before,& .row+.row::before,& .lrow+.lrow::before{border-top-color:var(--line)}
+  & .mini{border-radius:50%;background:color-mix(in srgb,var(--cc) 18%,transparent);color:color-mix(in srgb,var(--cc) 82%,var(--text))}
+  & .mini.lg{border-radius:50%}
+  & .catgrid button{background:var(--s1);box-shadow:inset 0 0 0 1px var(--line)}
+  & .catgrid button.on{background:color-mix(in srgb,var(--cc,var(--text)) 14%,var(--s1));box-shadow:inset 0 0 0 1.5px var(--cc,var(--text))}
+  & .c2{background:var(--s2);border-radius:99px}
+  & .c2 .mini{border-radius:50%}
+  & .lrow button,& .arw{background:var(--s2);border-radius:50%}
+  & .cmlist{background:var(--s1);border-radius:var(--r2);box-shadow:0 22px 50px -16px rgba(0,0,0,.5),inset 0 0 0 1px var(--line)}
+  & .cmrow{font-weight:450;border-radius:10px}
+  & .cmrow.on{background:var(--s2)}
+  & .cmrow b{color:var(--text)}
+  & .warn{background:color-mix(in srgb,var(--warn) 13%,var(--s1));color:color-mix(in srgb,var(--warn) 60%,var(--text));border-radius:var(--r2)}
+  & .row{transition:background .15s}
+  & .row:active{background:var(--s2)}
+  & .row .ttl{font-weight:500}
+  & .rico{border-radius:50%}
+  & .sheet .head,& .sechead{font-weight:500}
+  & .sechead{margin:26px 2px 10px;font:500 11px/1.2 var(--f);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+  & .sechead span+span{letter-spacing:0;text-transform:none;font:500 12px var(--f);color:var(--faint)}
+
+  /* ---------- menu del + ---------- */
+  & .amback{background:rgba(3,4,8,.66);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+  & .amdot{border-radius:50%;background:var(--s1);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cc) 50%,transparent),0 14px 28px -12px rgba(0,0,0,.6)}
+  & .amdot .gl{fill:var(--cc)}
+  & .amlbl{background:var(--s1);color:var(--text);border-radius:99px;font-weight:500;text-shadow:none;box-shadow:inset 0 0 0 1px var(--line)}
+
+  /* ---------- inserimento: importo grande al centro, categorie a chip, tastierino sopra al Salva ---------- */
+  & .frow.amount{justify-content:center;padding:22px 16px 18px}
+  & .frow.amount input{font-size:56px;font-weight:300;text-align:center;letter-spacing:-.055em}
+  & .kpin{caret-color:transparent;cursor:default}
+  & .sheet .foot.kp{flex-wrap:wrap}
+  & .keypad{flex:1 0 100%;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  & .keypad button{height:48px;border-radius:99px;background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);font:400 23px/1 var(--f);color:var(--text);transition:background .12s,transform .12s}
+  & .keypad button:active{background:var(--s3);transform:scale(.96)}
+  & .catchips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+  & .catchips button{display:inline-flex;align-items:center;gap:6px;padding:6px 12px 6px 7px;border-radius:99px;font:450 13.5px/1.2 var(--f);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);color:var(--text);transition:transform .12s}
+  & .catchips button:active{transform:scale(.97)}
+  & .catchips button .mini{width:20px;height:20px;flex:0 0 20px;border-radius:50%;background:color-mix(in srgb,var(--cc) 20%,transparent);color:color-mix(in srgb,var(--cc) 82%,var(--text))}
+  & .catchips button.on{background:var(--cc);color:#fff;box-shadow:none}
+  & .catchips button.on .mini{background:rgba(255,255,255,.24);color:#fff}
+  & .catchips button.more{background:none;color:var(--muted);padding:6px 13px}
+
+  /* ---------- statistiche a blocchi ---------- */
+  & .nsum{margin:0 2px 18px}
+  & .nsum h2{font:350 30px/1.12 var(--f);letter-spacing:-.045em;margin:0}
+  & .nsum p{margin:6px 0 0;font-size:14.5px;color:var(--muted)}
+  & .nsum b{color:var(--text);font-weight:500}
+  & .nstack{display:flex;height:34px;border-radius:99px;overflow:hidden;gap:2px;margin-bottom:8px}
+  & .nstack i{display:block;min-width:4px}
+  & .nlist button{display:grid;grid-template-columns:10px minmax(0,1fr) auto 40px;gap:11px;align-items:center;width:100%;padding:11px 2px;border-top:1px solid var(--line);font:450 14.5px var(--f);color:var(--text);text-align:left;transition:opacity .15s}
+  & .nlist button:active{opacity:.6}
+  & .nlist button:first-child{border-top:0}
+  & .nlist .d{width:9px;height:9px;border-radius:50%;background:var(--cc)}
+  & .nlist .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  & .nlist em{font-style:normal;color:var(--muted);text-align:right;font-size:13px}
+  & .ncols{display:flex;gap:6px;height:150px}
+  & .ncols.sc{overflow-x:auto;scrollbar-width:none}
+  & .ncols button{flex:1 0 20px;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:6px;padding:0;font:500 10px/1.15 var(--f);letter-spacing:.04em;text-transform:uppercase;color:var(--faint);text-align:center}
+  & .ncols i{align-self:end;display:block;background:var(--s3);border-radius:99px 99px 2px 2px}
+  & .ncols button.cur i{background:var(--accent)}
+  & .ncols button.cur span{color:var(--text)}
+  & .ntrip{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2px 12px;align-items:center;width:100%;text-align:left;padding:13px 15px;border-radius:var(--r2);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);margin-bottom:8px;color:var(--text);font:inherit;transition:transform .15s}
+  & .ntrip:active{transform:scale(.99)}
+  & .ntrip .ti{grid-row:1/3;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--tc) 17%,transparent);color:var(--tc)}
+  & .ntrip .ti svg{width:19px;height:19px;fill:currentColor}
+  & .ntrip b{font-weight:500;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  & .ntrip .v{font-weight:500;font-size:16px}
+  & .ntrip .sm{grid-column:2/4;font-size:12.5px;color:var(--muted)}
+  & .ntrip .nbar{grid-column:1/4;display:flex;height:5px;border-radius:99px;overflow:hidden;gap:2px;margin-top:10px}
+  & .ntrip .nbar i{display:block;min-width:3px}
+  & .card.hero,& .nowc{background:var(--s1)}
+  & .card.hero .v,& .sh-v{font-weight:350}
+  & .card.acc .v,& .nowc .v{font-weight:400;letter-spacing:-.04em}
+  & .card.acc .t,& .card.hero .t,& .nowc .t{font:500 11px/1.2 var(--f);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+  & .sumhero{background:var(--s1);border-radius:var(--r3);box-shadow:inset 0 0 0 1px var(--line)}
+  & .bars .col{background:var(--accent)}
+  & .bars .col.sv{background:var(--in)}
+  & .hbar .fill,& .nowc .fill{background:var(--accent)}
+  & .hbar .track,& .split{background:var(--s2)}
+  & .wd .hot i{background:var(--accent)}
+}
+
+/* ---------- inserimento: tre chip sotto data e motivo (Categoria, Viaggio / Evento, Rientro) ---------- */
+:root[data-ui="nitido"][data-foglio]{
+  & .chip3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr) minmax(0,1fr);gap:6px;margin:0 0 10px}
+  & .chip3 button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0;padding:9px 12px 10px;border-radius:var(--r2);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);text-align:left;transition:background .15s,box-shadow .15s,transform .12s}
+  & .chip3 button:active{transform:scale(.97)}
+  & .chip3 .cl{font:500 10px/1.1 var(--f);letter-spacing:.04em;text-transform:uppercase;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  & .chip3 .cv{font:450 13.5px/1.2 var(--f);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  & .chip3 button.has .cv{color:var(--text);font-weight:500}
+  & .chip3 button.open{background:color-mix(in srgb,var(--accent) 14%,var(--s1));box-shadow:inset 0 0 0 1.5px var(--accent)}
+  & .chip3 button.open .cl{color:var(--accent)}
+  & #fPanCat,& #fPanTrip,& #fMore{margin-bottom:12px}
+  & #fTripChips .mini svg{width:13px;height:13px;fill:currentColor}
+  & #fTripChips button.on{background:var(--cc);color:var(--pl-ink)}
+  & #fTripChips button.on .mini{background:rgba(0,0,0,.18);color:var(--pl-ink)}
+  & #fMoreBody{margin-top:0}
+}
+
+/* ---------- Impostazioni ---------- */
+:root[data-ui="nitido"][data-foglio]{
+  & .setx .row{padding:13px 14px;gap:13px}
+  & .setx .row+.row::before{left:57px}
+  & .setx .rico{flex:0 0 30px;height:30px;border-radius:9px;background:color-mix(in srgb,var(--c) 22%,transparent);color:var(--c)}
+  & .setx .row .sm{color:var(--faint)}
+  & .setx .row>.chev{flex:none;color:var(--faint);display:inline-flex}
+  & .setx .row>.chev svg{width:14px;height:14px;transform:rotate(-90deg)}
+  & .sethero{display:flex;align-items:center;gap:14px;padding:16px;margin-bottom:6px;border-radius:var(--r3);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line)}
+  & .sethero .sg{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+  & .sethero .sg svg{width:22px;height:22px}
+  & .sethero b{display:block;font-weight:500;font-size:15.5px}
+  & .sethero small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+  & .setstats{display:grid;grid-template-columns:repeat(3,1fr);margin-top:12px;border-radius:var(--r2);background:var(--s1);box-shadow:inset 0 0 0 1px var(--line)}
+  & .setstats div{padding:12px 14px}
+  & .setstats div+div{box-shadow:inset 1px 0 0 var(--line)}
+  & .setstats span{display:block;font:500 10px/1.2 var(--f);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+  & .setstats b{display:block;font-weight:400;font-size:20px;letter-spacing:-.03em;margin-top:4px}
+  & .setfoot{text-align:center;color:var(--faint);font-size:12px;margin:18px 0 0}
+}
+
+/* ---------- tre chip: ora aprono un menu a tendina (freccina a destra) ---------- */
+:root[data-ui="nitido"][data-foglio]{
+  & .chip3 button{position:relative;padding-right:22px}
+  & .chip3 button::after{content:"";position:absolute;right:10px;top:50%;width:6px;height:6px;border-right:1.5px solid var(--faint);border-bottom:1.5px solid var(--faint);transform:translateY(-75%) rotate(45deg);transition:transform .2s}
+  & .chip3 button.open::after{border-color:var(--accent);transform:translateY(-25%) rotate(225deg)}
+  & .cmnote{padding:10px 12px;font-size:13px;color:var(--muted)}
+  & .cmrow .mini:empty{background:var(--s3)}
+}
+.cmnote{padding:10px 12px;font-size:13px;color:var(--muted)}
+
+/* ---------- "Barra piena" in Scuro Moderno: barra blu o verde scura, testo bianco, importo senza chip bianca ---------- */
+:root[data-ui="nitido"][data-foglio][data-mvs="solid"]{
+  & .mv.ac-carta{background:color-mix(in srgb,var(--carta) 34%,var(--s1));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--carta) 30%,transparent)}
+  & .mv.ac-cash{background:color-mix(in srgb,var(--cash) 26%,var(--s1));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cash) 28%,transparent)}
+  & .mv.unp.ac-carta,& .mv.unp.ac-cash{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--red) 70%,transparent)}
+  & button.mv.ac-carta:active,& button.mv.ac-cash:active{filter:brightness(1.12)}
+  & .mv.ac-carta .mvt,& .mv.ac-cash .mvt{color:#fff;font-weight:500}
+  & .mv.ac-carta .ico,& .mv.ac-cash .ico{background:rgba(255,255,255,.14);color:#fff;box-shadow:none}
+  & .mv .amt,& .mv.gh .amt{background:none;padding:0;font-size:15.5px;color:#fff}
+  & .mv .amt.pos,& .mv.gh .amt.pos{color:var(--in)}
+  & .mv .amt.neg,& .mv.gh .amt.neg{color:var(--out,var(--red))}
+  & .mv.ac-carta .tag,& .mv.ac-cash .tag{color:rgba(255,255,255,.78)}
+  & .mv.ac-carta .tag.card,& .mv.ac-cash .tag.cash{background:none;padding:0;color:rgba(255,255,255,.78)}
+  & .mv.ac-carta .tag.card::before,& .mv.ac-cash .tag.cash::before{background:#fff}
+  & .mv.ac-carta .tag.cat,& .mv.ac-cash .tag.cat,& .mv.ac-carta .tag.trip,& .mv.ac-cash .tag.trip,& .mv.ac-carta .tag.dbt,& .mv.ac-cash .tag.dbt{background:rgba(255,255,255,.14);color:#fff;font-weight:500}
+  & .mv.ac-carta .tag.red,& .mv.ac-cash .tag.red{background:var(--red);color:#fff}
+  & .mv.ac-carta .muted,& .mv.ac-cash .muted{color:rgba(255,255,255,.7)}
+}

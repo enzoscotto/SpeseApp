@@ -645,3 +645,17 @@ html:has(#sheetRoot .sheet),html:has(#sheetRoot .sheet) body{overflow:hidden}
 /* una riga nascosta in cima a un riquadro non lascia la linea di separazione sulla successiva */
 .frow[hidden]:first-child+.frow::before{display:none}
 .frow[hidden]:first-child+.frow[hidden]+.frow::before{display:none}
+
+/* Impostazioni: riquadro della sincronizzazione, numeri dei dati, frecce sulle righe */
+.sethero{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;margin-bottom:10px;border-radius:20px;background:var(--card);box-shadow:var(--sh);text-align:left}
+.sethero .sg{flex:none;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.sethero .sg svg{width:22px;height:22px}
+.sethero b{display:block;font-weight:700;font-size:15.5px}
+.sethero small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.setstats{display:grid;grid-template-columns:repeat(3,1fr);border-radius:18px;background:var(--card);box-shadow:var(--sh)}
+.setstats div{padding:11px 14px}
+.setstats div+div{border-left:1px solid var(--sep)}
+.setstats span{display:block;font-size:12px;font-weight:600;color:var(--muted)}
+.setstats b{display:block;font-size:19px;font-weight:800;letter-spacing:-.02em;margin-top:2px}
+.setx .row>.chev,.sethero>.chev{flex:none;color:var(--muted);display:inline-flex}
+.setx .row>.chev svg,.sethero>.chev svg{width:14px;height:14px;transform:rotate(-90deg)}

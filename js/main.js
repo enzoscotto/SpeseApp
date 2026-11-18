@@ -12,7 +12,7 @@ const IC = {
   mese: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   debiti: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.3"/><path d="M3 20c.5-3.5 3-5.5 6-5.5s5.5 2 6 5.5"/><path d="M17 6.5a3 3 0 0 1 0 5.5M18.5 15c1.6.7 2.6 2.4 2.9 4.5"/></svg>',
   stat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>',
-  altro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>',
+  altro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   searchBtn: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>',
   filter: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M3 6h9M18 6h3M3 12h3M12 12h9M3 18h11M20 18h1"/><circle cx="15" cy="6" r="2.2"/><circle cx="9" cy="12" r="2.2"/><circle cx="17" cy="18" r="2.2"/></svg>',
   eye: '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -127,7 +127,7 @@ function renderTabs() {
   const t = (id, label, ic, dot) => `<button data-act="tab" data-id="${id}" class="${ui.tab === id ? 'on' : ''} ${dot ? 'dot' : ''}">${ic}<span>${label}</span></button>`;
   const d = backupDays();
   $('#tabs').innerHTML = '<div class="tabpill">' + t('mese', 'Movimenti', IC.mese) + t('stat', 'Statistiche', IC.stat) +
-    t('altro', 'Altro', IC.altro, Sync.config() ? /^(Errore|Offline)/.test(Sync.status.msg) : S.state.transactions.length > 0 && (d === null || d > 30)) + '</div>' +
+    t('altro', 'Impostazioni', IC.altro, Sync.config() ? /^(Errore|Offline)/.test(Sync.status.msg) : S.state.transactions.length > 0 && (d === null || d > 30)) + '</div>' +
     `<button class="plus" data-act="add" aria-label="Aggiungi">${IC.plus}</button>`;
 }
 
@@ -288,7 +288,7 @@ function viewMese() {
   return `
   <div id="topArea">
   <div class="bar">
-    <div class="ttlgrp"><button class="iconbtn" data-act="periodInfo" aria-label="Dati del mese">${IC.info}</button>${isNotte() ? monthStrip(p, i) : `<button class="periodbtn" data-act="pickPeriod"><span>${esc(periodLabel(p))}</span>${IC.chev}</button>`}</div>
+    <div class="ttlgrp"><button class="iconbtn" data-act="periodInfo" aria-label="Dati del mese">${IC.info}</button>${isFoglio() ? monthStrip(p, i) : `<button class="periodbtn" data-act="pickPeriod"><span>${esc(periodLabel(p))}</span>${IC.chev}</button>`}</div>
     <div class="nav">
       <button class="iconbtn ${ui.q ? 'on' : ''}" data-act="searchToggle" aria-label="Cerca">${IC.searchBtn}</button>
       <button class="iconbtn ${ui.catf || ui.allMonths ? 'on' : ''}" data-act="filterSheet" aria-label="Filtra per categoria">${IC.filter}</button>
@@ -307,7 +307,7 @@ function viewMese() {
   <div id="listBox"></div>`;
 }
 
-// stile Notte: i mesi in fila (quello prima, questo, quello dopo); tocchi un mese vicino per andarci, quello in mezzo apre l'elenco
+// stile Foglio: i mesi in fila (quello prima, questo, quello dopo); tocchi un mese vicino per andarci, quello in mezzo apre l'elenco
 function monthStrip(p, i) {
   const ps = S.state.periods, short = x => C.MESI_BREVI[+x.start.slice(5, 7) - 1];
   const lab = periodLabel(p), m = lab.match(/^(\S+) (\d{4})$/);
@@ -625,6 +625,17 @@ function pickGroup(cb) {
 }
 
 // elenco a tendina delle categorie, con le loro icone
+function openListMenu(anchor, items, cur, pick, note = '') {      // items: [[valore, etichetta, icona html]]
+  const r = anchor.getBoundingClientRect(), vw = window.innerWidth, vh = window.innerHeight;
+  const root = document.createElement('div'); root.className = 'catmenu';
+  root.innerHTML = `<div class="cmback"></div><div class="cmlist" role="listbox">${items.map(([v, l, ico]) => `<button type="button" class="cmrow ${v === (cur || '') ? 'on' : ''}" data-c="${esc(v)}">${ico}<span>${esc(l)}</span>${v === (cur || '') ? '<b>✓</b>' : ''}</button>`).join('')}${note ? `<div class="cmnote">${esc(note)}</div>` : ''}</div>`;
+  document.body.appendChild(root);
+  const list = $('.cmlist', root), width = Math.min(280, vw - 24), below = vh - r.bottom - 14, above = r.top - 14, up = below < 220 && above > below;
+  Object.assign(list.style, { width: width + 'px', left: Math.max(12, Math.min(vw - width - 12, r.left + r.width / 2 - width / 2)) + 'px', maxHeight: Math.min(360, up ? above : below) + 'px', [up ? 'bottom' : 'top']: (up ? vh - r.top + 6 : r.bottom + 6) + 'px' });
+  const close = () => root.remove();
+  $('.cmback', root).onclick = close;
+  list.querySelectorAll('.cmrow').forEach(b => b.onclick = () => { close(); pick(b.dataset.c); });
+}
 function openCatMenu(anchor, cur, pick) {
   const r = anchor.getBoundingClientRect(), vw = window.innerWidth, vh = window.innerHeight;
   const root = document.createElement('div'); root.className = 'catmenu';
@@ -639,13 +650,13 @@ function openCatMenu(anchor, cur, pick) {
   list.querySelectorAll('.cmrow').forEach(b => b.onclick = () => { close(); pick(b.dataset.c); });
 }
 
-// stile Notte: le categorie piu' usate (per uscite o entrate), da mostrare come chip
+// stile Foglio: le categorie piu' usate (per uscite o entrate), da mostrare come chip
 function topCats(kind) {
   const n = new Map();
   for (const t of S.state.transactions) if (t.cat && t.kind === kind && t.cat !== 'Riconversione') n.set(t.cat, (n.get(t.cat) || 0) + 1);
   return [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([c]) => c);
 }
-// stile Notte: tastierino sempre aperto sopra al tasto Salva (niente tastiera di iOS per l'importo)
+// stile Foglio: tastierino sempre aperto sopra al tasto Salva (niente tastiera di iOS per l'importo)
 function mountKeypad(w, input) {
   const foot = $('.foot', w); if (!foot || !input) return;
   input.readOnly = true; input.setAttribute('inputmode', 'none'); input.classList.add('kpin');
@@ -666,7 +677,7 @@ function openTxSheet(existing, preset = {}) {
     kind: e ? e.kind : (preset.kind || 'out'), acct: e ? e.account : (preset.acct || S.state.meta.lastAcct || 'carta'), giro: false, giroDir: 'prelievo',
     cat: e ? (e.cat || null) : null, catManual: !!(e && e.cat), catClicked: false, sub: e?.sub || null, subManual: !!e?.sub,
     more: !!(e && (ret0 || debt0 || e.unpaid)),
-    cats2: [...(e?.cats2 || [])], trip: e?.trip || '',
+    cats2: [...(e?.cats2 || [])], trip: e?.trip || '', panel: (e && (ret0 || debt0 || e.unpaid)) ? 'ret' : null,
   };
   const body = `
     <div class="seg big" id="fKind" style="margin-bottom:12px" ${e ? '' : 'hidden'}><button data-v="out">Uscita</button><button data-v="in">Entrata</button></div>
@@ -676,12 +687,15 @@ function openTxSheet(existing, preset = {}) {
       <div class="frow"><label>Data</label><input id="fDate" type="date" value="${e ? e.date : C.today()}"></div>
       <div id="fTextRows"><div class="frow"><label>Motivo</label><input id="fDesc" placeholder="Descrizione" value="${esc(e?.desc || '')}" autocomplete="off" autocapitalize="sentences"></div></div>
     </div>
-    ${isNotte() ? '<div class="catchips" id="fCatChips"></div>' : ''}
-    <div class="form" id="fChips"><div class="frow" ${isNotte() ? 'hidden' : ''}><label>Categoria</label><button type="button" class="catsel" id="fCatBtn"></button></div>
+    ${isFoglio() ? `<div class="chip3" id="fChip3"><button type="button" data-p="cat"><span class="cl">Categoria</span><span class="cv" id="c3cat"></span></button><button type="button" data-p="trip"><span class="cl">Viaggio/Evento</span><span class="cv" id="c3trip"></span></button><button type="button" data-p="ret"><span class="cl">Rientro</span><span class="cv" id="c3ret"></span></button></div>` : ''}
+    <div id="fPanCat">
+    <div class="form" id="fChips"><div class="frow" ${isFoglio() ? 'hidden' : ''}><label>Categoria</label><button type="button" class="catsel" id="fCatBtn"></button></div>
       <div class="frow" id="fC2Row"><label>Anche in</label><div class="cats2" id="fC2"></div></div>
-      ${tripList().length || f.trip ? `<div class="frow"><label style="width:auto">Viaggio o evento</label><select id="fTrip"><option value="">— nessuno —</option>${tripList().map(([id, tr]) => `<option value="${esc(id)}" ${f.trip === id ? 'selected' : ''}>${esc(tr.name)}</option>`).join('')}</select></div>` : ''}</div>
+      ${!isFoglio() && (tripList().length || f.trip) ? `<div class="frow"><label style="width:auto">Viaggio o evento</label><select id="fTrip"><option value="">— nessuno —</option>${tripList().map(([id, tr]) => `<option value="${esc(id)}" ${f.trip === id ? 'selected' : ''}>${esc(tr.name)}</option>`).join('')}</select></div>` : ''}</div>
     <div class="catgrid" id="fSubs" hidden></div>
-    <div id="fMore"><button type="button" class="morehd" id="fMoreBtn"><span>Rientro e debito</span><em id="fMoreTag"></em>${IC.chev}</button><div id="fMoreBody" hidden>
+    </div>
+    ${isFoglio() ? `<div id="fPanTrip" hidden><select id="fTrip" hidden><option value="">— nessuno —</option>${tripList().map(([id, tr]) => `<option value="${esc(id)}" ${f.trip === id ? 'selected' : ''}>${esc(tr.name)}</option>`).join('')}</select></div>` : ''}
+    <div id="fMore"><button type="button" class="morehd" id="fMoreBtn" ${isFoglio() ? 'hidden' : ''}><span>Rientro e debito</span><em id="fMoreTag"></em>${IC.chev}</button><div id="fMoreBody" hidden>
     <div class="form" id="fRetBox">
       <div class="frow"><label id="fRetLbl" style="width:auto;flex:1;color:var(--text)"></label><label class="switch"><input type="checkbox" id="fRet"><i></i></label></div>
       <div id="fRetRows" hidden>
@@ -706,6 +720,7 @@ function openTxSheet(existing, preset = {}) {
       const setSeg = (id, val) => $$(`#${id} button`, w).forEach(b => b.classList.toggle('on', b.dataset.v === val));
       const $$ = (s, r) => [...r.querySelectorAll(s)];
       const sync = () => {
+        if (isFoglio()) f.more = f.panel === 'ret';
         f.giro = f.kind === 'prelievo' || f.kind === 'versamento'; if (f.giro) f.giroDir = f.kind;
         setSeg('fKind', f.kind); setSeg('fAcct', f.acct);
         const sh = w.querySelector('.sheet'); if (f.giro) delete sh.dataset.acct; else sh.dataset.acct = f.acct;
@@ -724,8 +739,22 @@ function openTxSheet(existing, preset = {}) {
         const on = [!$('#fRetBox', w).hidden && $('#fRet', w).checked && 'rientro', !$('#fUnBox', w).hidden && $('#fUn', w).checked && 'da incassare', $('#fPerson', w).value && $('#fPerson', w).value !== '__new' && $('#fPerson', w).value].filter(Boolean);
         $('#fMoreTag', w).textContent = on.join(' · ');
         $('#fMoreBody', w).hidden = !f.more; $('#fMore', w).classList.toggle('open', f.more);
+        if (isFoglio()) {
+          const trs = trips(), tn = trs[f.trip]?.name;
+          $('#fChip3', w).hidden = f.giro; $('#fPanCat', w).hidden = f.giro; $('#fMore', w).hidden = f.giro || f.panel !== 'ret';
+          const set = (id, txt, p) => { const el = $('#' + id, w), b = el.parentElement; el.textContent = txt || 'Aggiungi'; b.classList.toggle('has', !!txt); b.classList.toggle('open', f.panel === p); };
+          set('c3cat', f.cat, 'cat'); set('c3trip', tn, 'trip'); set('c3ret', $('#fMoreTag', w).textContent, 'ret');
+        }
       };
       $('#fMoreBtn', w).onclick = () => { f.more = !f.more; sync(); };
+      // Scuro Moderno: Categoria e Viaggio/Evento aprono un menu a tendina sotto la chip, Rientro apre il suo riquadro
+      $$('#fChip3 [data-p]', w).forEach(b => b.onclick = () => {
+        const p = b.dataset.p;
+        if (p === 'cat') return openCatMenu(b, f.cat, name => { f.cat = name || null; f.catManual = !!f.cat; f.catClicked = true; guessSubNow(); sync(); });
+        if (p === 'trip') return openListMenu(b, [['', 'Nessuno', '<i class="mini" style="--cc:var(--muted)"></i>'], ...tripList().map(([id, tr]) => [id, tr.name, `<i class="mini" style="--cc:${tripCol(tr)}"><svg class="gl" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="${ICONS[tripIco(tr)]}"/></svg></i>`])],
+          f.trip, id => { f.trip = id || ''; $('#fTrip', w).value = f.trip; sync(); }, tripList().length ? '' : 'Nessun viaggio o evento: creali da Statistiche › Viaggi ed eventi.');
+        f.panel = f.panel === 'ret' ? null : 'ret'; sync();
+      });
       $$('#fKind button', w).forEach(b => b.onclick = () => { f.kind = b.dataset.v; sync(); });
       $$('#fAcct button', w).forEach(b => b.onclick = () => { f.acct = b.dataset.v; sync(); });
       const drawCat = () => {
@@ -795,7 +824,7 @@ function openTxSheet(existing, preset = {}) {
         w.remove(); render(); toast('Eliminato');
       };
       sync();
-      if (isNotte()) mountKeypad(w, $('#fAmt', w));
+      if (isFoglio()) mountKeypad(w, $('#fAmt', w));
       else if (!e) setTimeout(() => $('#fAmt', w).focus(), 300);
       w._f = f;
     },
@@ -1070,10 +1099,10 @@ function viewStat() {
   const yAvg = y => { const l = sp.filter(p => C.periodYear(p) === y); return { n: l.length, avg: l.reduce((a, p) => a + p.salary, 0) / l.length }; };
   const dSal = sp.length >= 2 ? sp[sp.length - 1].salary - sp[0].salary : 0, pSal = sp.length >= 2 ? dSal / sp[0].salary * 100 : 0;
 
-  const notte = isNotte();
-  // stile Notte: una frase in cima sul mese in corso
+  const foglio = isFoglio();
+  // stile Foglio: una frase in cima sul mese in corso
   let nsum = '';
-  if (notte && !cfg.hide.includes('now') && cp && cp.start <= today && today <= cp.end) {      // prende il posto della scheda "Mese in corso"
+  if (foglio && !cfg.hide.includes('now') && cp && cp.start <= today && today <= cp.end) {      // prende il posto della scheda "Mese in corso"
     const cs = C.stats(cp), el = dayDiff(today, cp.start) + 1, proj = cs.real / el * (dayDiff(cp.end, cp.start) + 1), done = ps.filter(p => p.end < today).slice(-12).map(p => C.stats(p).real).filter(v => v > 0);
     const avg = done.length ? done.reduce((a, v) => a + v, 0) / done.length : 0, d = avg ? Math.round((cs.real - avg) / avg * 100) : null;
     nsum = `<div class="nsum"><h2>${esc(periodLabel(cp))}</h2><p><b class="num">${money(cs.real)}</b> spesi in ${el} ${el === 1 ? 'giorno' : 'giorni'}${d === null ? '' : d <= 0 ? `, il ${-d}% in meno della tua media` : `, il ${d}% in più della tua media`}.${cs.real > 0 ? ` A questo ritmo chiudi il mese a circa <b class="num">${money(proj)}</b>.` : ''}</p></div>`;
@@ -1085,7 +1114,7 @@ function viewStat() {
     return `<div class="ssec"><button class="sechead sh" data-act="statToggle" data-id="${key}" aria-expanded="${open}"><span>${title}</span><span class="sr">${right || ''}<i class="gch ${open ? 'up' : ''}">${IC.chev}</i></span></button><div class="sbody" ${open ? '' : 'hidden'}>${body}</div></div>`;
   };
   const blocks = {
-    now: notte ? '' : now,
+    now: foglio ? '' : now,
     hero: `<div class="card hero"><div class="t">Risparmiato</div><div class="v num ${tot.sav >= 0 ? 'pos' : 'neg'}">${signed(tot.sav).replace('+', '')}</div><div class="sm">${rate !== null ? `${Math.round(rate)}% degli stipendi` : 'in attesa degli stipendi'}</div></div>
   <div class="grid2">
     <div class="card acc"><div class="t">Stipendi</div><div class="v num">${money(tot.sal)}</div></div>
@@ -1093,7 +1122,7 @@ function viewStat() {
     <div class="card acc"><div class="t">Media al mese</div><div class="v num">${money(rows.length ? tot.real / rows.length : 0)}</div></div>
     <div class="card acc"><div class="t">Media al giorno</div><div class="v num">${money(days ? tot.real / days : 0)}</div></div>
   </div>`,
-    trend: notte ? sec('trend', 'Mese per mese', `media ${money(avgReal)}`,
+    trend: foglio ? sec('trend', 'Mese per mese', `media ${money(avgReal)}`,
       `<div class="card"><div class="ncols ${rows.length > 12 ? 'sc' : ''}">${rows.map(({ p, s }) => `<button class="${p.id === cp?.id ? 'cur' : ''}" data-act="gotoPeriod" data-id="${esc(p.id)}"><i style="height:${Math.max(2, s.real / max * 100)}%"></i><span>${lbl(p)}</span></button>`).join('')}</div></div>`)
     : sec('trend', 'Mese per mese', '<span style="color:var(--carta)">■</span> spesa <span style="color:var(--cash)">■</span> risparmio',
       `<div class="card"><div class="bars ${rows.length > 9 ? 'sc' : ''}">${rows.map(({ p, s }) => `<button class="b" data-act="gotoPeriod" data-id="${esc(p.id)}"><div style="display:flex;gap:2px;align-items:flex-end;width:100%;height:100%"><div class="col" style="height:${Math.max(1, s.real / max * 100)}%"></div><div class="col sv" style="height:${Math.max(1, Math.max(0, s.saved || 0) / max * 100)}%"></div></div><div class="m">${lbl(p)}</div></button>`).join('')}</div></div>`),
@@ -1106,7 +1135,7 @@ function viewStat() {
       `<div class="card"><div class="lv"><b class="num">${money(bal[bal.length - 1])}</b><span class="num ${dBal >= 0 ? 'pos' : 'neg'}">${signed(dBal)}</span></div>${lineChart(bal)}<div class="lax"><span>${esc(periodLabel(rows[0].p))}</span><span>${esc(periodLabel(rows[rows.length - 1].p))}</span></div></div>`) : '',
     record: records.length ? sec('record', 'Record', '', `<div class="grid2">${records.join('')}</div>`) : '',
     cat: sec('cat', 'Spese per categoria', `<span class="num">${money(catTot)}</span>`,
-      catPickBtn + (notte && !cfg.pie.cat && catTot > 0
+      catPickBtn + (foglio && !cfg.pie.cat && catTot > 0
         ? `<div class="card"><div class="nstack">${top.map(([k, v]) => `<i style="flex:${v};background:${catColor(k)}"></i>`).join('')}</div>
           <div class="nlist">${top.map(([k, v]) => `<button data-act="searchCat" data-id="${esc(k)}" style="--cc:${catColor(k)}"><span class="d"></span><span class="n">${esc(k)}</span><span class="num">${money(v)}</span><em class="num">${Math.round(v / catTot * 100)}%</em></button>`).join('')}</div></div>`
         : cfg.pie.cat && catTot > 0
@@ -1126,7 +1155,7 @@ function viewStat() {
       : `<div class="card">${subList.map(([k, v]) => `<div class="hbar"><div class="top"><span>${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / subList[0][1] * 100}%"></div></div></div>`).join('')}</div>`) : '',
     debiti: sec('debiti', 'Debiti', `Ti devono ${money(owed)}`,
       `<div class="list"><button class="row" data-act="debtsSheet"><div class="main"><div class="ttl">Vedi le persone</div><div class="sm">Ti devono ${money(owed)} · Devi ${money(owe)}</div></div><span class="gch rt">${IC.chev}</span></button></div>`),
-    viaggi: sec('viaggi', 'Viaggi ed eventi', tripCount(), notte ? tripCardsHtml() : `<div class="list">${tripRowsHtml()}</div>`),
+    viaggi: sec('viaggi', 'Viaggi ed eventi', tripCount(), foglio ? tripCardsHtml() : `<div class="list">${tripRowsHtml()}</div>`),
     mesi: sec('mesi', 'Per mese', '', `<div class="list">${[...rows].reverse().map(({ p, s }) => `<button class="row" data-act="gotoPeriod" data-id="${esc(p.id)}"><div class="main"><div class="ttl">${esc(periodLabel(p))}</div><div class="sm num">Spesa ${money(s.real)}</div></div><div class="amt num ${s.saved == null ? 'muted' : s.saved >= 0 ? 'pos' : 'neg'}">${s.saved == null ? '—' : signed(s.saved)}</div></button>`).join('')}</div>`),
   };
   const shown = statOrder().filter(k => !cfg.hide.includes(k)).map(k => blocks[k]).join('');
@@ -1294,35 +1323,36 @@ const q2 = (w, s) => w.querySelector(s);
 // ---------- ALTRO ----------
 const ri = (name, color) => uiPref() !== 'classic' ? `<span class="rico" style="--c:${color}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name]}"/></svg></span>` : '';
 function viewAltro() {
-  const d = backupDays(), n = S.state.transactions.length;
+  const d = backupDays(), n = S.state.transactions.length, nocat = S.state.transactions.filter(t => !t.cat).length;
+  const rec = (S.state.meta.recurring || []), recOn = rec.filter(r => !r.off).length;
+  const go = `<span class="chev">${IC.chev}</span>`;
+  const row = (act, ico, col, ttl, sm, extra = '') => `<button class="row" data-act="${act}">${ri(ico, col)}<div class="main"><div class="ttl">${ttl}</div>${sm ? `<div class="sm">${sm}</div>` : ''}</div>${extra || go}</button>`;
+  const sw = (key, on, ico, col, ttl, sm) => `<label class="row">${ri(ico, col)}<div class="main"><div class="ttl">${ttl}</div><div class="sm">${sm}</div></div><span class="switch"><input type="checkbox" data-${key} ${on ? 'checked' : ''}><i></i></span></label>`;
   const warn = !Sync.config() && n > 0 && (d === null || d > 30) ? `<div class="warn">⚠️ ${d === null ? 'Non hai ancora fatto nessun backup.' : `Ultimo backup ${d} giorni fa.`} I dati sono salvati solo su questo iPhone: esporta un backup e salvalo su iCloud Drive.</div>` : '';
-  return `<div class="bar"><h1>Altro</h1><div class="nav">${eyeBtn()}</div></div>${warn}
-  <div class="sechead"><span>Aspetto</span></div>
-  <div class="list"><button class="row" data-act="uiSheet">${ri('palette', '#B07BFF')}<div class="main"><div class="ttl">Stile grafico</div><div class="sm">${UIS[uiPref()][0]}</div></div></button><button class="row" data-act="themeSheet">${ri('theme-light-dark', '#7C7BFF')}<div class="main"><div class="ttl">Tema</div><div class="sm">${{ auto: 'Automatico (come l’iPhone)', light: 'Chiaro', dark: 'Scuro' }[themePref()]}</div></div></button><button class="row" data-act="colorSheet">${ri('palette-swatch', '#FF9F4A')}<div class="main"><div class="ttl">Personalizzazione</div><div class="sm">Colori di Carta, Contanti, entrate, uscite</div></div></button><button class="row" data-act="mvStyleSheet">${ri('view-list', '#4DB8E8')}<div class="main"><div class="ttl">Colori dei movimenti</div><div class="sm">${MVS[mvStyle()]}</div></div></button></div>
-  <div class="sechead"><span>Movimenti</span></div>
-  <div class="list"><label class="row">${ri('folder-multiple', '#F5B84B')}<div class="main"><div class="ttl">Raggruppa movimenti</div><div class="sm">Crea gruppi con un nome e il totale dei loro movimenti, ad esempio un acquisto per qualcuno e i soldi che ti ridà</div></div><span class="switch"><input type="checkbox" data-groups ${groupsOn() ? 'checked' : ''}><i></i></span></label>
-    <label class="row">${ri('unfold-less-horizontal', '#F5B84B')}<div class="main"><div class="ttl">Chiudi i gruppi</div><div class="sm">Mostra solo il riquadro del gruppo con nome e totale; i movimenti si aprono con la freccia</div></div><span class="switch"><input type="checkbox" data-gclosed ${groupsClosed() ? 'checked' : ''}><i></i></span></label>
-    <label class="row">${ri('tag-multiple', '#4DB8E8')}<div class="main"><div class="ttl">Chip Carta e Contanti</div><div class="sm">Mostra in ogni movimento se è stato pagato con la carta o in contanti; vale per tutti i colori della barra</div></div><span class="switch"><input type="checkbox" data-acctchip ${acctChipOn() ? 'checked' : ''}><i></i></span></label>
-    <button class="row" data-act="lpSheet">${ri(ICONS['gesture-tap-hold'] ? 'gesture-tap-hold' : 'view-list', '#4DB8E8')}<div class="main"><div class="ttl">Tieni premuto per selezionare</div><div class="sm">${(LP_OPTS.find(o => o[0] === lpMs()) || LP_OPTS[2]).slice(1).join(' · ')}</div></div></button></div>
-  <div class="sechead"><span>Categorie</span></div>
-  <div class="list"><button class="row" data-act="catSheet">${ri('tag-multiple', '#34C79A')}<div class="main"><div class="ttl">Gestisci categorie</div><div class="sm">${S.state.transactions.filter(t => !t.cat).length} movimenti da categorizzare</div></div></button></div>
-  <div class="sechead"><span>Spese ricorrenti</span></div>
-  <div class="list"><button class="row" data-act="recurringSheet">${ri('repeat', '#FF8A5B')}<div class="main"><div class="ttl">Spese ricorrenti</div><div class="sm">${(S.state.meta.recurring || []).length ? (S.state.meta.recurring || []).filter(r => !r.off).length + ' attive · inserite in automatico' : 'Abbonamenti, rate, affitto: inseriti in automatico'}</div></div></button></div>
-  <div class="sechead"><span>Excel e sincronizzazione</span></div>
-  <div class="list"><button class="row" data-act="syncSheet">${ri('cloud-sync', '#5B8CFF')}<div class="main"><div class="ttl">Sincronizzazione GitHub</div><div class="sm">${esc(syncLine())}</div></div></button></div>
-  <div class="sechead"><span>Backup e dati</span></div>
-  <div class="list">
-    <button class="row" data-act="export">${ri('database-export', '#8F9BB5')}<div class="main"><div class="ttl">Esporta backup (JSON)</div></div></button>
-    <label class="row">${ri('database-import', '#8F9BB5')}<div class="main"><div class="ttl">Importa / ripristina backup</div></div><input type="file" accept=".json,application/json" hidden data-import="ask"></label>
-    <button class="row" data-act="csv">${ri('file-delimited', '#8F9BB5')}<div class="main"><div class="ttl">Esporta tutti i movimenti (CSV)</div></div></button>
-  </div>
-  <div class="sechead"><span>Riepilogo</span></div>
-  <div class="card"><div class="kv"><span>Mesi</span><b>${S.state.periods.length}</b></div><div class="kv"><span>Movimenti</span><b>${n}</b></div><div class="kv"><span>Voci di debito</span><b>${S.state.debts.length}</b></div></div>
-  <div class="sechead"><span>App</span></div>
-  <div class="list">
-    <button class="row" data-act="update">${ri('refresh', '#8F9BB5')}<div class="main"><div class="ttl">Aggiorna app</div></div></button>
-    <button class="row" data-act="wipe">${ri('delete-alert', '#FF7B6C')}<div class="main"><div class="ttl neg">Cancella tutti i dati</div></div></button>
-  </div>`;
+  const sec = (t, body) => `<div class="sechead"><span>${t}</span></div><div class="list setx">${body}</div>`;
+  return `<div class="bar"><h1>Impostazioni</h1><div class="nav">${eyeBtn()}</div></div>${warn}
+  <button class="sethero" data-act="syncSheet"><span class="sg"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${ICONS['cloud-sync']}"/></svg></span><span style="flex:1;min-width:0;text-align:left"><b>Sincronizzazione GitHub</b><small>${esc(syncLine())}</small></span>${go}</button>
+  <div class="setstats"><div><span>Mesi</span><b class="num">${S.state.periods.length}</b></div><div><span>Movimenti</span><b class="num">${n}</b></div><div><span>Debiti</span><b class="num">${S.state.debts.length}</b></div></div>
+  ${sec('Aspetto',
+    row('uiSheet', 'palette', '#B07BFF', 'Stile grafico', UIS[uiPref()][0]) +
+    (isFoglio() ? '' : row('themeSheet', 'theme-light-dark', '#7C7BFF', 'Tema', { auto: 'Automatico (come l’iPhone)', light: 'Chiaro', dark: 'Scuro' }[themePref()])) +
+    row('colorSheet', 'palette-swatch', '#FF9F4A', 'Colori', 'Carta, Contanti, entrate, uscite') +
+    row('mvStyleSheet', 'view-list', '#4DB8E8', 'Colori dei movimenti', MVS[mvStyle()]))}
+  ${sec('Movimenti',
+    sw('groups', groupsOn(), 'folder-multiple', '#F5B84B', 'Raggruppa movimenti', 'Gruppi con nome e totale') +
+    sw('gclosed', groupsClosed(), 'unfold-less-horizontal', '#F5B84B', 'Gruppi chiusi', 'Si aprono con la freccia') +
+    sw('acctchip', acctChipOn(), 'tag-multiple', '#4DB8E8', 'Chip Carta e Contanti', 'Su ogni movimento') +
+    row('lpSheet', ICONS['gesture-tap-hold'] ? 'gesture-tap-hold' : 'view-list', '#4DB8E8', 'Tieni premuto per selezionare', (LP_OPTS.find(o => o[0] === lpMs()) || LP_OPTS[2]).slice(1).join(' · ')))}
+  ${sec('Categorie e automatismi',
+    row('catSheet', 'tag-multiple', '#34C79A', 'Categorie', nocat ? `${nocat} movimenti da categorizzare` : 'Tutti i movimenti hanno una categoria') +
+    row('recurringSheet', 'repeat', '#FF8A5B', 'Spese ricorrenti', rec.length ? `${recOn} attive · inserite in automatico` : 'Abbonamenti, rate, affitto'))}
+  ${sec('Backup e dati',
+    row('export', 'database-export', '#8F9BB5', 'Esporta backup', 'File JSON da salvare su iCloud Drive') +
+    `<label class="row">${ri('database-import', '#8F9BB5')}<div class="main"><div class="ttl">Importa o ripristina backup</div></div>${go}<input type="file" accept=".json,application/json" hidden data-import="ask"></label>` +
+    row('csv', 'file-delimited', '#8F9BB5', 'Esporta movimenti (CSV)', ''))}
+  ${sec('App',
+    row('update', 'refresh', '#8F9BB5', 'Aggiorna app', '') +
+    row('wipe', 'delete-alert', '#FF7B6C', '<span class="neg">Cancella tutti i dati</span>', '', ' '))}`;
 }
 
 
@@ -1349,7 +1379,7 @@ function tripInfo(id) {
 const tripRowsHtml = () => tripList().map(([id, tr]) => { const n = S.state.transactions.filter(t => t.trip === id).length, sp = tripInfo(id).spent;
   return `<button class="row" data-act="tripSheet" data-id="${esc(id)}">${ri(tripIco(tr), tripCol(tr))}<div class="main"><div class="ttl">${esc(tr.name)}</div><div class="sm">${esc([tripDates(tr), n + (n === 1 ? ' movimento' : ' movimenti')].filter(Boolean).join(' · '))}</div></div><div class="amt num">${money(sp)}</div></button>`; }).join('')
   + `<button class="row" data-act="newTrip">${ri('plus', '#38BDF8')}<div class="main"><div class="ttl" style="color:var(--accent)">Nuovo viaggio o evento</div><div class="sm">Poi aggiungi le spese dalla selezione dei movimenti</div></div></button>`;
-// stile Notte: un viaggio o evento per card, con la barra delle sue categorie
+// stile Foglio: un viaggio o evento per card, con la barra delle sue categorie
 const tripCardsHtml = () => tripList().map(([id, tr]) => { const inf = tripInfo(id), n = inf.txs.length, tot = inf.cats.reduce((a, [, v]) => a + v, 0);
   return `<button class="ntrip" data-act="tripSheet" data-id="${esc(id)}" style="--tc:${tripCol(tr)}"><span class="ti">${tripGlyph(tr)}</span><b>${esc(tr.name)}</b><span class="v num">${money(inf.spent)}</span>
     <span class="sm">${esc([tripDates(tr), n + (n === 1 ? ' movimento' : ' movimenti')].filter(Boolean).join(', '))}</span>
@@ -1442,7 +1472,7 @@ function selActions() {
   });
 }
 
-// tieni premuto un movimento per iniziare la selezione (durata scelta in Altro; 0 = spento)
+// tieni premuto un movimento per iniziare la selezione (durata scelta in Impostazioni; 0 = spento)
 const LP_OPTS = [[0, 'Spento'], [300, 'Breve', '0,3 secondi'], [500, 'Normale', '0,5 secondi'], [800, 'Lungo', '0,8 secondi'], [1200, 'Molto lungo', '1,2 secondi']];
 const lpMs = () => { try { const v = localStorage.getItem('lpms'); return v == null ? 500 : +v || 0; } catch { return 500; } };
 let lp = null;
@@ -1550,14 +1580,21 @@ function openGroupSheet(gid) {
 }
 
 // ---------- stile grafico ----------
-const UIS = { classic: ['Classico', 'L’aspetto di sempre: schede piene e pulite'], nitido: ['Nitido', 'Superfici piene e piatte, icone a riquadro tinto e carattere Geist: pulito e leggibile'], glass: ['Liquid Glass', 'Nitido con il vetro: sfondo di colore sfocato, barra in basso, fogli e riquadri dei saldi traslucidi, bordi luminosi'],
-  notte: ['Notte', 'Blu notte e azzurro, carattere Onest: mesi in fila in alto, inserimento col tastierino, statistiche a blocchi'] };
-function uiPref() { try { const v = localStorage.getItem('ui'); return v === 'glass' || v === 'notte' ? v : v === 'nitido' || v === 'gold' ? 'nitido' : 'classic'; } catch { return 'classic'; } }      // 'gold' (Nero e oro) non c'e' piu': chi lo usava passa a Nitido
-function setUiAttrs(v) { const r = document.documentElement; if (v === 'classic') delete r.dataset.ui; else r.dataset.ui = 'nitido'; if (v === 'glass') r.dataset.glass = '1'; else delete r.dataset.glass; if (v === 'notte') r.dataset.notte = '1'; else delete r.dataset.notte; }      // Liquid Glass = Nitido + data-glass; Notte = Nitido + data-notte (notte.css)
-const isNotte = () => uiPref() === 'notte';
+const UIS = { foglio: ['Scuro Moderno', 'Sempre scuro, accento viola, carattere Geist: saldi in un unico riquadro, mesi in fila, inserimento col tastierino e tre chip, statistiche a blocchi'], classic: ['Classico', 'L’aspetto di sempre: schede piene e pulite'], nitido: ['Nitido', 'Superfici piene e piatte, icone a riquadro tinto e carattere Geist: pulito e leggibile'], glass: ['Liquid Glass', 'Nitido con il vetro: sfondo di colore sfocato, barra in basso, fogli e riquadri dei saldi traslucidi, bordi luminosi']
+};
+function uiPref() { try { const v = localStorage.getItem('ui'); return v === 'glass' || v === 'foglio' || v === 'classic' || v === 'nitido' ? v : v === 'gold' ? 'nitido' : 'foglio'; } catch { return 'foglio'; } }      // 'notte' (tolto) e chi non ha mai scelto passano a Foglio, il nuovo stile      // 'gold' (Nero e oro) non c'e' piu': chi lo usava passa a Nitido
+function setUiAttrs(v) { const r = document.documentElement; if (v === 'classic') delete r.dataset.ui; else r.dataset.ui = 'nitido'; if (v === 'glass') r.dataset.glass = '1'; else delete r.dataset.glass; if (v === 'foglio') r.dataset.foglio = '1'; else delete r.dataset.foglio; }      // Liquid Glass = Nitido + data-glass; Foglio = Nitido + data-foglio (foglio.css)
+const isFoglio = () => uiPref() === 'foglio';
+function applyThemeColor() {      // colore della barra di stato: con Scuro Moderno sempre scuro
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
+    if (!m.dataset.orig) m.dataset.orig = m.content;
+    m.content = isFoglio() ? '#0B0C10' : m.dataset.orig;
+  });
+}
 function applyUi(v) {
   setUiAttrs(v);
   try { localStorage.setItem('ui', v); } catch { /* ignore */ }
+  applyThemeColor();
   applyMvStyle(mvStyle());
 }
 function uiSheet() {
@@ -1966,7 +2003,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id
 // ---------- avvio ----------
 (async function boot() {
   C.setPrivacy(privacyOn());
-  setUiAttrs(uiPref());
+  setUiAttrs(uiPref()); applyThemeColor();
   applyAcctChip();
   applyMvStyle(mvStyle());
   try {

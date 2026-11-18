@@ -14,10 +14,10 @@
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="preload" href="fonts/manrope.woff2" as="font" type="font/woff2" crossorigin>
-<script>try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+<script>try{var r=document.documentElement,t=localStorage.getItem("theme"),u=localStorage.getItem("ui");if(t==="light"||t==="dark")r.dataset.theme=t;if(!u||u==="foglio"||u==="notte"){r.dataset.ui="nitido";r.dataset.foglio="1";document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.dataset.orig=m.content;m.content="#0B0C10"})}}catch(e){}</script>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="nitido.css">
-<link rel="stylesheet" href="notte.css">
+<link rel="stylesheet" href="foglio.css">
 <title>Le Mie Spese</title>
 </head>
 <body>
