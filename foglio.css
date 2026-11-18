@@ -333,7 +333,7 @@
 
 /* ---------- chip sotto il titolo del movimento: sempre su una riga, a grandezza piena; se non ci stanno si scorrono di lato ---------- */
 :root[data-ui="nitido"][data-foglio]{
-  & .mv .chips2{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;min-width:0;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
+  & .mv .chips2{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;min-width:0;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-y}
   & .mv .chips2::-webkit-scrollbar{display:none}
   & .mv .chips2.ovf{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 18px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 18px),transparent);padding-right:14px}
   & .mv .chips2>*{flex:none;white-space:nowrap}

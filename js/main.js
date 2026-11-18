@@ -470,6 +470,31 @@ function markChipOverflow(box) {
   if (!isFoglio()) return;
   box.querySelectorAll('.mv .chips2').forEach(c => c.classList.toggle('ovf', c.scrollWidth > c.clientWidth + 1));
 }
+// su iPhone una riga dentro un pulsante non scorre da sola (e la pagina accetta solo lo scorrimento verticale): la faccio scorrere io col dito, con un po' di inerzia
+let chipDrag = null;
+document.addEventListener('pointerdown', e => {
+  const c = e.isPrimary && e.target.closest?.('.chips2.ovf');
+  if (chipDrag?.raf) cancelAnimationFrame(chipDrag.raf);
+  chipDrag = c ? { c, x: e.clientX, y: e.clientY, sl: c.scrollLeft, mode: null, lx: e.clientX, lt: Date.now(), v: 0, id: e.pointerId } : null;
+});
+document.addEventListener('pointermove', e => {
+  const d = chipDrag; if (!d || e.pointerId !== d.id) return;
+  const dx = e.clientX - d.x, dy = e.clientY - d.y;
+  if (!d.mode) { if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return; d.mode = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; }
+  if (d.mode !== 'h') return;
+  d.c.scrollLeft = d.sl - dx;
+  const now = Date.now(); if (now > d.lt) { d.v = (e.clientX - d.lx) / (now - d.lt); d.lx = e.clientX; d.lt = now; }
+});
+const chipEnd = e => {
+  const d = chipDrag; if (!d || e.pointerId !== d.id) return;
+  if (d.mode !== 'h') { chipDrag = null; return; }
+  noClickUntil = Date.now() + 300;      // scorrere le chip non deve aprire il movimento
+  let v = Math.max(-3, Math.min(3, d.v)) * 16;
+  const step = () => { if (Math.abs(v) < 0.4) { chipDrag = null; return; } d.c.scrollLeft -= v; v *= 0.92; d.raf = requestAnimationFrame(step); };
+  if (Date.now() - d.lt < 80) d.raf = requestAnimationFrame(step); else chipDrag = null;
+};
+document.addEventListener('pointerup', chipEnd);
+document.addEventListener('pointercancel', chipEnd);
 
 function pickPeriod() {
   const years = [...new Set(S.state.periods.map(C.periodYear))].sort().reverse();
