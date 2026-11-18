@@ -330,3 +330,26 @@
   & .keypad button{height:clamp(36px,5.2dvh,46px);font-size:22px}
   & .fbtn{padding:12px}
 }
+
+/* ---------- chip sotto il titolo del movimento: sempre su una riga, a grandezza piena; se non ci stanno si scorrono di lato ---------- */
+:root[data-ui="nitido"][data-foglio]{
+  & .mv .chips2{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;min-width:0;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
+  & .mv .chips2::-webkit-scrollbar{display:none}
+  & .mv .chips2.ovf{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 18px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 18px),transparent);padding-right:14px}
+  & .mv .chips2>*{flex:none;white-space:nowrap}
+}
+
+/* ---------- ruota dei mesi (nella riga in alto, fra il tasto info e le icone): i mesi che girano (vicini piu' piccoli ai lati), sotto l'anno fermo allineato a sinistra col mese.
+   Le posizioni le calcola wheelTo() in main.js, anche mentre trascini la pagina ---------- */
+:root[data-ui="nitido"][data-foglio]{
+  & .bar{margin-bottom:16px}
+  & .ttlgrp{align-self:stretch;align-items:center}
+  & .mwheel{position:relative;flex:1 1 auto;min-width:0;align-self:stretch;height:46px;overflow:hidden;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent)}
+  & .ghost .mwheel{visibility:hidden}
+  & .mwy{position:absolute;left:0;top:31px;font:500 10.5px/1 var(--f);letter-spacing:.18em;color:var(--faint);pointer-events:none}
+  & .mwi{position:absolute;left:50%;top:2px;display:flex;flex-direction:column;align-items:center;padding:0 4px;white-space:nowrap;transform-origin:50% 50%;transform:translate3d(-50%,0,0);will-change:transform,opacity}
+  & .mwi b{font:500 24px/1.1 var(--f);letter-spacing:-.045em;color:var(--text)}
+  & .mwi:not(.mid) b{color:var(--muted)}
+  & .mwi.mid:active b{opacity:.7}
+}

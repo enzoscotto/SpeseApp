@@ -136,7 +136,7 @@ function render() {
   renderTabs();
   const v = $('#view'), y0 = window.scrollY;
   v.innerHTML = ({ mese: viewMese, stat: viewStat, altro: viewAltro })[ui.tab]();
-  if (ui.tab === 'mese') { renderList(); fitBx(); }
+  if (ui.tab === 'mese') { renderList(); fitBx(); wheelTo(0); }
   if (ui.tab === 'stat') { const b = $('.bars.sc'); if (b) b.scrollLeft = b.scrollWidth; }
   renderSelBar();
   renderFab();
@@ -157,7 +157,7 @@ function fitBx() {
   let size = 22; vs.forEach(v => v.style.fontSize = size + 'px');
   while (size > 11 && vs.some(v => v.scrollWidth > v.clientWidth + 0.5)) { size -= 0.5; vs.forEach(v => v.style.fontSize = size + 'px'); }
 }
-window.addEventListener('resize', fitBx);
+window.addEventListener('resize', () => { fitBx(); if (!drag && !pageBusy) wheelTo(0); });
 document.fonts?.ready.then(() => fitBx());     // dopo il caricamento del font le misure cambiano
 
 // ---------- filtri della lista ----------
@@ -214,6 +214,7 @@ function slideTo(id) {              // cambio mese da elenco o pulsanti: la pagi
   pageBusy = true; g.style.transform = `translate3d(${dir * W}px,0,0)`; void g.offsetWidth;
   v.style.transition = g.style.transition = ease;
   v.style.transform = `translate3d(${-dir * W}px,0,0)`; g.style.transform = 'translate3d(0,0,0)';
+  wheelTo(dir, dir * W, true);
   setTimeout(() => { commitPage(id, g); pageBusy = false; }, PAGE_MS);
 }
 function dragTo(dx) {
@@ -223,7 +224,9 @@ function dragTo(dx) {
     if (drag.target) drag.ghost = makeGhost(drag.target);
   }
   drag.dx = dx;
-  v.style.transform = `translate3d(${drag.ghost ? dx : dx * 0.3}px,0,0)`;      // senza mese vicino: effetto elastico
+  const vx = drag.ghost ? dx : dx * 0.3;
+  v.style.transform = `translate3d(${vx}px,0,0)`;      // senza mese vicino: effetto elastico
+  wheelTo(-vx / W, -vx);
   if (drag.ghost) drag.ghost.style.transform = `translate3d(${dx + dir * W}px,0,0)`;
 }
 function endDrag(cancelled) {
@@ -236,14 +239,16 @@ function endDrag(cancelled) {
   if (go) {
     pageBusy = true;
     v.style.transform = `translate3d(${-d.dir * W}px,0,0)`; d.ghost.style.transform = 'translate3d(0,0,0)';
+    wheelTo(d.dir, d.dir * W, true);
     setTimeout(() => { commitPage(d.target, d.ghost); pageBusy = false; }, PAGE_MS);
   } else {
     v.style.transform = 'translate3d(0,0,0)'; if (d.ghost) d.ghost.style.transform = `translate3d(${d.dir * W}px,0,0)`;
+    wheelTo(0, 0, true);
     setTimeout(() => { v.style.transition = ''; v.style.transform = ''; d.ghost?.remove(); }, PAGE_MS);
   }
 }
 document.addEventListener('pointerdown', e => {
-  drag = !pageBusy && ui.tab === 'mese' && e.isPrimary && e.target.closest('#view') && !e.target.closest('input,select,textarea') && !document.querySelector('#sheetRoot .sheet, .addmenu') && S.state.periods.length
+  drag = !pageBusy && ui.tab === 'mese' && e.isPrimary && e.target.closest('#view') && !e.target.closest('input,select,textarea') && !e.target.closest('.chips2.ovf') && !document.querySelector('#sheetRoot .sheet, .addmenu') && S.state.periods.length
     ? { x: e.clientX, y: e.clientY, id: e.pointerId, mode: null, dx: 0, t0: Date.now(), dir: 0, ghost: null, target: null } : null;
 });
 document.addEventListener('pointermove', e => {
@@ -288,7 +293,7 @@ function viewMese() {
   return `
   <div id="topArea">
   <div class="bar">
-    <div class="ttlgrp"><button class="iconbtn" data-act="periodInfo" aria-label="Dati del mese">${IC.info}</button>${isFoglio() ? monthStrip(p, i) : `<button class="periodbtn" data-act="pickPeriod"><span>${esc(periodLabel(p))}</span>${IC.chev}</button>`}</div>
+    <div class="ttlgrp"><button class="iconbtn" data-act="periodInfo" aria-label="Dati del mese">${IC.info}</button>${isFoglio() ? monthWheel(i) : `<button class="periodbtn" data-act="pickPeriod"><span>${esc(periodLabel(p))}</span>${IC.chev}</button>`}</div>
     <div class="nav">
       <button class="iconbtn ${ui.q ? 'on' : ''}" data-act="searchToggle" aria-label="Cerca">${IC.searchBtn}</button>
       <button class="iconbtn ${ui.catf || ui.allMonths ? 'on' : ''}" data-act="filterSheet" aria-label="Filtra per categoria">${IC.filter}</button>
@@ -307,12 +312,33 @@ function viewMese() {
   <div id="listBox"></div>`;
 }
 
-// stile Foglio: i mesi in fila (quello prima, questo, quello dopo); tocchi un mese vicino per andarci, quello in mezzo apre l'elenco
-function monthStrip(p, i) {
-  const ps = S.state.periods, short = x => C.MESI_BREVI[+x.start.slice(5, 7) - 1];
-  const lab = periodLabel(p), m = lab.match(/^(\S+) (\d{4})$/);
-  const side = x => x ? `<button class="mside" data-act="gotoPeriod" data-id="${esc(x.id)}">${short(x)}</button>` : '';
-  return `<div class="mstrip">${side(ps[i - 1])}<button class="periodbtn" data-act="pickPeriod" aria-label="Scegli il mese">${m ? `<span>${m[1]}</span><small>${m[2]}</small>` : `<span>${esc(lab)}</span>`}</button>${side(ps[i + 1])}</div>`;
+// Scuro Moderno: i mesi su una ruota, come un orologio, nella riga in alto fra il tasto info e le icone. I mesi girano: al centro quello scelto, ai lati i vicini piu' piccoli; sotto l'anno, fermo e allineato a sinistra col mese.
+// Mentre trascini la pagina la ruota resta ferma e gira insieme al dito (wheelTo); tocchi un vicino per andarci, il centro apre l'elenco.
+function monthWheel(i) {
+  const ps = S.state.periods, items = [];
+  for (let k = -2; k <= 2; k++) {
+    const x = ps[i + k]; if (!x) continue;
+    const m = periodLabel(x).match(/^(\S+) (\d{4})$/);
+    items.push(`<button class="mwi" data-k="${k}" ${k === 0 ? 'data-act="pickPeriod" aria-label="Scegli il mese"' : `data-act="gotoPeriod" data-id="${esc(x.id)}"`}><b>${esc(m ? m[1] : periodLabel(x))}</b></button>`.replace('class="mwi"', `class="mwi" data-y="${m ? m[2] : ''}"`));
+  }
+  const y = periodLabel(ps[i]).match(/(\d{4})$/);
+  return `<div class="mwheel"><span class="mwy">${y ? y[1] : ''}</span>${items.join('')}</div>`;
+}
+// pos = di quanti mesi la ruota e' girata (0 = ferma, 1 = un mese avanti); anim = con l'animazione
+function wheelTo(pos, shift = 0, anim = false) {
+  const w = $('#view .mwheel'); if (!w) return;
+  const mid = w.querySelector('.mwi[data-k="0"] b'), slot = Math.max(64, (mid ? mid.offsetWidth : 100) / 2 + 46), ease = anim ? `transform ${PAGE_MS}ms ${PAGE_EASE}, opacity ${PAGE_MS}ms ${PAGE_EASE}` : 'none';
+  const yy = w.querySelector('.mwy'); if (yy && mid) yy.style.left = Math.round(w.clientWidth / 2 - mid.offsetWidth / 2) + 'px';      // l'anno sotto, allineato a sinistra col mese di questa pagina
+  w.style.transition = anim ? `transform ${PAGE_MS}ms ${PAGE_EASE}` : 'none';
+  w.style.transform = shift ? `translate3d(${shift}px,0,0)` : '';
+  w.querySelectorAll('.mwi').forEach(el => {
+    const x = +el.dataset.k - pos, d = Math.abs(x);
+    el.style.transition = ease;
+    el.style.transform = `translate3d(calc(-50% + ${(x * slot).toFixed(1)}px),0,0) scale(${(1 - 0.48 * Math.min(1, d)).toFixed(3)})`;
+    el.style.opacity = d <= 1 ? (1 - 0.5 * d).toFixed(3) : Math.max(0, 0.5 - (d - 1) * 0.9).toFixed(3);
+    el.classList.toggle('mid', d < 0.5);
+    if (d < 0.5) { const yy = w.querySelector('.mwy'); if (yy && el.dataset.y && yy.textContent !== el.dataset.y) yy.textContent = el.dataset.y; }      // l'anno resta fermo e cambia solo passando a un mese di un altro anno
+  });
 }
 
 function rowHtml(t, showAcct, showPeriod, sub, plain, extra) {
@@ -432,6 +458,12 @@ function renderList(box = $('#listBox'), limit = 2000) {
   flush();
   if (global) html = `<div class="muted" style="margin:10px 4px 0;font-size:13px">${items.length} risultati${items.length > 300 ? ' (primi 300)' : ''} · totale ${signed(items.reduce((s, [t]) => s + (t.kind === 'in' ? t.amount : -t.amount), 0))}</div>` + html;
   box.innerHTML = html;
+  markChipOverflow(box);
+}
+// Scuro Moderno: le chip di un movimento stanno su una riga; dove non ci stanno si scorrono di lato (classe ovf: sfumatura a destra, niente cambio mese trascinando li')
+function markChipOverflow(box) {
+  if (!isFoglio()) return;
+  box.querySelectorAll('.mv .chips2').forEach(c => c.classList.toggle('ovf', c.scrollWidth > c.clientWidth + 1));
 }
 
 function pickPeriod() {
