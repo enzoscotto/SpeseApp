@@ -327,17 +327,22 @@ function monthWheel(i) {
 // pos = di quanti mesi la ruota e' girata (0 = ferma, 1 = un mese avanti); anim = con l'animazione
 function wheelTo(pos, shift = 0, anim = false) {
   const w = $('#view .mwheel'); if (!w) return;
-  const mid = w.querySelector('.mwi[data-k="0"] b'), slot = Math.max(64, (mid ? mid.offsetWidth : 100) / 2 + 46), ease = anim ? `transform ${PAGE_MS}ms ${PAGE_EASE}, opacity ${PAGE_MS}ms ${PAGE_EASE}` : 'none';
+  const bar = w.closest('.bar'), mid = w.querySelector('.mwi[data-k="0"] b'), ease = anim ? `transform ${PAGE_MS}ms ${PAGE_EASE}, opacity ${PAGE_MS}ms ${PAGE_EASE}` : 'none';
+  const ANG = 42, maxW = Math.max(60, ...[...w.querySelectorAll('.mwi b')].map(b => b.offsetWidth));
+  const R = (maxW + 16) / (2 * Math.sin(ANG / 2 * Math.PI / 180));      // raggio del tamburo: anche a meta' giro due mesi vicini non si toccano
   const yy = w.querySelector('.mwy'); if (yy && mid) yy.style.left = Math.round(w.clientWidth / 2 - mid.offsetWidth / 2) + 'px';      // l'anno sotto, allineato a sinistra col mese di questa pagina
-  w.style.transition = anim ? `transform ${PAGE_MS}ms ${PAGE_EASE}` : 'none';
-  w.style.transform = shift ? `translate3d(${shift}px,0,0)` : '';
+  // la barra in alto (info, mesi, icone) resta ferma mentre la pagina scorre: si sposta al contrario della pagina
+  bar.style.transition = anim ? `transform ${PAGE_MS}ms ${PAGE_EASE}` : 'none';
+  bar.style.transform = shift ? `translate3d(${shift}px,0,0)` : '';
+  bar.style.position = 'relative'; bar.style.zIndex = shift ? '2' : '';
   w.querySelectorAll('.mwi').forEach(el => {
-    const x = +el.dataset.k - pos, d = Math.abs(x);
+    const x = +el.dataset.k - pos, d = Math.abs(x), ang = Math.max(-95, Math.min(95, x * ANG)), rad = ang * Math.PI / 180, cos = Math.cos(rad);
     el.style.transition = ease;
-    el.style.transform = `translate3d(calc(-50% + ${(x * slot).toFixed(1)}px),0,0) scale(${(1 - 0.48 * Math.min(1, d)).toFixed(3)})`;
-    el.style.opacity = d <= 1 ? (1 - 0.5 * d).toFixed(3) : Math.max(0, 0.5 - (d - 1) * 0.9).toFixed(3);
+    // tamburo visto di fronte: ogni mese sta su un cilindro e gira con il dito
+    el.style.transform = `translate3d(calc(-50% + ${(R * Math.sin(rad)).toFixed(1)}px),0,${(R * (cos - 1)).toFixed(1)}px) rotateY(${ang.toFixed(1)}deg)`;
+    el.style.opacity = Math.max(0, Math.min(1, cos * 1.2 - 0.2)).toFixed(3);
     el.classList.toggle('mid', d < 0.5);
-    if (d < 0.5) { const yy = w.querySelector('.mwy'); if (yy && el.dataset.y && yy.textContent !== el.dataset.y) yy.textContent = el.dataset.y; }      // l'anno resta fermo e cambia solo passando a un mese di un altro anno
+    if (d < 0.5) { if (yy && el.dataset.y && yy.textContent !== el.dataset.y) yy.textContent = el.dataset.y; }      // l'anno resta fermo e cambia solo passando a un mese di un altro anno
   });
 }
 

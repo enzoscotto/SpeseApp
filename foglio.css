@@ -346,7 +346,9 @@
   & .ttlgrp{align-self:stretch;align-items:center}
   & .mwheel{position:relative;flex:1 1 auto;min-width:0;align-self:stretch;height:46px;overflow:hidden;
     -webkit-mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent)}
-  & .ghost .mwheel{visibility:hidden}
+  & .ghost .bar{visibility:hidden}
+  & .mwheel{perspective:520px;perspective-origin:50% 40%}
+  & .mwi{backface-visibility:hidden}
   & .mwy{position:absolute;left:0;top:31px;font:500 10.5px/1 var(--f);letter-spacing:.18em;color:var(--faint);pointer-events:none}
   & .mwi{position:absolute;left:50%;top:2px;display:flex;flex-direction:column;align-items:center;padding:0 4px;white-space:nowrap;transform-origin:50% 50%;transform:translate3d(-50%,0,0);will-change:transform,opacity}
   & .mwi b{font:500 24px/1.1 var(--f);letter-spacing:-.045em;color:var(--text)}
