@@ -639,33 +639,6 @@ html:has(#sheetRoot .sheet),html:has(#sheetRoot .sheet) body{overflow:hidden}
 @keyframes mvflash{0%,55%{outline:3px solid var(--accent);outline-offset:-3px}100%{outline:3px solid transparent;outline-offset:-3px}}
 .mv.flash{animation:mvflash 1.6s ease-out}
 
-/* selezione: la casella si appoggia sull'icona, cosi' le righe non cambiano larghezza ne' altezza (la lista non si sposta) */
-#listBox.selmode .mv .chk{position:absolute;left:14px;top:50%;margin-top:-12px;z-index:1}
-#listBox.selmode .mv .chk:not(.on){background:var(--card)}
-#listBox.selmode .mv.sub .chk{left:10px}
-#listBox.selmode .mv .ico{opacity:.2}
-
-/* riga del movimento (tutti gli stili): sopra icona e titolo, sotto una riga con tutte le chip,
-   a destra l'importo in una colonna alta quanto la riga, separata da una linea netta */
-.mv{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;grid-template-areas:"ico ttl amt tg" "chp chp amt tg";align-items:center;gap:0;padding:0;--rl:color-mix(in srgb,currentColor 14%,transparent)}
-.mv .main{display:contents}
-.mv .ico{grid-area:ico;flex:none;width:32px;height:32px;margin:8px 0 7px 10px}
-.mv .ico svg{width:18px;height:18px}
-.mv .mvt{grid-area:ttl;padding:0 10px}
-.mv .chips2{grid-area:chp;margin:0;padding:5px 10px 7px;border-top:1px solid var(--rl);align-self:stretch;min-height:31px}
-.mv .amtc{grid-area:amt;align-self:stretch;display:flex;align-items:center;justify-content:flex-end;min-width:98px;padding:0 12px;border-left:1px solid var(--rl)}
-.mv .gtgl{grid-area:tg;margin:0 10px 0 0}
-.mv.gh .gtgl{margin-left:-4px}
-/* gruppi: le linee di collegamento seguono l'icona, che ora sta in alto */
-.mvg>.mv:first-child::after{left:25px;top:41px}
-.mv.sub{margin-left:35px;width:calc(100% - 35px);padding:0}
-.mv.sub .ico{flex:none;width:26px;height:26px;margin:7px 0 6px 9px}
-.mv.sub .ico svg{width:15px;height:15px}
-.mv.sub .amtc{min-width:90px}
-.mv.sub::before{height:28px}
-.mv.sub:not(:last-child)::after{top:20px}
-#listBox.selmode .mv .chk{left:14px;top:12px;margin-top:0}
-#listBox.selmode .mv.sub .chk{left:10px;top:8px}
 /* viaggi ed eventi: la chip ha l'icona (aereo o biglietto) */
 .tag.trip .tg{width:12px;height:12px;flex:none;fill:currentColor}
 .tag.trip.ev{background:color-mix(in srgb,#F472B6 18%,transparent);color:color-mix(in srgb,#F472B6 75%,var(--text))}

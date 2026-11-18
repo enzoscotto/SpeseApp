@@ -60,16 +60,31 @@
 
 /* ---------- movimenti ---------- */
 :root[data-ui="nitido"][data-notte] .dayh{font-weight:500}
-:root[data-ui="nitido"][data-notte] .mv{border-radius:10px;border:1px solid var(--line)}
-:root[data-ui="nitido"][data-notte][data-mvs="rail"] .mv.ac-carta{box-shadow:inset 3px 0 0 var(--carta)}
-:root[data-ui="nitido"][data-notte][data-mvs="rail"] .mv.ac-cash{box-shadow:inset 3px 0 0 var(--cash)}
-:root[data-ui="nitido"][data-notte][data-mvs="rail"] .mv.unp.ac-carta{box-shadow:inset 3px 0 0 var(--carta),inset 0 0 0 1.5px color-mix(in srgb,var(--red) 55%,transparent)}
-:root[data-ui="nitido"][data-notte][data-mvs="rail"] .mv.unp.ac-cash{box-shadow:inset 3px 0 0 var(--cash),inset 0 0 0 1.5px color-mix(in srgb,var(--red) 55%,transparent)}
+/* riga come nel prototipo Notte: una card per movimento, banda a sinistra nel colore della categoria,
+   icona tinta, titolo con le chip sotto, importo a destra */
+:root[data-ui="nitido"][data-notte] .mvs,:root[data-ui="nitido"][data-notte] .mvg{gap:6px}
+:root[data-ui="nitido"][data-notte] .mv{gap:11px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);box-shadow:inset 3px 0 0 var(--cc,var(--s3))}
+:root[data-ui="nitido"][data-notte] .mv.gh{box-shadow:inset 3px 0 0 var(--accent)}
+:root[data-ui="nitido"][data-notte] .mv.unp,:root[data-ui="nitido"][data-notte][data-mvs] .mv.unp.ac-carta,:root[data-ui="nitido"][data-notte][data-mvs] .mv.unp.ac-cash{box-shadow:inset 3px 0 0 var(--cc,var(--s3)),inset 0 0 0 1.5px color-mix(in srgb,var(--red) 55%,transparent)}
+:root[data-ui="nitido"][data-notte][data-mvs="rail"] .mv.ac-carta,:root[data-ui="nitido"][data-notte][data-mvs="rail"] .mv.ac-cash{box-shadow:inset 3px 0 0 var(--cc,var(--s3))}
 :root[data-ui="nitido"][data-notte][data-mvs="solid"] .mv{border-color:transparent}
-:root[data-ui="nitido"][data-notte] .mv .ico{border-radius:7px}
-:root[data-ui="nitido"][data-notte] .mv .mvt,:root[data-ui="nitido"][data-notte] .mv.gh .mvt{font-weight:500}
-:root[data-ui="nitido"][data-notte] .mv .amt{font-weight:500}
-:root[data-ui="nitido"][data-notte] .tag.cat,:root[data-ui="nitido"][data-notte] .tag.dbt,:root[data-ui="nitido"][data-notte] .tag.red,:root[data-ui="nitido"][data-notte] .tag.trip{border-radius:4px;font-weight:500}
+:root[data-ui="nitido"][data-notte] .mv .ico{flex:0 0 36px;width:36px;height:36px;border-radius:7px;background:color-mix(in srgb,var(--cc,var(--muted)) 16%,transparent);color:var(--cc,var(--muted))}
+:root[data-ui="nitido"][data-notte] .mv .ico svg{width:19px;height:19px}
+:root[data-ui="nitido"][data-notte] .mv .mvt,:root[data-ui="nitido"][data-notte] .mv.gh .mvt{font-size:15px;font-weight:500}
+:root[data-ui="nitido"][data-notte] .mv .chips2{margin-top:4px;gap:5px}
+:root[data-ui="nitido"][data-notte] .mv .tag{font-size:11.5px;font-weight:500;padding:2px 7px;border-radius:4px;gap:5px}
+:root[data-ui="nitido"][data-notte] .mv .tag.cat{background:color-mix(in srgb,var(--cc,var(--muted)) 14%,transparent);color:color-mix(in srgb,var(--cc,var(--muted)) 80%,var(--text))}
+:root[data-ui="nitido"][data-notte] .mv .tag.card,:root[data-ui="nitido"][data-notte] .mv .tag.cash{background:var(--s2);color:var(--muted)}
+:root[data-ui="nitido"][data-notte] .mv .tag.card::before,:root[data-ui="nitido"][data-notte] .mv .tag.cash::before{width:7px;height:7px;flex:0 0 7px}
+:root[data-ui="nitido"][data-notte] .mv .tag.dbt,:root[data-ui="nitido"][data-notte] .mv .tag.red,:root[data-ui="nitido"][data-notte] .mv .tag.trip{border-radius:4px}
+:root[data-ui="nitido"][data-notte] .mv .amt{font-size:15.5px;font-weight:500}
+/* gruppi: le linee seguono l'icona da 36px e lo spazio di 6px fra le righe */
+:root[data-ui="nitido"][data-notte] .mvg>.mv:first-child::after{left:29px;top:calc(50% + 18px);bottom:-6px}
+:root[data-ui="nitido"][data-notte] .mv.sub{margin-left:40px;width:calc(100% - 40px);padding:8px 12px 8px 10px}
+:root[data-ui="nitido"][data-notte] .mv.sub .ico{flex:0 0 30px;width:30px;height:30px}
+:root[data-ui="nitido"][data-notte] .mv.sub .ico svg{width:16px;height:16px}
+:root[data-ui="nitido"][data-notte] .mv.sub::before{top:-6px;height:calc(50% + 6px)}
+:root[data-ui="nitido"][data-notte] .mv.sub:not(:last-child)::after{bottom:-6px}
 :root[data-ui="nitido"][data-notte] .gtgl{border-radius:7px}
 :root[data-ui="nitido"][data-notte] .chk.on{background:var(--accent);border-color:var(--accent)}
 
