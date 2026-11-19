@@ -315,20 +315,35 @@
 
 /* ---------- inserimento compatto: su iPhone le tre chip si vedono senza scorrere (si scorre solo per rientro e debito) ---------- */
 :root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(#fAmt){
+  /* inserimento: le misure crescono con l'altezza dello schermo (sull'iPhone c'e' spazio), restano compatte su schermi bassi */
   & .head{padding:16px 18px 6px}
   & .body{padding-top:2px;padding-bottom:10px}
-  & #fKind,& #fAcct{margin-bottom:8px!important}
-  & .seg button{padding:7px 8px}
-  & .seg.big button{padding:8px}
-  & .frow{padding:10px 16px}
-  & .frow.amount{padding:8px 16px 6px}
-  & .frow.amount input{font-size:46px;line-height:1.1}
+  & #fKind,& #fAcct{margin-bottom:clamp(8px,1.2dvh,12px)!important}
+  & .seg button{padding:clamp(7px,1dvh,10px) 8px}
+  & .frow{padding:clamp(10px,1.5dvh,14px) 16px}
+  & .frow.amount{padding:clamp(8px,1.6dvh,16px) 16px clamp(6px,1.2dvh,12px)}
+  & .frow.amount input{font-size:clamp(44px,7dvh,62px);line-height:1.1}
   & .chip3{margin-bottom:8px}
-  & .chip3 button{padding:7px 22px 8px 12px}
+  & .chip3 button{padding:clamp(7px,1.1dvh,10px) 22px clamp(8px,1.2dvh,11px) 12px}
   & .foot{padding:8px 16px calc(env(safe-area-inset-bottom) + 8px);gap:8px}
-  & .keypad{gap:5px}
-  & .keypad button{height:clamp(36px,5.2dvh,46px);font-size:22px}
-  & .fbtn{padding:12px}
+  & .keypad{gap:clamp(5px,.8dvh,8px)}
+  & .keypad button{height:clamp(38px,6.4dvh,56px);font-size:clamp(21px,3dvh,26px)}
+  & .fbtn{padding:clamp(12px,1.7dvh,15px)}
+}
+
+/* due sistemi di scelta: chip 2x2 sotto il riquadro, oppure tre pallini a destra del riquadro */
+:root[data-ui="nitido"][data-foglio]{
+  & .chip3.g2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  & .chip3.g2 .cl{letter-spacing:.06em}
+  & .fwrap{display:flex;gap:8px;align-items:stretch;margin-bottom:12px}
+  & .fwrap>.form{flex:1;min-width:0;margin-bottom:0}
+  & .fdots{flex:none;display:flex;flex-direction:column;justify-content:space-between;gap:8px}
+  & .fdot{flex:1;width:46px;min-height:44px;max-height:64px;border-radius:99px;display:grid;place-items:center;background:var(--s1);box-shadow:inset 0 0 0 1px var(--line);color:var(--muted);transition:background .15s,color .15s,transform .12s}
+  & .fdot:active{transform:scale(.94)}
+  & .fdot.has{color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--s1))}
+  & .fdot.open{color:var(--pl-ink);background:var(--accent);box-shadow:none}
+  & #fPanCats,& #fPick2{margin-bottom:10px}
+  & #fPanCats .catsel span,& #fPick2 .catsel span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 
 /* ---------- chip sotto il titolo del movimento: sempre su una riga, a grandezza piena; se non ci stanno si scorrono di lato ---------- */
@@ -354,4 +369,8 @@
   & .mwi b{font:500 24px/1.1 var(--f);letter-spacing:-.045em;color:var(--text)}
   & .mwi:not(.mid) b{color:var(--muted)}
   & .mwi.mid:active b{opacity:.7}
+}
+:root[data-ui="nitido"][data-foglio]{
+  & .rcg button.s i,& .rcg button.e i{color:var(--pl-ink)}
+  & .rch button{background:var(--s2)}
 }

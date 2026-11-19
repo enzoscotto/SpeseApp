@@ -712,6 +712,24 @@ function openCatMenu(anchor, cur, pick) {
   list.querySelectorAll('.cmrow').forEach(b => b.onclick = () => { close(); pick(b.dataset.c); });
 }
 
+// Scuro Moderno: come si scelgono categoria, viaggio e rientro nell'inserimento ('chip' o 'dots' = pallini)
+const insMode = () => { try { return localStorage.getItem('insmode') === 'dots' ? 'dots' : 'chip'; } catch { return 'chip'; } };
+const DOT_IC = {
+  cat: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>',
+  trip: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M20.56 3.91c.59.59.59 1.54 0 2.12l-3.89 3.89 2.12 9.19-1.41 1.42-3.88-7.43L9.6 17l.36 2.47-1.07 1.06-1.76-3.18-3.19-1.77L5 14.5l2.5.37 3.89-3.89-7.43-3.88 1.42-1.41 9.19 2.12 3.89-3.89c.56-.59 1.56-.59 2.1 0"/></svg>',
+  ret: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M21 9l-4-4v3h-7v2h7v3m-10-2-4 4 4 4v-3h7v-2H7z"/></svg>' };
+function pickUi() {
+  if (insMode() === 'dots') return `<div class="fdots" id="fPick">${['cat', 'trip', 'ret'].map(p => `<button type="button" class="fdot" data-p="${p}" aria-label="${{ cat: 'Categorie', trip: 'Viaggio o evento', ret: 'Debito e rientro' }[p]}">${DOT_IC[p]}</button>`).join('')}</div></div>`;
+  const c = (p, l, ph = 'Aggiungi') => `<button type="button" data-p="${p}"><span class="cl">${l}</span><span class="cv" data-v="${p}" data-ph="${ph}"></span></button>`;
+  return `<div class="chip3 g2" id="fPick">${c('cat', 'Prima categoria')}${c('cat2', 'Seconda categoria', 'Nessuna')}${c('trip', 'Viaggi ed eventi')}${c('ret', 'Debito e rientro')}</div>`;
+}
+function insModeSheet() {
+  const cur = insMode();
+  openSheet('Scelte nell’inserimento', `<div class="list">${[['chip', 'Chip', 'Sotto il riquadro: Prima e Seconda categoria, Viaggi ed eventi, Debito e rientro'], ['dots', 'Pallini', 'Tre pallini a destra del riquadro: categorie, viaggio, debito e rientro; ognuno apre il suo riquadro']].map(([k, n, d]) => `<button class="row" data-im="${k}"><div class="main"><div class="ttl">${n}${cur === k ? ' ✓' : ''}</div><div class="sm">${d}</div></div></button>`).join('')}</div>`, {
+    onMount: (w, close) => w.querySelectorAll('[data-im]').forEach(b => b.onclick = () => { try { localStorage.setItem('insmode', b.dataset.im); } catch { /* ignore */ } close(); render(); })
+  });
+}
+
 // stile Foglio: le categorie piu' usate (per uscite o entrate), da mostrare come chip
 function topCats(kind) {
   const n = new Map();
@@ -744,19 +762,19 @@ function openTxSheet(existing, preset = {}) {
   const body = `
     <div class="seg big" id="fKind" style="margin-bottom:12px" ${e ? '' : 'hidden'}><button data-v="out">Uscita</button><button data-v="in">Entrata</button></div>
     <div class="seg" id="fAcct" style="margin-bottom:12px"><button data-v="carta">Carta</button><button data-v="contanti">Contanti</button></div>
-    <div class="form">
+    ${isFoglio() && insMode() === 'dots' ? '<div class="fwrap">' : ''}<div class="form">
       <div class="frow amount"><input id="fAmt" inputmode="decimal" placeholder="0,00" value="${e ? C.inAmt(e.amount) : ''}" autocomplete="off"></div>
       <div class="frow"><label>Data</label><input id="fDate" type="date" value="${e ? e.date : C.today()}"></div>
       <div id="fTextRows"><div class="frow"><label>Motivo</label><input id="fDesc" placeholder="Descrizione" value="${esc(e?.desc || '')}" autocomplete="off" autocapitalize="sentences"></div></div>
-    </div>
-    ${isFoglio() ? `<div class="chip3" id="fChip3"><button type="button" data-p="cat"><span class="cl">Categoria</span><span class="cv" id="c3cat"></span></button><button type="button" data-p="trip"><span class="cl">Viaggio/Evento</span><span class="cv" id="c3trip"></span></button><button type="button" data-p="ret"><span class="cl">Rientro</span><span class="cv" id="c3ret"></span></button></div>` : ''}
+    </div>${isFoglio() ? pickUi() : ''}
     <div id="fPanCat">
+    ${isFoglio() ? `<div class="form" id="fPanCats" hidden><div class="frow"><label>Prima</label><button type="button" class="catsel" data-pp="cat"><span data-v="cat" data-ph="Scegli…"></span>${IC.chev}</button></div><div class="frow"><label>Seconda</label><button type="button" class="catsel" data-pp="cat2"><span data-v="cat2" data-ph="Nessuna"></span>${IC.chev}</button></div></div>` : ''}
     <div class="form" id="fChips"><div class="frow" ${isFoglio() ? 'hidden' : ''}><label>Categoria</label><button type="button" class="catsel" id="fCatBtn"></button></div>
       <div class="frow" id="fC2Row"><label>Anche in</label><div class="cats2" id="fC2"></div></div>
       ${!isFoglio() && (tripList().length || f.trip) ? `<div class="frow"><label style="width:auto">Viaggio o evento</label><select id="fTrip"><option value="">— nessuno —</option>${tripList().map(([id, tr]) => `<option value="${esc(id)}" ${f.trip === id ? 'selected' : ''}>${esc(tr.name)}</option>`).join('')}</select></div>` : ''}</div>
     <div class="catgrid" id="fSubs" hidden></div>
     </div>
-    ${isFoglio() ? `<div id="fPanTrip" hidden><select id="fTrip" hidden><option value="">— nessuno —</option>${tripList().map(([id, tr]) => `<option value="${esc(id)}" ${f.trip === id ? 'selected' : ''}>${esc(tr.name)}</option>`).join('')}</select></div>` : ''}
+    ${isFoglio() ? `<div id="fPanTrip" hidden><div class="form" id="fPick2"><div class="frow"><label style="width:auto">Viaggio o evento</label><button type="button" class="catsel" data-pp="trip"><span data-v="trip" data-ph="Nessuno"></span>${IC.chev}</button></div></div><select id="fTrip" hidden><option value="">— nessuno —</option>${tripList().map(([id, tr]) => `<option value="${esc(id)}" ${f.trip === id ? 'selected' : ''}>${esc(tr.name)}</option>`).join('')}</select></div>` : ''}
     <div id="fMore"><button type="button" class="morehd" id="fMoreBtn" ${isFoglio() ? 'hidden' : ''}><span>Rientro e debito</span><em id="fMoreTag"></em>${IC.chev}</button><div id="fMoreBody" hidden>
     <div class="form" id="fRetBox">
       <div class="frow"><label id="fRetLbl" style="width:auto;flex:1;color:var(--text)"></label><label class="switch"><input type="checkbox" id="fRet"><i></i></label></div>
@@ -802,26 +820,47 @@ function openTxSheet(existing, preset = {}) {
         $('#fMoreTag', w).textContent = on.join(' · ');
         $('#fMoreBody', w).hidden = !f.more; $('#fMore', w).classList.toggle('open', f.more);
         if (isFoglio()) {
-          const trs = trips(), tn = trs[f.trip]?.name;
-          $('#fChip3', w).hidden = f.giro; $('#fPanCat', w).hidden = f.giro; $('#fMore', w).hidden = f.giro || f.panel !== 'ret';
-          const set = (id, txt, p) => { const el = $('#' + id, w), b = el.parentElement; el.textContent = txt || 'Aggiungi'; b.classList.toggle('has', !!txt); b.classList.toggle('open', f.panel === p); };
-          set('c3cat', f.cat, 'cat'); set('c3trip', tn, 'trip'); set('c3ret', $('#fMoreTag', w).textContent, 'ret');
+          $('#fPick', w).hidden = f.giro; $('#fPanCat', w).hidden = f.giro || (insMode() === 'dots' && f.panel !== 'cat');
+          $('#fMore', w).hidden = f.giro || f.panel !== 'ret';
+          drawPick();
         }
       };
       $('#fMoreBtn', w).onclick = () => { f.more = !f.more; sync(); };
-      // Scuro Moderno: Categoria e Viaggio/Evento aprono un menu a tendina sotto la chip, Rientro apre il suo riquadro
-      $$('#fChip3 [data-p]', w).forEach(b => b.onclick = () => {
-        const p = b.dataset.p;
-        if (p === 'cat') return openCatMenu(b, f.cat, name => { f.cat = name || null; f.catManual = !!f.cat; f.catClicked = true; guessSubNow(); sync(); });
-        if (p === 'trip') return openListMenu(b, [['', 'Nessuno', '<i class="mini" style="--cc:var(--muted)"></i>'], ...tripList().map(([id, tr]) => [id, tr.name, `<i class="mini" style="--cc:${tripCol(tr)}"><svg class="gl" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="${ICONS[tripIco(tr)]}"/></svg></i>`])],
-          f.trip, id => { f.trip = id || ''; $('#fTrip', w).value = f.trip; sync(); }, tripList().length ? '' : 'Nessun viaggio o evento: creali da Statistiche › Viaggi ed eventi.');
-        f.panel = f.panel === 'ret' ? null : 'ret'; sync();
+      const pickCat = (b, first) => openCatMenu(b, first ? f.cat : (f.cats2[0] || ''), name => {
+        if (first) { f.cat = name || null; f.catManual = !!f.cat; f.catClicked = true; guessSubNow(); }
+        else f.cats2 = name ? [name, ...f.cats2.slice(1).filter(c => c !== name)] : f.cats2.slice(1);
+        sync();
       });
+      const pickTrip = b => openListMenu(b, [['', 'Nessuno', '<i class="mini" style="--cc:var(--muted)"></i>'], ...tripList().map(([id, tr]) => [id, tr.name, `<i class="mini" style="--cc:${tripCol(tr)}"><svg class="gl" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="${ICONS[tripIco(tr)]}"/></svg></i>`])],
+        f.trip, id => { f.trip = id || ''; $('#fTrip', w).value = f.trip; sync(); }, tripList().length ? '' : 'Nessun viaggio o evento: creali da Statistiche › Viaggi ed eventi.');
+      // Scuro Moderno, due sistemi (Impostazioni › Movimenti › Scelte nell'inserimento):
+      // chip = Prima e Seconda categoria, Viaggi ed eventi (menu a tendina), Debito e rientro (riquadro);
+      // pallini = tre pallini a destra del riquadro: ognuno apre sotto il suo riquadro
+      $$('#fPick [data-p]', w).forEach(b => b.onclick = () => {
+        const p = b.dataset.p;
+        if (insMode() === 'chip') {
+          if (p === 'cat' || p === 'cat2') return pickCat(b, p === 'cat');
+          if (p === 'trip') return pickTrip(b);
+        }
+        f.panel = f.panel === p ? null : p; sync();
+      });
+      $$('[data-pp]', w).forEach(b => b.onclick = () => { const p = b.dataset.pp; if (p === 'trip') pickTrip(b); else pickCat(b, p === 'cat'); });
       $$('#fKind button', w).forEach(b => b.onclick = () => { f.kind = b.dataset.v; sync(); });
       $$('#fAcct button', w).forEach(b => b.onclick = () => { f.acct = b.dataset.v; sync(); });
+      // Scuro Moderno: scrive nelle chip / nei pallini cosa e' scelto (anche la categoria indovinata dal motivo)
+      const drawPick = () => {
+        const pk = w; if (!$('#fPick', w)) return;
+        const tn = trips()[f.trip]?.name || '', rt = $('#fMoreTag', w).textContent;
+        const vals = { cat: f.cat || '', cat2: f.cats2[0] || '', trip: tn, ret: rt };
+        pk.querySelectorAll('[data-v][data-ph]').forEach(el => { const v = vals[el.dataset.v]; el.textContent = v || (el.dataset.ph || 'Aggiungi'); el.closest('button').classList.toggle('has', !!v); });
+        pk.querySelectorAll('#fPick [data-p]').forEach(b => b.classList.toggle('open', f.panel === b.dataset.p));
+        pk.querySelectorAll('.fdot[data-p]').forEach(b => b.classList.toggle('has', !!(b.dataset.p === 'cat' ? f.cat || f.cats2.length : vals[b.dataset.p])));
+        const pt = $('#fPanTrip', w); if (pt) pt.hidden = f.giro || insMode() !== 'dots' || f.panel !== 'trip';
+        const pc = $('#fPanCats', w); if (pc) pc.hidden = insMode() !== 'dots';
+      };
       const drawCat = () => {
         f.cats2 = f.cats2.filter(c => c && c !== f.cat);
-        $('#fC2Row', w).hidden = !f.cat;
+        $('#fC2Row', w).hidden = !f.cat || (isFoglio() && f.cats2.length < 2);
         $('#fC2', w).innerHTML = f.cats2.map(c => `<button type="button" class="c2" data-rm2="${esc(c)}">${mini(c, null, 13)}<span>${esc(c)}</span><i>✕</i></button>`).join('') + '<button type="button" class="c2 add" data-add2>+ Aggiungi</button>';
         $$('#fC2 [data-rm2]', w).forEach(b => b.onclick = () => { f.cats2 = f.cats2.filter(c => c !== b.dataset.rm2); drawCat(); });
         $('#fC2 [data-add2]', w).onclick = ev => openCatMenu(ev.currentTarget, '', name => { if (name && name !== f.cat && !f.cats2.includes(name)) f.cats2.push(name); drawCat(); });
@@ -836,6 +875,7 @@ function openTxSheet(existing, preset = {}) {
         }
         const shop = f.cat === 'Shopping online' && !f.giro;
         $('#fSubs', w).hidden = !shop;
+        drawPick();
         $$('#fSubs button', w).forEach(b => b.classList.toggle('on', b.dataset.s === f.sub));
       };
       const guessSubNow = () => { if (f.cat === 'Shopping online' && !f.subManual) f.sub = C.guessSub($('#fDesc', w).value || e?.raw || ''); };
@@ -1404,7 +1444,8 @@ function viewAltro() {
     sw('groups', groupsOn(), 'folder-multiple', '#F5B84B', 'Raggruppa movimenti', 'Gruppi con nome e totale') +
     sw('gclosed', groupsClosed(), 'unfold-less-horizontal', '#F5B84B', 'Gruppi chiusi', 'Si aprono con la freccia') +
     sw('acctchip', acctChipOn(), 'tag-multiple', '#4DB8E8', 'Chip Carta e Contanti', 'Su ogni movimento') +
-    row('lpSheet', ICONS['gesture-tap-hold'] ? 'gesture-tap-hold' : 'view-list', '#4DB8E8', 'Tieni premuto per selezionare', (LP_OPTS.find(o => o[0] === lpMs()) || LP_OPTS[2]).slice(1).join(' · ')))}
+    row('lpSheet', ICONS['gesture-tap-hold'] ? 'gesture-tap-hold' : 'view-list', '#4DB8E8', 'Tieni premuto per selezionare', (LP_OPTS.find(o => o[0] === lpMs()) || LP_OPTS[2]).slice(1).join(' · ')) +
+    (isFoglio() ? row('insModeSheet', 'view-list', '#9B8CFF', 'Scelte nell’inserimento', insMode() === 'dots' ? 'Pallini a destra del riquadro' : 'Chip sotto il riquadro') : ''))}
   ${sec('Categorie e automatismi',
     row('catSheet', 'tag-multiple', '#34C79A', 'Categorie', nocat ? `${nocat} movimenti da categorizzare` : 'Tutti i movimenti hanno una categoria') +
     row('recurringSheet', 'repeat', '#FF8A5B', 'Spese ricorrenti', rec.length ? `${recOn} attive · inserite in automatico` : 'Abbonamenti, rate, affitto'))}
@@ -1453,9 +1494,9 @@ function tripSheet(id) {
   const info = id ? tripInfo(id) : null;
   const body = `${tripTypeSeg(tr.type)}<div class="form">
       <div class="frow"><label>Nome</label><input id="trNm" value="${esc(tr.name)}" placeholder="Es. Atene o Comicon 2023" autocomplete="off" autocapitalize="sentences"></div>
-      <div class="frow"><label>Dal</label><input id="trFrom" type="date" value="${esc(tr.from || '')}"></div>
-      <div class="frow"><label>Al</label><input id="trTo" type="date" value="${esc(tr.to || '')}"></div>
+      <div class="frow"><label>Date</label><button type="button" class="catsel" id="trDates"></button><input id="trFrom" type="hidden" value="${esc(tr.from || '')}"><input id="trTo" type="hidden" value="${esc(tr.to || '')}"></div>
     </div>
+    <div class="card rcal" id="trCal" hidden></div>
     ${info ? `<div class="gsum">${info.txs.length} ${info.txs.length === 1 ? 'movimento' : 'movimenti'} · speso <b class="num">${money(info.spent)}</b></div>
       ${info.cats.length ? `<div class="card">${info.cats.map(([k, v]) => `<div class="hbar"><div class="top"><span class="lbl">${mini(k, k === 'Senza categoria' ? '#9CA3AF' : null)} ${esc(k)}</span><span class="num">${money(v)}</span></div><div class="track"><div class="fill" style="width:${v / info.cats[0][1] * 100}%;background:${k === 'Senza categoria' ? '#9CA3AF' : C.catColor(k)}"></div></div></div>`).join('')}</div>` : ''}
       <div id="trList"></div>
@@ -1473,7 +1514,7 @@ function tripSheet(id) {
           await S.save('transactions', { ...x, trip: undefined }); render(); draw();
         });
       };
-      draw(); bindTripType(w);
+      draw(); bindTripType(w); rangePicker(w);
       const see = $('[data-see]', w);
       if (see) see.onclick = () => { ui.q = tr.name; ui.searchOpen = true; ui.catf = null; ui.tab = 'mese'; close(); render(); window.scrollTo(0, 0); };
       const del = $('[data-del]', w);
@@ -1493,6 +1534,41 @@ function tripSheet(id) {
       render(); toast(id ? 'Salvato' : (type ? 'Evento creato ✓' : 'Viaggio creato ✓'));
     }
   });
+}
+// date di un viaggio o evento: un calendario dove tocchi il primo e l'ultimo giorno (intervallo)
+function rangePicker(w) {
+  const fi = $('#trFrom', w), ti = $('#trTo', w), btn = $('#trDates', w), cal = $('#trCal', w);
+  const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+  const iso = d => C.isoDate(d), pd = x => new Date(+x.slice(0, 4), +x.slice(5, 7) - 1, +x.slice(8, 10));
+  let view = pd(fi.value || C.today()); view.setDate(1);
+  const label = () => {
+    const a = fi.value, b = ti.value;
+    btn.innerHTML = (a ? `<span>${esc(fmtShort(a))}${b && b !== a ? ' – ' + esc(fmtShort(b)) : ''}</span>` : '<span class="ph">Scegli…</span>') + IC.chev;
+  };
+  const draw = () => {
+    const a = fi.value, b = ti.value || a, y = view.getFullYear(), m = view.getMonth();
+    const first = (new Date(y, m, 1).getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate(), today = C.today();
+    let cells = '';
+    for (let k = 0; k < first; k++) cells += '<span></span>';
+    for (let d = 1; d <= days; d++) {
+      const x = iso(new Date(y, m, d)), cls = [x === a && 's', x === b && b && 'e', a && b && x > a && x < b && 'in', a && b && a !== b && 'r', x === today && 'td'].filter(Boolean).join(' ');
+      cells += `<button type="button" data-d="${x}" class="${cls}"><i>${d}</i></button>`;
+    }
+    cal.innerHTML = `<div class="rch"><button type="button" data-m="-1" aria-label="Mese prima">${IC.chev}</button><b>${MESI[m]} ${y}</b><button type="button" data-m="1" aria-label="Mese dopo">${IC.chev}</button></div>
+      <div class="rcg">${['L', 'M', 'M', 'G', 'V', 'S', 'D'].map(x => `<span class="rwd">${x}</span>`).join('')}${cells}</div>
+      <div class="rcf"><span>${!a ? 'Tocca il primo giorno' : !ti.value ? 'Ora tocca l’ultimo giorno' : ''}</span>${a ? '<button type="button" data-clear>Cancella date</button>' : ''}</div>`;
+    cal.querySelectorAll('[data-m]').forEach(x => x.onclick = () => { view.setMonth(view.getMonth() + +x.dataset.m); draw(); });
+    cal.querySelectorAll('[data-d]').forEach(x => x.onclick = () => {
+      const d = x.dataset.d;
+      if (!fi.value || ti.value) { fi.value = d; ti.value = ''; }
+      else if (d < fi.value) fi.value = d;
+      else ti.value = d;
+      label(); draw();
+    });
+    const cl = cal.querySelector('[data-clear]'); if (cl) cl.onclick = () => { fi.value = ''; ti.value = ''; label(); draw(); };
+  };
+  btn.onclick = () => { cal.hidden = !cal.hidden; if (!cal.hidden) draw(); };
+  label();
 }
 // selezione -> scelta del viaggio (o nuovo viaggio al volo)
 function pickTrip(txs) {
@@ -2039,7 +2115,7 @@ const actions = {
     const ids = gMembers(el.dataset.id).map(t => t.id), all = ids.every(id => ui.sel.has(id));      // in selezione: tocca il gruppo per prenderlo tutto
     ids.forEach(id => all ? ui.sel.delete(id) : ui.sel.add(id)); renderList(); renderSelBar();
   },
-  selActions, lpSheet, tripSheet: el => tripSheet(el.dataset.id), newTrip: () => tripSheet(null),
+  selActions, lpSheet, insModeSheet, tripSheet: el => tripSheet(el.dataset.id), newTrip: () => tripSheet(null),
   mvStyleSheet,
   toggleGroup: el => { if (ui.open.has(el.dataset.id)) ui.open.delete(el.dataset.id); else ui.open.add(el.dataset.id); renderList(); },
   newPerson, debtsSheet, person: el => { $('#sheetRoot').innerHTML = ''; openPerson(el.dataset.id); },
