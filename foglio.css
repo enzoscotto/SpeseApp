@@ -374,3 +374,47 @@
   & .rcg button.s i,& .rcg button.e i{color:var(--pl-ink)}
   & .rch button{background:var(--s2)}
 }
+
+/* scelte nell'inserimento: riquadri compatti (pallini) e chip della categoria nel suo colore */
+:root[data-ui="nitido"][data-foglio]{
+  & #fPick2.chip3{grid-template-columns:minmax(0,1fr)}
+  & #fPanCats.chip3,& #fPick2.chip3{margin-bottom:10px}
+  & .chip3 button.tint{background:color-mix(in srgb,var(--cc) 22%,var(--s1));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--cc) 65%,transparent)}
+  & .chip3 button.tint .cl{color:color-mix(in srgb,var(--cc) 75%,var(--text))}
+  & .chip3 button.tint .cv{color:var(--text);font-weight:500}
+  & .chip3 button.tint::after{border-color:color-mix(in srgb,var(--cc) 75%,var(--text))}
+  & .fdot.tint{background:color-mix(in srgb,var(--cc) 24%,var(--s1));color:var(--cc);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--cc) 60%,transparent)}
+  & .fdot.tint.open{background:var(--cc);color:#fff;box-shadow:none}
+}
+/* con un riquadro aperto (rientro e debito, o un pallino) importo e tastierino si stringono: niente scorrimento */
+:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(#fAmt):has(#fPick .open){
+  & .frow.amount{padding:6px 16px 4px}
+  & .frow.amount input{font-size:clamp(40px,5.4dvh,50px)}
+  & .frow{padding:9px 16px}
+  & #fMoreBody .frow{padding:8px 16px}
+  & #fMoreBody>.form{margin-bottom:8px}
+  & .keypad button{height:clamp(36px,4.9dvh,44px)}
+  & .fbtn{padding:12px}
+}
+/* rientro acceso: importo e data del rientro sulla stessa riga, tastierino ancora un po' piu' basso */
+:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(#fAmt){
+  & #fRetRows:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}
+  & #fRetRows>.frow:nth-child(1) label,& #fRetRows>.frow:nth-child(2) label{width:auto;margin-right:2px}
+  & #fRetRows>.frow:nth-child(2)::before{left:0;right:0;top:12px;bottom:12px;border-top:0;border-left:1px solid var(--line)}
+  & #fRetRows>.frow:nth-child(3){grid-column:1/3}
+  & #fRetRows>.frow:nth-child(1){position:relative}
+}
+:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(#fAmt):has(#fRetRows:not([hidden])){
+  & .keypad{gap:4px}
+  & .keypad button{height:clamp(34px,4.3dvh,40px);font-size:20px}
+  & .frow.amount input{font-size:clamp(36px,4.8dvh,44px)}
+  & #fMoreBody .frow{padding:7px 14px}
+  & .chip3 button{padding-top:6px;padding-bottom:7px}
+}
+/* debito con una persona: "Debito con" e "Tipo" sulla stessa riga */
+:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(#fAmt) #fDebtBox .form:has(#fDtRow:not([hidden])){
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  & .frow label{width:auto;margin-right:2px}
+  & .frow select{min-width:0;text-overflow:ellipsis}
+  & #fDtRow::before{left:0;right:0;top:12px;bottom:12px;border-top:0;border-left:1px solid var(--line)}
+}

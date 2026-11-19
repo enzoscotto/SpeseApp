@@ -768,13 +768,13 @@ function openTxSheet(existing, preset = {}) {
       <div id="fTextRows"><div class="frow"><label>Motivo</label><input id="fDesc" placeholder="Descrizione" value="${esc(e?.desc || '')}" autocomplete="off" autocapitalize="sentences"></div></div>
     </div>${isFoglio() ? pickUi() : ''}
     <div id="fPanCat">
-    ${isFoglio() ? `<div class="form" id="fPanCats" hidden><div class="frow"><label>Prima</label><button type="button" class="catsel" data-pp="cat"><span data-v="cat" data-ph="Scegli…"></span>${IC.chev}</button></div><div class="frow"><label>Seconda</label><button type="button" class="catsel" data-pp="cat2"><span data-v="cat2" data-ph="Nessuna"></span>${IC.chev}</button></div></div>` : ''}
+    ${isFoglio() ? `<div class="chip3 g2" id="fPanCats" hidden><button type="button" data-pp="cat"><span class="cl">Prima categoria</span><span class="cv" data-v="cat" data-ph="Scegli…"></span></button><button type="button" data-pp="cat2"><span class="cl">Seconda categoria</span><span class="cv" data-v="cat2" data-ph="Nessuna"></span></button></div>` : ''}
     <div class="form" id="fChips"><div class="frow" ${isFoglio() ? 'hidden' : ''}><label>Categoria</label><button type="button" class="catsel" id="fCatBtn"></button></div>
       <div class="frow" id="fC2Row"><label>Anche in</label><div class="cats2" id="fC2"></div></div>
       ${!isFoglio() && (tripList().length || f.trip) ? `<div class="frow"><label style="width:auto">Viaggio o evento</label><select id="fTrip"><option value="">— nessuno —</option>${tripList().map(([id, tr]) => `<option value="${esc(id)}" ${f.trip === id ? 'selected' : ''}>${esc(tr.name)}</option>`).join('')}</select></div>` : ''}</div>
     <div class="catgrid" id="fSubs" hidden></div>
     </div>
-    ${isFoglio() ? `<div id="fPanTrip" hidden><div class="form" id="fPick2"><div class="frow"><label style="width:auto">Viaggio o evento</label><button type="button" class="catsel" data-pp="trip"><span data-v="trip" data-ph="Nessuno"></span>${IC.chev}</button></div></div><select id="fTrip" hidden><option value="">— nessuno —</option>${tripList().map(([id, tr]) => `<option value="${esc(id)}" ${f.trip === id ? 'selected' : ''}>${esc(tr.name)}</option>`).join('')}</select></div>` : ''}
+    ${isFoglio() ? `<div id="fPanTrip" hidden><div class="chip3" id="fPick2"><button type="button" data-pp="trip"><span class="cl">Viaggio o evento</span><span class="cv" data-v="trip" data-ph="Nessuno"></span></button></div><select id="fTrip" hidden><option value="">— nessuno —</option>${tripList().map(([id, tr]) => `<option value="${esc(id)}" ${f.trip === id ? 'selected' : ''}>${esc(tr.name)}</option>`).join('')}</select></div>` : ''}
     <div id="fMore"><button type="button" class="morehd" id="fMoreBtn" ${isFoglio() ? 'hidden' : ''}><span>Rientro e debito</span><em id="fMoreTag"></em>${IC.chev}</button><div id="fMoreBody" hidden>
     <div class="form" id="fRetBox">
       <div class="frow"><label id="fRetLbl" style="width:auto;flex:1;color:var(--text)"></label><label class="switch"><input type="checkbox" id="fRet"><i></i></label></div>
@@ -855,6 +855,11 @@ function openTxSheet(existing, preset = {}) {
         pk.querySelectorAll('[data-v][data-ph]').forEach(el => { const v = vals[el.dataset.v]; el.textContent = v || (el.dataset.ph || 'Aggiungi'); el.closest('button').classList.toggle('has', !!v); });
         pk.querySelectorAll('#fPick [data-p]').forEach(b => b.classList.toggle('open', f.panel === b.dataset.p));
         pk.querySelectorAll('.fdot[data-p]').forEach(b => b.classList.toggle('has', !!(b.dataset.p === 'cat' ? f.cat || f.cats2.length : vals[b.dataset.p])));
+        pk.querySelectorAll('[data-v="cat"][data-ph], [data-v="cat2"][data-ph]').forEach(el => {      // la chip prende il colore della categoria
+          const v = vals[el.dataset.v], b = el.closest('button');
+          b.classList.toggle('tint', !!v); if (v) b.style.setProperty('--cc', C.catColor(v)); else b.style.removeProperty('--cc');
+        });
+        const cd = pk.querySelector('.fdot[data-p="cat"]'); if (cd) { cd.classList.toggle('tint', !!f.cat); if (f.cat) cd.style.setProperty('--cc', C.catColor(f.cat)); else cd.style.removeProperty('--cc'); }
         const pt = $('#fPanTrip', w); if (pt) pt.hidden = f.giro || insMode() !== 'dots' || f.panel !== 'trip';
         const pc = $('#fPanCats', w); if (pc) pc.hidden = insMode() !== 'dots';
       };
