@@ -762,7 +762,7 @@ function openTxSheet(existing, preset = {}) {
   const body = `
     <div class="seg big" id="fKind" style="margin-bottom:12px" ${e ? '' : 'hidden'}><button data-v="out">Uscita</button><button data-v="in">Entrata</button></div>
     <div class="seg" id="fAcct" style="margin-bottom:12px"><button data-v="carta">Carta</button><button data-v="contanti">Contanti</button></div>
-    ${isFoglio() && insMode() === 'dots' ? '<div class="fwrap">' : ''}<div class="form">
+    ${isFoglio() && insMode() === 'dots' ? '<div class="fwrap">' : ''}<div class="form fbox">
       <div class="frow amount"><input id="fAmt" inputmode="decimal" placeholder="0,00" value="${e ? C.inAmt(e.amount) : ''}" autocomplete="off"></div>
       <div class="frow"><label>Data</label><input id="fDate" type="date" value="${e ? e.date : C.today()}"></div>
       <div id="fTextRows"><div class="frow"><label>Motivo</label><input id="fDesc" placeholder="Descrizione" value="${esc(e?.desc || '')}" autocomplete="off" autocapitalize="sentences"></div></div>
@@ -845,6 +845,25 @@ function openTxSheet(existing, preset = {}) {
         f.panel = f.panel === p ? null : p; sync();
       });
       $$('[data-pp]', w).forEach(b => b.onclick = () => { const p = b.dataset.pp; if (p === 'trip') pickTrip(b); else pickCat(b, p === 'cat'); });
+      // scorrendo di lato sul riquadro di importo, data e motivo passi da Carta a Contanti (e viceversa)
+      const fbox = $('.fbox', w); let sw = null;
+      fbox.addEventListener('pointerdown', ev => { sw = !f.giro && ev.isPrimary ? { x: ev.clientX, y: ev.clientY, id: ev.pointerId, m: null } : null; });
+      fbox.addEventListener('pointermove', ev => {
+        if (!sw || ev.pointerId !== sw.id) return;
+        const dx = ev.clientX - sw.x, dy = ev.clientY - sw.y;
+        if (!sw.m) { if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; sw.m = Math.abs(dx) > Math.abs(dy) * 1.3 ? 'h' : 'v'; }
+        if (sw.m === 'h') { fbox.style.transition = 'none'; fbox.style.transform = `translate3d(${(dx * 0.35).toFixed(1)}px,0,0)`; }
+      });
+      const swEnd = (ev, cancel) => {
+        const d = sw; sw = null; if (!d || d.m !== 'h') return;
+        fbox.style.transition = 'transform .28s cubic-bezier(.2,.8,.2,1)'; fbox.style.transform = '';
+        if (!cancel && Math.abs(ev.clientX - d.x) > 40) {
+          f.acct = f.acct === 'carta' ? 'contanti' : 'carta'; sync();
+          noClickUntil = Date.now() + 300; try { navigator.vibrate?.(10); } catch { /* ignore */ }
+        }
+      };
+      fbox.addEventListener('pointerup', ev => swEnd(ev, false));
+      fbox.addEventListener('pointercancel', ev => swEnd(ev, true));
       $$('#fKind button', w).forEach(b => b.onclick = () => { f.kind = b.dataset.v; sync(); });
       $$('#fAcct button', w).forEach(b => b.onclick = () => { f.acct = b.dataset.v; sync(); });
       // Scuro Moderno: scrive nelle chip / nei pallini cosa e' scelto (anche la categoria indovinata dal motivo)

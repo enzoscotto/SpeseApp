@@ -387,7 +387,7 @@
   & .fdot.tint.open{background:var(--cc);color:#fff;box-shadow:none}
 }
 /* con un riquadro aperto (rientro e debito, o un pallino) importo e tastierino si stringono: niente scorrimento */
-:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(#fAmt):has(#fPick .open){
+:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(#fAmt):is(:has(#fPick.chip3 .open),:has(.fdot[data-p="ret"].open)){
   & .frow.amount{padding:6px 16px 4px}
   & .frow.amount input{font-size:clamp(40px,5.4dvh,50px)}
   & .frow{padding:9px 16px}
@@ -417,4 +417,23 @@
   & .frow label{width:auto;margin-right:2px}
   & .frow select{min-width:0;text-overflow:ellipsis}
   & #fDtRow::before{left:0;right:0;top:12px;bottom:12px;border-top:0;border-left:1px solid var(--line)}
+}
+
+/* pallini: la scheda ha un'altezza fissa e il riquadro di importo, data e motivo si allunga per riempirla;
+   aprendo categorie o viaggio il riquadro cede lo spazio (niente vuoto sotto, niente rimpicciolimenti) */
+:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(.fdots){
+  min-height:min(88dvh,790px);
+  & .body{display:flex;flex-direction:column}
+  & .fwrap{flex:1 0 auto}
+  & .fwrap>.form{display:flex;flex-direction:column}
+  & .fwrap .frow.amount{flex:1 0 auto;align-items:center}
+  & .fdot{max-height:none}
+}
+/* il riquadro delle categorie in piu' senza righe visibili non lascia spazio */
+:root[data-ui="nitido"][data-foglio] #fChips:not(:has(.frow:not([hidden]))){display:none}
+/* il riquadro di importo, data e motivo si puo' trascinare di lato (Carta <-> Contanti) */
+.fbox{touch-action:pan-y}
+:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(.fdots){
+  & .fdots{justify-content:space-evenly}
+  & .fdot{flex:0 0 auto;width:50px;height:50px;min-height:0}
 }
