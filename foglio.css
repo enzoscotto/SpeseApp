@@ -437,3 +437,29 @@
   & .fdots{justify-content:space-evenly}
   & .fdot{flex:0 0 auto;width:50px;height:50px;min-height:0}
 }
+
+/* pallini: tastierino e Salva restano sempre uguali; quando si apre debito e rientro si stringe solo la parte sopra */
+:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(.fdots){
+  & .keypad{gap:clamp(5px,.8dvh,8px)!important}
+  & .keypad button{height:clamp(38px,6.4dvh,56px)!important;font-size:clamp(21px,3dvh,26px)!important}
+  & .fbtn{padding:clamp(12px,1.7dvh,15px)!important}
+}
+:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(.fdots):has(.fdot[data-p="ret"].open){
+  & #fAcct{margin-bottom:6px!important}
+  & #fAcct button{padding:5px 8px}
+  & .head{padding:12px 18px 4px}
+  & .fwrap{margin-bottom:8px}
+  & .fwrap .frow{padding:7px 14px}
+  & .fwrap .frow.amount{padding:2px 14px 0}
+  & .fwrap .frow.amount input{font-size:38px}
+  & .fdots{gap:6px}
+  & .fdot{width:42px;height:42px}
+  & #fMoreBody>.form{margin-bottom:6px}
+  & #fMoreBody .frow{padding:7px 14px}
+}
+/* pallini: Uscita/Entrata e Carta/Contanti sulla stessa riga (in modifica ci sono tutte e due) */
+:root[data-ui="nitido"][data-foglio] #sheetRoot .segrow{
+  display:flex;gap:8px;margin-bottom:clamp(8px,1.2dvh,12px);
+  & .seg{flex:1;min-width:0;margin-bottom:0!important}
+  & .seg button{padding:clamp(7px,1dvh,10px) 6px}
+}

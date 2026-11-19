@@ -757,11 +757,11 @@ function openTxSheet(existing, preset = {}) {
     kind: e ? e.kind : (preset.kind || 'out'), acct: e ? e.account : (preset.acct || S.state.meta.lastAcct || 'carta'), giro: false, giroDir: 'prelievo',
     cat: e ? (e.cat || null) : null, catManual: !!(e && e.cat), catClicked: false, sub: e?.sub || null, subManual: !!e?.sub,
     more: !!(e && (ret0 || debt0 || e.unpaid)),
-    cats2: [...(e?.cats2 || [])], trip: e?.trip || '', panel: (e && (ret0 || debt0 || e.unpaid)) ? 'ret' : null,
+    cats2: [...(e?.cats2 || [])], trip: e?.trip || '', panel: !(isFoglio() && insMode() === 'dots') && e && (ret0 || debt0 || e.unpaid) ? 'ret' : null,      // con i pallini i riquadri partono sempre chiusi
   };
   const body = `
-    <div class="seg big" id="fKind" style="margin-bottom:12px" ${e ? '' : 'hidden'}><button data-v="out">Uscita</button><button data-v="in">Entrata</button></div>
-    <div class="seg" id="fAcct" style="margin-bottom:12px"><button data-v="carta">Carta</button><button data-v="contanti">Contanti</button></div>
+    ${isFoglio() && insMode() === 'dots' ? '<div class="segrow">' : ''}<div class="seg big" id="fKind" style="margin-bottom:12px" ${e ? '' : 'hidden'}><button data-v="out">Uscita</button><button data-v="in">Entrata</button></div>
+    <div class="seg" id="fAcct" style="margin-bottom:12px"><button data-v="carta">Carta</button><button data-v="contanti">Contanti</button></div>${isFoglio() && insMode() === 'dots' ? '</div>' : ''}
     ${isFoglio() && insMode() === 'dots' ? '<div class="fwrap">' : ''}<div class="form fbox">
       <div class="frow amount"><input id="fAmt" inputmode="decimal" placeholder="0,00" value="${e ? C.inAmt(e.amount) : ''}" autocomplete="off"></div>
       <div class="frow"><label>Data</label><input id="fDate" type="date" value="${e ? e.date : C.today()}"></div>
