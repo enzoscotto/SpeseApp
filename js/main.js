@@ -717,9 +717,10 @@ const insMode = () => { try { return localStorage.getItem('insmode') === 'dots' 
 const DOT_IC = {
   cat: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>',
   trip: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M20.56 3.91c.59.59.59 1.54 0 2.12l-3.89 3.89 2.12 9.19-1.41 1.42-3.88-7.43L9.6 17l.36 2.47-1.07 1.06-1.76-3.18-3.19-1.77L5 14.5l2.5.37 3.89-3.89-7.43-3.88 1.42-1.41 9.19 2.12 3.89-3.89c.56-.59 1.56-.59 2.1 0"/></svg>',
-  ret: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M21 9l-4-4v3h-7v2h7v3m-10-2-4 4 4 4v-3h7v-2H7z"/></svg>' };
-function pickUi() {
-  if (insMode() === 'dots') return `<div class="fdots" id="fPick">${['cat', 'trip', 'ret'].map(p => `<button type="button" class="fdot" data-p="${p}" aria-label="${{ cat: 'Categorie', trip: 'Viaggio o evento', ret: 'Debito e rientro' }[p]}">${DOT_IC[p]}</button>`).join('')}</div></div>`;
+  ret: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M21 9l-4-4v3h-7v2h7v3m-10-2-4 4 4 4v-3h7v-2H7z"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>' };
+function pickUi(edit) {      // edit: modifica di un movimento gia' salvato (con i pallini c'e' la matita per Uscita/Entrata e Carta/Contanti)
+  if (insMode() === 'dots') return `<div class="fdots" id="fPick">${['cat', 'trip', 'ret', ...(edit ? ['edit'] : [])].map(p => `<button type="button" class="fdot" data-p="${p}" aria-label="${{ cat: 'Categorie', trip: 'Viaggio o evento', ret: 'Debito e rientro', edit: 'Uscita o entrata, carta o contanti' }[p]}">${DOT_IC[p]}</button>`).join('')}</div></div>`;
   const c = (p, l, ph = 'Aggiungi') => `<button type="button" data-p="${p}"><span class="cl">${l}</span><span class="cv" data-v="${p}" data-ph="${ph}"></span></button>`;
   return `<div class="chip3 g2" id="fPick">${c('cat', 'Prima categoria')}${c('cat2', 'Seconda categoria', 'Nessuna')}${c('trip', 'Viaggi ed eventi')}${c('ret', 'Debito e rientro')}</div>`;
 }
@@ -760,13 +761,13 @@ function openTxSheet(existing, preset = {}) {
     cats2: [...(e?.cats2 || [])], trip: e?.trip || '', panel: !(isFoglio() && insMode() === 'dots') && e && (ret0 || debt0 || e.unpaid) ? 'ret' : null,      // con i pallini i riquadri partono sempre chiusi
   };
   const body = `
-    ${isFoglio() && insMode() === 'dots' ? '<div class="segrow">' : ''}<div class="seg big" id="fKind" style="margin-bottom:12px" ${e ? '' : 'hidden'}><button data-v="out">Uscita</button><button data-v="in">Entrata</button></div>
-    <div class="seg" id="fAcct" style="margin-bottom:12px"><button data-v="carta">Carta</button><button data-v="contanti">Contanti</button></div>${isFoglio() && insMode() === 'dots' ? '</div>' : ''}
+    <div class="seg big" id="fKind" style="margin-bottom:12px" ${e ? '' : 'hidden'}><button data-v="out">Uscita</button><button data-v="in">Entrata</button></div>
+    <div class="seg" id="fAcct" style="margin-bottom:12px"><button data-v="carta">Carta</button><button data-v="contanti">Contanti</button></div>
     ${isFoglio() && insMode() === 'dots' ? '<div class="fwrap">' : ''}<div class="form fbox">
       <div class="frow amount"><input id="fAmt" inputmode="decimal" placeholder="0,00" value="${e ? C.inAmt(e.amount) : ''}" autocomplete="off"></div>
       <div class="frow"><label>Data</label><input id="fDate" type="date" value="${e ? e.date : C.today()}"></div>
       <div id="fTextRows"><div class="frow"><label>Motivo</label><input id="fDesc" placeholder="Descrizione" value="${esc(e?.desc || '')}" autocomplete="off" autocapitalize="sentences"></div></div>
-    </div>${isFoglio() ? pickUi() : ''}
+    </div>${isFoglio() ? pickUi(!!e) : ''}
     <div id="fPanCat">
     ${isFoglio() ? `<div class="chip3 g2" id="fPanCats" hidden><button type="button" data-pp="cat"><span class="cl">Prima categoria</span><span class="cv" data-v="cat" data-ph="Scegli…"></span></button><button type="button" data-pp="cat2"><span class="cl">Seconda categoria</span><span class="cv" data-v="cat2" data-ph="Nessuna"></span></button></div>` : ''}
     <div class="form" id="fChips"><div class="frow" ${isFoglio() ? 'hidden' : ''}><label>Categoria</label><button type="button" class="catsel" id="fCatBtn"></button></div>
@@ -820,6 +821,7 @@ function openTxSheet(existing, preset = {}) {
         $('#fMoreTag', w).textContent = on.join(' · ');
         $('#fMoreBody', w).hidden = !f.more; $('#fMore', w).classList.toggle('open', f.more);
         if (isFoglio()) {
+          if (e && insMode() === 'dots') { $('#fKind', w).hidden = f.panel !== 'edit'; $('#fAcct', w).hidden = f.giro || f.panel !== 'edit'; }
           $('#fPick', w).hidden = f.giro; $('#fPanCat', w).hidden = f.giro || (insMode() === 'dots' && f.panel !== 'cat');
           $('#fMore', w).hidden = f.giro || f.panel !== 'ret';
           drawPick();
