@@ -713,14 +713,15 @@ function openCatMenu(anchor, cur, pick) {
 }
 
 // Scuro Moderno: come si scelgono categoria, viaggio e rientro nell'inserimento ('chip' o 'dots' = pallini)
+const keypadOn = () => { try { return localStorage.getItem('keypad') !== '0'; } catch { return true; } };      // Scuro Moderno: tastierino dell'app sempre visibile nell'inserimento
 const insMode = () => { try { return localStorage.getItem('insmode') === 'dots' ? 'dots' : 'chip'; } catch { return 'chip'; } };
 const DOT_IC = {
   cat: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M5.5 7A1.5 1.5 0 0 1 4 5.5 1.5 1.5 0 0 1 5.5 4 1.5 1.5 0 0 1 7 5.5 1.5 1.5 0 0 1 5.5 7m15.91 4.58-9-9C12.05 2.22 11.55 2 11 2H4c-1.11 0-2 .89-2 2v7c0 .55.22 1.05.59 1.41l8.99 9c.37.36.87.59 1.42.59s1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.56-.23-1.06-.59-1.42"/></svg>',
   trip: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M20.56 3.91c.59.59.59 1.54 0 2.12l-3.89 3.89 2.12 9.19-1.41 1.42-3.88-7.43L9.6 17l.36 2.47-1.07 1.06-1.76-3.18-3.19-1.77L5 14.5l2.5.37 3.89-3.89-7.43-3.88 1.42-1.41 9.19 2.12 3.89-3.89c.56-.59 1.56-.59 2.1 0"/></svg>',
   ret: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M21 9l-4-4v3h-7v2h7v3m-10-2-4 4 4 4v-3h7v-2H7z"/></svg>',
   edit: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>' };
-function pickUi(edit) {      // edit: modifica di un movimento gia' salvato (con i pallini c'e' la matita per Uscita/Entrata e Carta/Contanti)
-  if (insMode() === 'dots') return `<div class="fdots" id="fPick">${['cat', 'trip', 'ret', ...(edit ? ['edit'] : [])].map(p => `<button type="button" class="fdot" data-p="${p}" aria-label="${{ cat: 'Categorie', trip: 'Viaggio o evento', ret: 'Debito e rientro', edit: 'Uscita o entrata, carta o contanti' }[p]}">${DOT_IC[p]}</button>`).join('')}</div></div>`;
+function pickUi() {
+  if (insMode() === 'dots') return `<div class="fdots" id="fPick">${['cat', 'trip', 'ret'].map(p => `<button type="button" class="fdot" data-p="${p}" aria-label="${{ cat: 'Categorie', trip: 'Viaggio o evento', ret: 'Debito e rientro', edit: 'Uscita o entrata, carta o contanti' }[p]}">${DOT_IC[p]}</button>`).join('')}</div></div>`;
   const c = (p, l, ph = 'Aggiungi') => `<button type="button" data-p="${p}"><span class="cl">${l}</span><span class="cv" data-v="${p}" data-ph="${ph}"></span></button>`;
   return `<div class="chip3 g2" id="fPick">${c('cat', 'Prima categoria')}${c('cat2', 'Seconda categoria', 'Nessuna')}${c('trip', 'Viaggi ed eventi')}${c('ret', 'Debito e rientro')}</div>`;
 }
@@ -764,10 +765,10 @@ function openTxSheet(existing, preset = {}) {
     <div class="seg big" id="fKind" style="margin-bottom:12px" ${e ? '' : 'hidden'}><button data-v="out">Uscita</button><button data-v="in">Entrata</button></div>
     <div class="seg" id="fAcct" style="margin-bottom:12px"><button data-v="carta">Carta</button><button data-v="contanti">Contanti</button></div>
     ${isFoglio() && insMode() === 'dots' ? '<div class="fwrap">' : ''}<div class="form fbox">
-      <div class="frow amount"><input id="fAmt" inputmode="decimal" placeholder="0,00" value="${e ? C.inAmt(e.amount) : ''}" autocomplete="off"></div>
+      ${e && isFoglio() && insMode() === 'dots' ? `<button type="button" class="fedit" aria-label="Uscita o entrata, carta o contanti">${DOT_IC.edit}</button>` : ''}<div class="frow amount"><input id="fAmt" inputmode="decimal" placeholder="0,00" value="${e ? C.inAmt(e.amount) : ''}" autocomplete="off"></div>
       <div class="frow"><label>Data</label><input id="fDate" type="date" value="${e ? e.date : C.today()}"></div>
       <div id="fTextRows"><div class="frow"><label>Motivo</label><input id="fDesc" placeholder="Descrizione" value="${esc(e?.desc || '')}" autocomplete="off" autocapitalize="sentences"></div></div>
-    </div>${isFoglio() ? pickUi(!!e) : ''}
+    </div>${isFoglio() ? pickUi() : ''}
     <div id="fPanCat">
     ${isFoglio() ? `<div class="chip3 g2" id="fPanCats" hidden><button type="button" data-pp="cat"><span class="cl">Prima categoria</span><span class="cv" data-v="cat" data-ph="Scegli…"></span></button><button type="button" data-pp="cat2"><span class="cl">Seconda categoria</span><span class="cv" data-v="cat2" data-ph="Nessuna"></span></button></div>` : ''}
     <div class="form" id="fChips"><div class="frow" ${isFoglio() ? 'hidden' : ''}><label>Categoria</label><button type="button" class="catsel" id="fCatBtn"></button></div>
@@ -821,7 +822,7 @@ function openTxSheet(existing, preset = {}) {
         $('#fMoreTag', w).textContent = on.join(' · ');
         $('#fMoreBody', w).hidden = !f.more; $('#fMore', w).classList.toggle('open', f.more);
         if (isFoglio()) {
-          if (e && insMode() === 'dots') { $('#fKind', w).hidden = f.panel !== 'edit'; $('#fAcct', w).hidden = f.giro || f.panel !== 'edit'; }
+          if (e && insMode() === 'dots') { $('#fKind', w).hidden = f.panel !== 'edit'; $('#fAcct', w).hidden = f.giro || f.panel !== 'edit'; $('.fedit', w)?.classList.toggle('open', f.panel === 'edit'); }
           $('#fPick', w).hidden = f.giro; $('#fPanCat', w).hidden = f.giro || (insMode() === 'dots' && f.panel !== 'cat');
           $('#fMore', w).hidden = f.giro || f.panel !== 'ret';
           drawPick();
@@ -846,6 +847,7 @@ function openTxSheet(existing, preset = {}) {
         }
         f.panel = f.panel === p ? null : p; sync();
       });
+      const fe = $('.fedit', w); if (fe) fe.onclick = () => { f.panel = f.panel === 'edit' ? null : 'edit'; sync(); };
       $$('[data-pp]', w).forEach(b => b.onclick = () => { const p = b.dataset.pp; if (p === 'trip') pickTrip(b); else pickCat(b, p === 'cat'); });
       // scorrendo di lato sul riquadro di importo, data e motivo passi da Carta a Contanti (e viceversa)
       const fbox = $('.fbox', w); let sw = null;
@@ -952,7 +954,7 @@ function openTxSheet(existing, preset = {}) {
         w.remove(); render(); toast('Eliminato');
       };
       sync();
-      if (isFoglio()) mountKeypad(w, $('#fAmt', w));
+      if (isFoglio() && keypadOn()) mountKeypad(w, $('#fAmt', w));      // senza tastierino dell'app l'importo si scrive con la tastiera dell'iPhone
       else if (!e) setTimeout(() => $('#fAmt', w).focus(), 300);
       w._f = f;
     },
@@ -1470,6 +1472,7 @@ function viewAltro() {
     sw('groups', groupsOn(), 'folder-multiple', '#F5B84B', 'Raggruppa movimenti', 'Gruppi con nome e totale') +
     sw('gclosed', groupsClosed(), 'unfold-less-horizontal', '#F5B84B', 'Gruppi chiusi', 'Si aprono con la freccia') +
     sw('acctchip', acctChipOn(), 'tag-multiple', '#4DB8E8', 'Chip Carta e Contanti', 'Su ogni movimento') +
+    (isFoglio() ? sw('keypad', keypadOn(), 'dialpad', '#9B8CFF', 'Tastierino sempre visibile', keypadOn() ? 'Nell’inserimento l’importo si scrive col tastierino dell’app' : 'L’importo si scrive con la tastiera dell’iPhone') : '') +
     row('lpSheet', ICONS['gesture-tap-hold'] ? 'gesture-tap-hold' : 'view-list', '#4DB8E8', 'Tieni premuto per selezionare', (LP_OPTS.find(o => o[0] === lpMs()) || LP_OPTS[2]).slice(1).join(' · ')) +
     (isFoglio() ? row('insModeSheet', 'view-list', '#9B8CFF', 'Scelte nell’inserimento', insMode() === 'dots' ? 'Pallini a destra del riquadro' : 'Chip sotto il riquadro') : ''))}
   ${sec('Categorie e automatismi',
@@ -2159,7 +2162,7 @@ const actions = {
 };
 document.addEventListener('click', e => { const el = e.target.closest('[data-act]'); if (el && actions[el.dataset.act]) { e.preventDefault(); actions[el.dataset.act](el); } });
 document.addEventListener('change', e => { const el = e.target; if (el.matches && el.matches('[data-import]') && el.files[0]) { doImport(el.files[0], el.dataset.import); el.value = ''; } });
-document.addEventListener('change', e => { if (e.target.matches?.('[data-groups]')) setGroupsOn(e.target.checked); if (e.target.matches?.('[data-acctchip]')) { try { localStorage.setItem('acctchip', e.target.checked ? '1' : '0'); } catch { /* ignore */ } applyAcctChip(); } if (e.target.matches?.('[data-gclosed]')) { setGroupsClosed(e.target.checked); ui.open.clear(); } });
+document.addEventListener('change', e => { if (e.target.matches?.('[data-keypad]')) { try { localStorage.setItem('keypad', e.target.checked ? '1' : '0'); } catch { /* ignore */ } render(); } if (e.target.matches?.('[data-groups]')) setGroupsOn(e.target.checked); if (e.target.matches?.('[data-acctchip]')) { try { localStorage.setItem('acctchip', e.target.checked ? '1' : '0'); } catch { /* ignore */ } applyAcctChip(); } if (e.target.matches?.('[data-gclosed]')) { setGroupsClosed(e.target.checked); ui.open.clear(); } });
 document.addEventListener('change', e => { if (e.target.id === 'catf') { ui.catf = e.target.value; renderList(); } });
 document.addEventListener('input', e => { if (e.target.id === 'q') { ui.q = e.target.value; renderList(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'q') e.target.blur(); });

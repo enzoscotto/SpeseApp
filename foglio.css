@@ -474,13 +474,23 @@
   & .body{padding-bottom:2px}
   & .fwrap{margin-bottom:6px}
 }
-/* pallini in modifica: quattro pallini (c'e' anche la matita) */
-:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(.fdot[data-p="edit"]){
-  & .fdots{gap:6px}
-  & .fdot{width:46px;height:46px}
+/* pallini in modifica: matita piccola in alto a sinistra nel riquadro dell'importo (mostra Uscita/Entrata e Carta/Contanti) */
+:root[data-ui="nitido"][data-foglio] #sheetRoot{
+  & .fbox{position:relative}
+  & .fedit{position:absolute;left:8px;top:8px;z-index:1;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--s2);color:var(--muted);box-shadow:inset 0 0 0 1px var(--line);transition:background .15s,color .15s,transform .12s}
+  & .fedit svg{width:16px;height:16px}
+  & .fedit:active{transform:scale(.92)}
+  & .fedit.open{background:var(--accent);color:var(--pl-ink);box-shadow:none}
 }
 :root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(.fdots){
   & #fMore{margin-bottom:0}
   & #fMoreBody>:last-child,& #fMoreBody>:last-child>.form:last-child{margin-bottom:0}
   & .body{padding-bottom:8px}
+}
+/* senza tastierino dell'app (Impostazioni): la scheda prende solo l'altezza che serve, la tastiera dell'iPhone sale da sotto */
+:root[data-ui="nitido"][data-foglio] #sheetRoot .sheet:has(#fAmt):not(:has(.keypad)){
+  min-height:0;
+  & .fwrap{flex:0 0 auto}
+  & .fwrap .frow.amount{flex:0 0 auto}
+  & .fdots{justify-content:space-between}
 }
